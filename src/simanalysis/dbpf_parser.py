@@ -1,4 +1,5 @@
 """Utilities for parsing Sims 4 DBPF package files."""
+
 from __future__ import annotations
 
 import io

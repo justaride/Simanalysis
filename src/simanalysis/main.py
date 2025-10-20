@@ -1,4 +1,5 @@
 """Command-line interface for running the Simanalysis diagnostics."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,8 +9,10 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 from textwrap import shorten
+from typing import Iterable, Sequence
 
-from .analyzer import ModAnalyzer
+from .analyzer import AnalysisResult, ModAnalyzer
+from .dbpf_parser import DBPFPackage
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -58,9 +61,7 @@ def main(argv: list[str] | None = None) -> int:
 
     exception_entries = []
     if args.exceptions:
-        exception_entries = collect_exception_summaries(
-            mods_path, args.exceptions_path
-        )
+        exception_entries = collect_exception_summaries(mods_path, args.exceptions_path)
 
     render_console_report(
         result,
@@ -82,13 +83,13 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def render_console_report(
-    result,
+    result: AnalysisResult,
     mods_path: Path,
     scan_time: dt.datetime,
-    exceptions,
+    exceptions: Sequence[dict[str, str]],
     *,
     exceptions_requested: bool,
-):
+) -> None:
     divider = "=" * 80
     print(divider)
     print("🎮 SIMS 4 MOD ANALYZER")
@@ -107,9 +108,7 @@ def render_console_report(
 
     print("📜 Scanning script files...")
     for metadata in result.scripts:
-        print(
-            f"Analyzed: {metadata.path.name} ({metadata.file_count} files)"
-        )
+        print(f"Analyzed: {metadata.path.name} ({metadata.file_count} files)")
     for path, message in result.script_errors:
         print(f"⚠️ Failed: {path.name} — {message}")
     print(f"✓ Found {len(result.scripts)} script files")
@@ -210,7 +209,7 @@ def render_console_report(
         print("   • No exception logs located")
 
 
-def estimate_total_package_size(packages) -> float:
+def estimate_total_package_size(packages: Iterable[DBPFPackage]) -> float:
     total_size = 0
     for package in packages:
         try:
@@ -220,7 +219,7 @@ def estimate_total_package_size(packages) -> float:
     return total_size / (1024 * 1024) if total_size else 0.0
 
 
-def collect_exception_summaries(mods_path: Path, explicit_path: str | None):
+def collect_exception_summaries(mods_path: Path, explicit_path: str | None) -> list[dict[str, str]]:
     candidate_paths = []
     if explicit_path:
         explicit = Path(explicit_path).expanduser()
@@ -232,8 +231,7 @@ def collect_exception_summaries(mods_path: Path, explicit_path: str | None):
             mods_path.parent / "lastException.txt",
             mods_path / "LastException.txt",
             mods_path.parent / "LastException.txt",
-            Path.home()
-            / "Documents/Electronic Arts/The Sims 4/lastException.txt",
+            Path.home() / "Documents/Electronic Arts/The Sims 4/lastException.txt",
         }:
             if candidate.exists():
                 candidate_paths.append(candidate)
@@ -251,17 +249,28 @@ def collect_exception_summaries(mods_path: Path, explicit_path: str | None):
                 continue
             summary = shorten(lines[0], width=120, placeholder="…")
             snippet = "\n".join(lines[:6])
-            entries.append({
-                "summary": summary,
-                "snippet": snippet,
-                "path": str(path),
-            })
+            entries.append(
+                {
+                    "summary": summary,
+                    "snippet": snippet,
+                    "path": str(path),
+                }
+            )
     return entries
 
 
-def render_html_report(result, mods_path: Path, scan_time: dt.datetime, exceptions):
+def render_html_report(
+    result: AnalysisResult,
+    mods_path: Path,
+    scan_time: dt.datetime,
+    exceptions: Sequence[dict[str, str]],
+) -> str:
     def esc(value: str) -> str:
         return html.escape(value, quote=True)
+
+    total_mods_summary = (
+        f"{result.total_mods} ({len(result.packages)} packages + {len(result.scripts)} scripts)"
+    )
 
     conflicts_rows = "".join(
         f"<tr><td>{esc(conflict.severity)}</td>"
@@ -275,31 +284,44 @@ def render_html_report(result, mods_path: Path, scan_time: dt.datetime, exceptio
     if not conflicts_rows:
         conflicts_rows = "<tr><td colspan='5'>No conflicts detected.</td></tr>"
 
-    dependency_list = "".join(
-        f"<li><strong>{esc(mod)}</strong>: {esc(', '.join(deps))}</li>"
-        for mod, deps in sorted(result.dependencies.items())
-    ) or "<li>No dependencies detected.</li>"
+    dependency_list = (
+        "".join(
+            f"<li><strong>{esc(mod)}</strong>: {esc(', '.join(deps))}</li>"
+            for mod, deps in sorted(result.dependencies.items())
+        )
+        or "<li>No dependencies detected.</li>"
+    )
 
-    recommendations_list = "".join(
-        f"<li>{esc(item)}</li>" for item in result.recommendations
-    ) or "<li>No immediate actions recommended.</li>"
+    recommendations_list = (
+        "".join(f"<li>{esc(item)}</li>" for item in result.recommendations)
+        or "<li>No immediate actions recommended.</li>"
+    )
 
-    exception_section = "".join(
-        f"<article><h3>{esc(entry['summary'])}</h3>"
-        f"<p><em>{esc(entry['path'])}</em></p>"
-        f"<pre>{esc(entry['snippet'])}</pre></article>"
-        for entry in exceptions
-    ) or "<p>No exception logs were found for this scan.</p>"
+    exception_section = (
+        "".join(
+            f"<article><h3>{esc(entry['summary'])}</h3>"
+            f"<p><em>{esc(entry['path'])}</em></p>"
+            f"<pre>{esc(entry['snippet'])}</pre></article>"
+            for entry in exceptions
+        )
+        or "<p>No exception logs were found for this scan.</p>"
+    )
 
-    package_rows = "".join(
-        f"<tr><td>{esc(pkg.path.name)}</td><td>{len(pkg.resources)}</td></tr>"
-        for pkg in result.packages
-    ) or "<tr><td colspan='2'>No packages detected.</td></tr>"
+    package_rows = (
+        "".join(
+            f"<tr><td>{esc(pkg.path.name)}</td><td>{len(pkg.resources)}</td></tr>"
+            for pkg in result.packages
+        )
+        or "<tr><td colspan='2'>No packages detected.</td></tr>"
+    )
 
-    script_rows = "".join(
-        f"<tr><td>{esc(meta.path.name)}</td><td>{meta.file_count}</td></tr>"
-        for meta in result.scripts
-    ) or "<tr><td colspan='2'>No script archives detected.</td></tr>"
+    script_rows = (
+        "".join(
+            f"<tr><td>{esc(meta.path.name)}</td><td>{meta.file_count}</td></tr>"
+            for meta in result.scripts
+        )
+        or "<tr><td colspan='2'>No script archives detected.</td></tr>"
+    )
 
     html_report = f"""
 <!DOCTYPE html>
@@ -319,9 +341,9 @@ def render_html_report(result, mods_path: Path, scan_time: dt.datetime, exceptio
 </head>
 <body>
   <h1>Sims 4 Mod Analysis Report</h1>
-  <p><strong>Scan Time:</strong> {esc(scan_time.strftime('%Y-%m-%d %H:%M:%S'))}</p>
+  <p><strong>Scan Time:</strong> {esc(scan_time.strftime("%Y-%m-%d %H:%M:%S"))}</p>
   <p><strong>Mods Path:</strong> {esc(str(mods_path))}</p>
-  <p><strong>Total Mods:</strong> {result.total_mods} ({len(result.packages)} packages + {len(result.scripts)} scripts)</p>
+  <p><strong>Total Mods:</strong> {esc(total_mods_summary)}</p>
   <p><strong>Performance Score:</strong> {result.performance_score:.0f}/100</p>
 
   <h2>Package Files</h2>
@@ -339,7 +361,13 @@ def render_html_report(result, mods_path: Path, scan_time: dt.datetime, exceptio
   <h2>Conflicts</h2>
   <table>
     <thead>
-      <tr><th>Severity</th><th>Type</th><th>Affected Mods</th><th>Description</th><th>Resolution</th></tr>
+      <tr>
+        <th>Severity</th>
+        <th>Type</th>
+        <th>Affected Mods</th>
+        <th>Description</th>
+        <th>Resolution</th>
+      </tr>
     </thead>
     <tbody>{conflicts_rows}</tbody>
   </table>

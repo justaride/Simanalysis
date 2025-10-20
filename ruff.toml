@@ -1,0 +1,6 @@
+line-length = 100
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B"]
+per-file-ignores = {"src/simanalysis/__init__.py" = ["F401"]}

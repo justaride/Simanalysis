@@ -35,8 +35,8 @@ This repository is optimized for Claude Code with:
 git clone https://github.com/justaride/Simanalysis.git
 cd Simanalysis
 
-# Install dependencies
-pip install -r requirements.txt
+# Install Simanalysis (and tools for development)
+pip install -e .[dev]
 ```
 
 ## Usage
@@ -53,7 +53,7 @@ print(results.dependencies)
 
 ### Command-Line Report Generation
 ```
-python -m src.main /path/to/mods --exceptions --output sims4_mod_report.html
+simanalysis /path/to/mods --exceptions --output sims4_mod_report.html
 ```
 
 This command prints a detailed summary to the console and (optionally) writes
@@ -73,8 +73,11 @@ claude analyze-mods --path ~/Mods --deep-scan
 Simanalysis/
 ├── docs/                # Project plans and architecture docs
 │   └── architecture.md  # Long-term vision for the analyzer
-├── src/                 # Source code
-│   └── analyzer.py      # Core analysis engine
+├── src/
+│   └── simanalysis/
+│       ├── analyzer.py      # Core analysis engine
+│       ├── cli.py           # Typer-powered CLI entry point
+│       └── main.py          # Shared console/HTML rendering helpers
 ├── README.md
 └── requirements.txt
 ```

@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simanalysis"
+version = "0.1.0"
+description = "Static and runtime diagnostics for The Sims 4 mods"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Simanalysis Maintainers" }
+]
+dependencies = [
+    "lxml",
+    "typer[all]",
+    "rich",
+    "networkx",
+    "pydantic",
+    "jinja2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "mypy",
+    "ruff",
+    "pre-commit",
+    "types-lxml",
+    "types-PyYAML",
+]
+
+[project.scripts]
+simanalysis = "simanalysis.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"simanalysis" = ["py.typed"]

@@ -5,13 +5,12 @@ Author: Derrick (AI-Powered)
 
 import re
 from collections import defaultdict
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
 
-from .dbpf_parser import DBPFParsingError, DBPFPackage, DBPFResourceEntry, load_package
+from .dbpf_parser import DBPFPackage, DBPFParsingError, DBPFResourceEntry, load_package
 from .script_metadata import ScriptModMetadata, analyze_script_mod
-
 
 DLC_CODE_MAP = {
     "EP01": "Get to Work",
@@ -65,6 +64,7 @@ DLC_PATTERN = re.compile(r"(EP\d{2}|GP\d{2}|SP\d{2})", re.IGNORECASE)
 @dataclass
 class ModConflict:
     """Represents a detected mod conflict"""
+
     severity: str
     type: str
     affected_mods: List[str]
@@ -75,6 +75,7 @@ class ModConflict:
 @dataclass
 class AnalysisResult:
     """Analysis results for a mod collection"""
+
     total_mods: int
     conflicts: List[ModConflict]
     dependencies: Dict[str, List[str]]
@@ -92,10 +93,10 @@ class ModAnalyzer:
     AI-enhanced conflict detection and performance analysis
     """
 
-    def __init__(self, mod_path: str = None):
-        self.mod_path = Path(mod_path) if mod_path else None
-        self.conflicts = []
-        self.dependencies = {}
+    def __init__(self, mod_path: Optional[str] = None):
+        self.mod_path: Optional[Path] = Path(mod_path) if mod_path else None
+        self.conflicts: List[ModConflict] = []
+        self.dependencies: Dict[str, List[str]] = {}
 
     def analyze_directory(self, path: str) -> AnalysisResult:
         """
@@ -243,9 +244,12 @@ class ModAnalyzer:
                     type="SCRIPT_MODULE_COLLISION",
                     affected_mods=unique_mods,
                     description=(
-                        f"Multiple script mods provide the module '{module}', which can lead to injection conflicts."
+                        "Multiple script mods provide the module "
+                        f"'{module}', which can lead to injection conflicts."
                     ),
-                    resolution="Load only one version of the module or verify injector compatibility.",
+                    resolution=(
+                        "Load only one version of the module or verify injector compatibility."
+                    ),
                 )
             )
 
@@ -301,7 +305,7 @@ class ModAnalyzer:
         base_score = 100.0
 
         # Reduce score based on mod count
-        base_score -= (mod_count * 0.5)
+        base_score -= mod_count * 0.5
 
         # Reduce based on conflicts
         for conflict in conflicts:
@@ -325,7 +329,9 @@ class ModAnalyzer:
 
         critical_conflicts = [c for c in conflicts if c.severity == "CRITICAL"]
         if critical_conflicts:
-            recommendations.append(f"Resolve {len(critical_conflicts)} critical conflicts immediately")
+            recommendations.append(
+                f"Resolve {len(critical_conflicts)} critical conflicts immediately"
+            )
 
         duplicate_resources = [c for c in conflicts if c.type == "RESOURCE_DUPLICATE"]
         if duplicate_resources:
@@ -336,7 +342,8 @@ class ModAnalyzer:
         for mod_name, deps in dependencies.items():
             if any(dep.startswith("python_") for dep in deps):
                 recommendations.append(
-                    f"Verify that {mod_name} targets the latest supported Python runtime before the next game update."
+                    "Verify that {mod_name} targets the latest supported Python runtime "
+                    "before the next game update.".format(mod_name=mod_name)
                 )
             if "xml_injector" in deps:
                 recommendations.append(

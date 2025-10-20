@@ -1,4 +1,5 @@
 """Helpers for extracting metadata from Sims 4 `.ts4script` archives."""
+
 from __future__ import annotations
 
 import marshal
@@ -8,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Iterator, List, Set
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 PYTHON_MAGIC_VERSIONS = {
     b"\x16\r\r\n": "3.7",
@@ -19,8 +20,12 @@ PYTHON_MAGIC_VERSIONS = {
 }
 
 FRAMEWORK_SIGNATURES = {
-    "xml_injector": tuple(sig.encode("utf-8") for sig in ("xmlinjector", "xml_injector", "XmlInjector")),
-    "mc_command_center": tuple(sig.encode("utf-8") for sig in ("mc_cmd_center", "mccc", "mc_woohoo")),
+    "xml_injector": tuple(
+        sig.encode("utf-8") for sig in ("xmlinjector", "xml_injector", "XmlInjector")
+    ),
+    "mc_command_center": tuple(
+        sig.encode("utf-8") for sig in ("mc_cmd_center", "mccc", "mc_woohoo")
+    ),
 }
 
 COMMAND_PATTERN = re.compile(rb"sims4\.commands\.Command")
@@ -65,7 +70,7 @@ def analyze_script_mod(path: Path) -> ScriptModMetadata:
     return metadata
 
 
-def _module_name_from_zipinfo(info) -> str:
+def _module_name_from_zipinfo(info: ZipInfo) -> str:
     name = info.filename
     if name.startswith("__MACOSX/"):
         return ""
