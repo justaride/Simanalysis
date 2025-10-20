@@ -1,0 +1,34 @@
+{
+  "project": {
+    "name": "Simanalysis",
+    "description": "Derrick - The PhD in Simology and Complexity Theory. Surgical analysis of Sims 4 mods and CC.",
+    "type": "python-analysis",
+    "version": "1.0.0"
+  },
+  "codex": {
+    "enabled": true,
+    "model": "claude-sonnet-4-5",
+    "capabilities": [
+      "mod-analysis",
+      "conflict-detection",
+      "dependency-mapping",
+      "performance-profiling",
+      "xml-parsing",
+      "package-inspection"
+    ]
+  },
+  "analysis": {
+    "targets": [
+      "*.package",
+      "*.ts4script",
+      "*.py"
+    ],
+    "output_format": "json",
+    "deep_scan": true
+  },
+  "integration": {
+    "mcp_enabled": true,
+    "filesystem_access": true,
+    "git_integration": true
+  }
+}
