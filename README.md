@@ -11,11 +11,14 @@ Simanalysis is an AI-powered analysis tool for The Sims 4 mods and custom conten
 ## Features
 
 - **Conflict Detection**: Identify tuning conflicts, resource overlaps, and script collisions
+- **Resource Introspection**: Parse `.package` files for duplicate Type/Group/Instance records
+- **Script Intelligence**: Inspect `.ts4script` archives for module collisions and framework dependencies
 - **Performance Analysis**: Assess mod impact on game performance
 - **Dependency Mapping**: Visualize mod dependencies and requirements
 - **XML Tuning Analysis**: Deep dive into tuning modifications
-- **Package Inspection**: Extract and analyze .package file contents
+- **Package Inspection**: Extract and analyze `.package` file contents
 - **AI-Powered Insights**: Leverage Claude's understanding of mod complexity
+- **Roadmapped Runtime Monitoring**: See the [architecture plan](docs/architecture.md) for live telemetry and reporting goals.
 
 ## Codex Integration
 
@@ -32,8 +35,8 @@ This repository is optimized for Claude Code with:
 git clone https://github.com/justaride/Simanalysis.git
 cd Simanalysis
 
-# Install dependencies
-pip install -r requirements.txt
+# Install Simanalysis (and tools for development)
+pip install -e .[dev]
 ```
 
 ## Usage
@@ -45,7 +48,18 @@ from simanalysis import ModAnalyzer
 analyzer = ModAnalyzer()
 results = analyzer.analyze_directory("/path/to/mods")
 print(results.conflicts)
+print(results.dependencies)
 ```
+
+### Command-Line Report Generation
+```
+simanalysis /path/to/mods --exceptions --output sims4_mod_report.html
+```
+
+This command prints a detailed summary to the console and (optionally) writes
+an HTML report. Use `--exceptions` to include summaries from any
+`lastException.txt` logs located near the scan path or the standard Sims 4
+documents folder.
 
 ### AI-Assisted Analysis
 ```bash
@@ -57,16 +71,18 @@ claude analyze-mods --path ~/Mods --deep-scan
 
 ```
 Simanalysis/
-├── .codex/              # Codex AI configuration
-│   ├── config.json      # Project settings
-│   └── prompts.md       # Analysis prompts
-├── src/                 # Source code
-│   ├── analyzer.py      # Core analysis engine
-│   ├── parser.py        # Package/XML parsing
-│   └── detector.py      # Conflict detection
-├── tests/               # Test suite
-└── README.md
+├── docs/                # Project plans and architecture docs
+│   └── architecture.md  # Long-term vision for the analyzer
+├── src/
+│   └── simanalysis/
+│       ├── analyzer.py      # Core analysis engine
+│       ├── cli.py           # Typer-powered CLI entry point
+│       └── main.py          # Shared console/HTML rendering helpers
+├── README.md
+└── requirements.txt
 ```
+
+For a deep dive into planned capabilities—static analysis, runtime instrumentation, and remediation workflows—see [docs/architecture.md](docs/architecture.md).
 
 ## Contributing
 

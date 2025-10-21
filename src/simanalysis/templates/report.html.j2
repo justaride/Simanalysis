@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>Simanalysis Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 2rem; background: #f7f7f9; color: #222; }
+        header { margin-bottom: 2rem; }
+        table { border-collapse: collapse; width: 100%; margin-bottom: 1rem; }
+        th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+        th { background: #efefef; }
+        details { margin-bottom: 1rem; }
+        summary { cursor: pointer; font-weight: bold; }
+        code { background: #eee; padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
+        .stat-list { list-style: none; padding: 0; display: flex; gap: 1.5rem; }
+        .stat-list li { background: #fff; padding: 0.75rem 1.25rem; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        #graph-json { background: #1e1e1e; color: #dcdcdc; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+        #graph { margin-top: 1rem; background: #fff; border: 1px solid #ddd; border-radius: 0.5rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        #graph svg { width: 100%; height: 400px; }
+        .graph-node { fill: #4c6ef5; cursor: pointer; transition: transform 0.2s; }
+        .graph-node text { pointer-events: none; font-size: 10px; fill: #fff; }
+        .graph-edge { stroke: #bbb; stroke-width: 1.5; }
+        .graph-node.highlight { fill: #f59f00; }
+        .graph-edge.highlight { stroke: #f59f00; stroke-width: 2; }
+        .graph-empty { color: #666; font-style: italic; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Simanalysis Report</h1>
+        <p>Generated summary of Sims 4 mods inventory and conflicts.</p>
+    </header>
+
+    <section id="summary">
+        <h2>Summary</h2>
+        <ul class="stat-list">
+            <li><strong>Packages:</strong> {{ summary.packages }}</li>
+            <li><strong>Total resources:</strong> {{ summary.resources }}</li>
+            <li><strong>Conflicts:</strong> {{ summary.conflicts }}</li>
+        </ul>
+    </section>
+
+    <section id="conflicts">
+        <h2>Conflicts</h2>
+        {% if conflicts %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Resource Key</th>
+                    <th>Packages</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for conflict in conflicts %}
+                <tr>
+                    <td><code>{{ conflict.key }}</code></td>
+                    <td>
+                        <ul>
+                            {% for pkg in conflict.packages %}
+                            <li>{{ pkg }}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No duplicate resources detected.</p>
+        {% endif %}
+        {% if conflict_text %}
+        <h3>Conflict Summary</h3>
+        <pre>{{ conflict_text }}</pre>
+        {% endif %}
+    </section>
+
+    <section id="packages">
+        <h2>Packages</h2>
+        {% for package in packages %}
+        <details>
+            <summary>{{ package.path }} ({{ package.entry_count }} entries)</summary>
+            <p><strong>SHA-256:</strong> <code>{{ package.sha256 }}</code></p>
+            {% if package.entries %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Path</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in package.entries %}
+                    <tr>
+                        <td><code>{{ entry.key }}</code></td>
+                        <td>{{ entry.resource_type or "-" }}</td>
+                        <td>{{ entry.size }}</td>
+                        <td>{{ entry.path_in_package or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p>No indexed resources.</p>
+            {% endif %}
+        </details>
+        {% endfor %}
+    </section>
+
+    <section id="deps">
+        <h2>Dependency Graph</h2>
+        <div id="graph-data" data-json='{{ deps_json|e }}'></div>
+        <div id="graph"></div>
+        <pre id="graph-json"></pre>
+    </section>
+
+    <script>
+    const graphDataEl = document.getElementById('graph-data');
+    try {
+        const data = JSON.parse(graphDataEl.dataset.json || '{}');
+        document.getElementById('graph-json').textContent = JSON.stringify(data, null, 2);
+        const graphContainer = document.getElementById('graph');
+        graphContainer.innerHTML = '';
+        if (!data.nodes || data.nodes.length === 0) {
+            const empty = document.createElement('p');
+            empty.className = 'graph-empty';
+            empty.textContent = 'No dependencies available.';
+            graphContainer.appendChild(empty);
+        } else {
+            const width = graphContainer.clientWidth || 640;
+            const height = 400;
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+            graphContainer.appendChild(svg);
+
+            const nodes = data.nodes.map((node, index) => ({
+                id: node.id,
+                tuning_type: node.tuning_type,
+                x: width / 2 + Math.cos((index / data.nodes.length) * Math.PI * 2) * 120,
+                y: height / 2 + Math.sin((index / data.nodes.length) * Math.PI * 2) * 120,
+                vx: 0,
+                vy: 0,
+            }));
+            const edges = data.edges || [];
+
+            const nodeById = new Map(nodes.map((node) => [node.id, node]));
+            const neighborMap = new Map();
+            edges.forEach((edge) => {
+                if (!neighborMap.has(edge.source)) neighborMap.set(edge.source, new Set());
+                if (!neighborMap.has(edge.target)) neighborMap.set(edge.target, new Set());
+                neighborMap.get(edge.source).add(edge.target);
+                neighborMap.get(edge.target).add(edge.source);
+            });
+
+            const iterations = 200;
+            const repulsion = 2000;
+            const spring = 0.02;
+            const damping = 0.85;
+            for (let i = 0; i < iterations; i++) {
+                for (let j = 0; j < nodes.length; j++) {
+                    for (let k = j + 1; k < nodes.length; k++) {
+                        const a = nodes[j];
+                        const b = nodes[k];
+                        let dx = a.x - b.x;
+                        let dy = a.y - b.y;
+                        let dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                        const force = repulsion / (dist * dist);
+                        const fx = (force * dx) / dist;
+                        const fy = (force * dy) / dist;
+                        a.vx += fx;
+                        a.vy += fy;
+                        b.vx -= fx;
+                        b.vy -= fy;
+                    }
+                }
+                edges.forEach((edge) => {
+                    const source = nodeById.get(edge.source);
+                    const target = nodeById.get(edge.target);
+                    if (!source || !target) return;
+                    const dx = target.x - source.x;
+                    const dy = target.y - source.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy) || 0.01;
+                    const desired = 140;
+                    const force = spring * (distance - desired);
+                    const fx = (force * dx) / distance;
+                    const fy = (force * dy) / distance;
+                    source.vx += fx;
+                    source.vy += fy;
+                    target.vx -= fx;
+                    target.vy -= fy;
+                });
+                nodes.forEach((node) => {
+                    node.vx *= damping;
+                    node.vy *= damping;
+                    node.x = Math.min(width - 30, Math.max(30, node.x + node.vx * 0.01));
+                    node.y = Math.min(height - 30, Math.max(30, node.y + node.vy * 0.01));
+                });
+            }
+
+            const edgeGroup = document.createElementNS(svgNS, 'g');
+            const nodeGroup = document.createElementNS(svgNS, 'g');
+            svg.appendChild(edgeGroup);
+            svg.appendChild(nodeGroup);
+
+            edges.forEach((edge) => {
+                const source = nodeById.get(edge.source);
+                const target = nodeById.get(edge.target);
+                if (!source || !target) return;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', String(source.x));
+                line.setAttribute('y1', String(source.y));
+                line.setAttribute('x2', String(target.x));
+                line.setAttribute('y2', String(target.y));
+                line.classList.add('graph-edge');
+                line.dataset.source = edge.source;
+                line.dataset.target = edge.target;
+                edgeGroup.appendChild(line);
+            });
+
+            nodes.forEach((node) => {
+                const group = document.createElementNS(svgNS, 'g');
+                group.classList.add('graph-node');
+                group.dataset.nodeId = node.id;
+                group.setAttribute('transform', `translate(${node.x}, ${node.y})`);
+
+                const circle = document.createElementNS(svgNS, 'circle');
+                circle.setAttribute('r', '12');
+                group.appendChild(circle);
+
+                const label = document.createElementNS(svgNS, 'text');
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('dy', '4');
+                label.textContent = node.id.slice(-8);
+                group.appendChild(label);
+
+                group.addEventListener('click', () => {
+                    const highlightSet = new Set([node.id]);
+                    const neighbors = neighborMap.get(node.id) || new Set();
+                    neighbors.forEach((n) => highlightSet.add(n));
+                    document.querySelectorAll('.graph-node').forEach((el) => {
+                        el.classList.toggle('highlight', highlightSet.has(el.dataset.nodeId));
+                    });
+                    document.querySelectorAll('.graph-edge').forEach((el) => {
+                        const keep =
+                            highlightSet.has(el.dataset.source) && highlightSet.has(el.dataset.target);
+                        el.classList.toggle('highlight', keep);
+                    });
+                });
+
+                nodeGroup.appendChild(group);
+            });
+
+            svg.addEventListener('click', (event) => {
+                if (event.target === svg) {
+                    document.querySelectorAll('.graph-node').forEach((el) => el.classList.remove('highlight'));
+                    document.querySelectorAll('.graph-edge').forEach((el) => el.classList.remove('highlight'));
+                }
+            });
+        }
+    } catch (err) {
+        document.getElementById('graph-json').textContent = 'Failed to parse dependency graph JSON.';
+    }
+    </script>
+</body>
+</html>
