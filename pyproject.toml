@@ -39,4 +39,4 @@ simanalysis = "simanalysis.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"simanalysis" = ["py.typed"]
+"simanalysis" = ["py.typed", "templates/*.j2"]
