@@ -1,81 +1,72 @@
-# Simanalysis 🔬
+# Simanalysis
 
-**Derrick - The PhD in Simology and Complexity Theory**
-
-When creators complexify The Sim Universe with modifications within EA's restrictive parameters, we need surgeons and surveyors. That is Derrick's passion.
-
-## Overview
-
-Simanalysis is an AI-powered analysis tool for The Sims 4 mods and custom content. Built with Claude Code integration, it provides deep insights into mod conflicts, performance impacts, and compatibility issues.
+Simanalysis helps Sims 4 players audit their mod folders. The current toolkit
+collects useful statistics such as total mods and an estimated performance score
+while laying the foundation for deeper conflict analysis.
 
 ## Features
 
-- **Conflict Detection**: Identify tuning conflicts, resource overlaps, and script collisions
-- **Performance Analysis**: Assess mod impact on game performance
-- **Dependency Mapping**: Visualize mod dependencies and requirements
-- **XML Tuning Analysis**: Deep dive into tuning modifications
-- **Package Inspection**: Extract and analyze .package file contents
-- **AI-Powered Insights**: Leverage Claude's understanding of mod complexity
-
-## Codex Integration
-
-This repository is optimized for Claude Code with:
-- `.codex/` configuration for AI-assisted analysis
-- Custom prompts for Sims 4 domain expertise
-- MCP (Model Context Protocol) integration
-- Automated conflict detection workflows
+- Count Sims 4 `.package` and `.ts4script` files inside a directory.
+- Estimate a basic performance score based on the number of detected mods.
+- Provide placeholder hooks for future conflict and dependency analysis.
+- Ship a Typer-based command line interface and typed Python API.
 
 ## Installation
 
-```bash
-# Clone the repository
-git clone https://github.com/justaride/Simanalysis.git
-cd Simanalysis
+Create and activate a virtual environment, then install the project in editable
+mode together with its development dependencies:
 
-# Install dependencies
-pip install -r requirements.txt
+```bash
+pip install -e .[dev]
 ```
+
+The optional `dev` extra installs the tools used in continuous integration such
+as Ruff, MyPy, and pytest.
 
 ## Usage
 
-### Basic Analysis
+### Command line
+
+After installation a `simanalysis` executable becomes available:
+
+```bash
+simanalysis --help
+simanalysis analyze /path/to/Mods
+```
+
+The CLI prints the total number of mods discovered, the estimated performance
+score, and any generated recommendations.
+
+### Python API
+
 ```python
+from pathlib import Path
+
 from simanalysis import ModAnalyzer
 
+mods_dir = Path("/path/to/Mods")
 analyzer = ModAnalyzer()
-results = analyzer.analyze_directory("/path/to/mods")
-print(results.conflicts)
+result = analyzer.analyze_directory(mods_dir)
+print(result.total_mods)
+print(result.performance_score)
 ```
 
-### AI-Assisted Analysis
+## Development
+
+The repository uses Ruff, MyPy, and pytest. Run them locally before opening a
+pull request:
+
 ```bash
-# Use with Claude Code
-claude analyze-mods --path ~/Mods --deep-scan
-```
-
-## Project Structure
-
-```
-Simanalysis/
-├── .codex/              # Codex AI configuration
-│   ├── config.json      # Project settings
-│   └── prompts.md       # Analysis prompts
-├── src/                 # Source code
-│   ├── analyzer.py      # Core analysis engine
-│   ├── parser.py        # Package/XML parsing
-│   └── detector.py      # Conflict detection
-├── tests/               # Test suite
-└── README.md
+ruff check
+mypy .
+pytest -q
 ```
 
 ## Contributing
 
-Contributions welcome! This tool is built for the Sims modding community.
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details on local setup and
+code style expectations.
 
 ## License
 
-MIT License - Use freely, mod responsibly
-
----
-
-*"In complexity, we find clarity. In chaos, we find patterns."* - Derrick
+Simanalysis is distributed under the terms of the [MIT License](LICENSE).

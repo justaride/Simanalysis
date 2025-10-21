@@ -1,0 +1,20 @@
+line-length = 100
+target-version = "py39"
+src = ["src", "tests"]
+
+[lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "B",  # flake8-bugbear
+    "I",  # isort
+    "UP", # pyupgrade
+]
+ignore = [
+    "B905",  # allow zip without strict
+]
+
+[format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "simanalysis"
+version = "0.1.0"
+description = "Analyze The Sims 4 mods for conflicts and performance issues."
+readme = "README.md"
+license = {text = "MIT License"}
+authors = [{name = "Derrick", email = "derrick@example.com"}]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+    "pytest>=7.4",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+simanalysis = "simanalysis.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+pythonpath = ["src"]
+
