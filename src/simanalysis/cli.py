@@ -79,6 +79,16 @@ def cli():
     is_flag=True,
     help="Verbose output with detailed progress",
 )
+@click.option(
+    "--tui",
+    is_flag=True,
+    help="Use rich terminal interface (beautiful output)",
+)
+@click.option(
+    "--show-mods",
+    is_flag=True,
+    help="Show detailed mod list (TUI mode only)",
+)
 def analyze(
     mods_directory: str,
     output: Optional[str],
@@ -88,6 +98,8 @@ def analyze(
     quick: bool,
     recursive: bool,
     verbose: bool,
+    tui: bool,
+    show_mods: bool,
 ):
     """
     Analyze Sims 4 mods directory for conflicts and issues.
@@ -103,6 +115,38 @@ def analyze(
     """
     mods_path = Path(mods_directory).expanduser().resolve()
 
+    # Use Rich TUI if requested
+    if tui:
+        from simanalysis.tui import tui as simanalysis_tui
+
+        result = simanalysis_tui.display_with_progress(
+            mods_path,
+            parse_tunings=not no_tunings,
+            parse_scripts=not no_scripts,
+            calculate_hashes=not quick,
+            recursive=recursive,
+            show_mods=show_mods,
+        )
+
+        # Export if requested
+        if output:
+            output_path = Path(output).expanduser().resolve()
+            analyzer = ModAnalyzer(
+                parse_tunings=not no_tunings,
+                parse_scripts=not no_scripts,
+                calculate_hashes=not quick,
+            )
+            analyzer.export_report(result, output_path, format=format)
+            click.echo(f"\n📄 Full report saved to: {output_path}")
+
+        # Exit with error code if critical conflicts found
+        critical_count = len([c for c in result.conflicts if c.severity == Severity.CRITICAL])
+        if critical_count > 0:
+            sys.exit(1)
+
+        return
+
+    # Standard CLI output
     if verbose:
         click.echo(f"🔬 Starting analysis of: {mods_path}")
         click.echo(f"   Parse tunings: {not no_tunings}")
@@ -226,7 +270,12 @@ def analyze(
     is_flag=True,
     help="Show detailed mod information",
 )
-def scan(mods_directory: str, recursive: bool, verbose: bool):
+@click.option(
+    "--tui",
+    is_flag=True,
+    help="Use rich terminal interface (beautiful output)",
+)
+def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool):
     """
     Quick scan of mods directory (no conflict detection).
 
@@ -237,6 +286,14 @@ def scan(mods_directory: str, recursive: bool, verbose: bool):
     """
     mods_path = Path(mods_directory).expanduser().resolve()
 
+    # Use Rich TUI if requested
+    if tui:
+        from simanalysis.tui import tui as simanalysis_tui
+
+        simanalysis_tui.display_scan_result(mods_path, recursive=recursive, verbose=verbose)
+        return
+
+    # Standard CLI output
     click.echo(f"📂 Scanning {mods_path}...")
 
     # Create analyzer (quick mode)

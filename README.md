@@ -90,8 +90,17 @@ pip install -r requirements.txt
 The easiest way to use Simanalysis is through the command-line interface:
 
 ```bash
-# Analyze your Mods folder
-simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods"
+# Analyze with beautiful Rich TUI (recommended)
+simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --tui
+
+# Analyze with mod list displayed
+simanalysis analyze ~/Mods --tui --show-mods
+
+# Standard CLI output
+simanalysis analyze ~/Mods
+
+# Quick scan with TUI
+simanalysis scan ~/Mods --tui --verbose
 
 # Quick scan (faster, no hashing)
 simanalysis analyze ~/Mods --quick
@@ -112,9 +121,22 @@ simanalysis view report.json
 simanalysis info
 ```
 
+#### Rich Terminal Interface (TUI)
+
+For the best experience, use the `--tui` flag to get:
+- 🎨 **Beautiful colored output** with tables, panels, and trees
+- 📊 **Visual progress bars** during analysis
+- 🔍 **Hierarchical conflict view** grouped by severity
+- 📈 **Performance metrics dashboard**
+- 💡 **Color-coded recommendations**
+
+The TUI uses the [Rich](https://github.com/Textualize/rich) library to provide a modern, visually appealing interface right in your terminal.
+
 #### CLI Options
 
 **analyze** - Full analysis with conflict detection:
+- `--tui` - Use Rich terminal interface (beautiful output)
+- `--show-mods` - Show detailed mod list (TUI mode only)
 - `--output, -o PATH` - Export report to file
 - `--format, -f [txt|json]` - Report format (default: txt)
 - `--quick, -q` - Skip hash calculation (faster)
@@ -124,10 +146,12 @@ simanalysis info
 - `--verbose, -v` - Show detailed output
 
 **scan** - Quick directory scan without analysis:
+- `--tui` - Use Rich terminal interface
 - `--recursive/--no-recursive` - Scan subdirectories
 - `--verbose, -v` - Show mod list
 
 **view** - View saved JSON report
+
 **info** - Show program information
 
 ### Python API
