@@ -90,8 +90,11 @@ pip install -r requirements.txt
 The easiest way to use Simanalysis is through the command-line interface:
 
 ```bash
-# Analyze with beautiful Rich TUI (recommended)
-simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --tui
+# Interactive mode with keyboard navigation (best experience!)
+simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --interactive
+
+# Analyze with beautiful Rich TUI (great for one-time analysis)
+simanalysis analyze ~/Mods --tui
 
 # Analyze with mod list displayed
 simanalysis analyze ~/Mods --tui --show-mods
@@ -121,21 +124,32 @@ simanalysis view report.json
 simanalysis info
 ```
 
+#### Interactive Terminal Interface
+
+For the **best experience**, use the `--interactive` (or `-i`) flag for a fully interactive application:
+- ⌨️  **Keyboard navigation** - Use arrow keys, Tab, and shortcuts
+- 📑 **Tabbed interface** - Switch between Conflicts, Mods, and Details
+- 🔍 **Filtering** - Filter conflicts by severity level
+- 📤 **Export dialog** - Save reports to TXT or JSON interactively
+- 📊 **Live tables** - Browse conflicts and mods with sortable tables
+- ❓ **Built-in help** - Press `?` for keyboard shortcuts
+
 #### Rich Terminal Interface (TUI)
 
-For the best experience, use the `--tui` flag to get:
+For beautiful one-time analysis, use the `--tui` flag:
 - 🎨 **Beautiful colored output** with tables, panels, and trees
 - 📊 **Visual progress bars** during analysis
 - 🔍 **Hierarchical conflict view** grouped by severity
 - 📈 **Performance metrics dashboard**
 - 💡 **Color-coded recommendations**
 
-The TUI uses the [Rich](https://github.com/Textualize/rich) library to provide a modern, visually appealing interface right in your terminal.
+The interactive mode uses [Textual](https://github.com/Textualize/textual) for a full TUI app, while the Rich TUI uses [Rich](https://github.com/Textualize/rich) for beautiful static output.
 
 #### CLI Options
 
 **analyze** - Full analysis with conflict detection:
-- `--tui` - Use Rich terminal interface (beautiful output)
+- `--interactive, -i` - Interactive mode with keyboard navigation (**recommended**)
+- `--tui` - Rich terminal interface (beautiful output)
 - `--show-mods` - Show detailed mod list (TUI mode only)
 - `--output, -o PATH` - Export report to file
 - `--format, -f [txt|json]` - Report format (default: txt)

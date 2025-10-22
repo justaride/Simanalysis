@@ -85,6 +85,12 @@ def cli():
     help="Use rich terminal interface (beautiful output)",
 )
 @click.option(
+    "--interactive",
+    "-i",
+    is_flag=True,
+    help="Interactive mode with keyboard navigation (requires textual)",
+)
+@click.option(
     "--show-mods",
     is_flag=True,
     help="Show detailed mod list (TUI mode only)",
@@ -99,6 +105,7 @@ def analyze(
     recursive: bool,
     verbose: bool,
     tui: bool,
+    interactive: bool,
     show_mods: bool,
 ):
     """
@@ -114,6 +121,19 @@ def analyze(
     MODS_DIRECTORY: Path to your Sims 4 Mods folder
     """
     mods_path = Path(mods_directory).expanduser().resolve()
+
+    # Use Interactive TUI if requested
+    if interactive:
+        from simanalysis.interactive_tui import run_interactive_tui
+
+        run_interactive_tui(
+            mods_path,
+            parse_tunings=not no_tunings,
+            parse_scripts=not no_scripts,
+            calculate_hashes=not quick,
+            recursive=recursive,
+        )
+        return
 
     # Use Rich TUI if requested
     if tui:
