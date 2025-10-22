@@ -1,0 +1,9 @@
+"""Sample Sims 4 Script Mod"""
+
+import sims4.commands
+
+@sims4.commands.Command('test_command', command_type=sims4.commands.CommandType.Live)
+def test_command(_connection=None):
+    """Test command that does nothing."""
+    sims4.commands.output('Test command executed!', _connection)
+    return True
