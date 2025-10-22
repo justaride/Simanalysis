@@ -3,10 +3,37 @@
 **Derrick - The PhD in Simology**
 *Surgical analysis of Sims 4 mods and CC. When creators complexify The Sim Universe, we need surveyors.*
 
-[![Tests](https://img.shields.io/badge/tests-175%20passing-success)]()
-[![Coverage](https://img.shields.io/badge/coverage-93%25-brightgreen)]()
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+[![Tests](https://github.com/justaride/Simanalysis/actions/workflows/tests.yml/badge.svg)](https://github.com/justaride/Simanalysis/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/justaride/Simanalysis/branch/main/graph/badge.svg)](https://codecov.io/gh/justaride/Simanalysis)
+[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+---
+
+## ⚡ Quickstart
+
+```bash
+# Install
+pip install simanalysis
+
+# Analyze your mods (interactive mode - recommended!)
+simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --interactive
+
+# Or use beautiful Rich TUI for quick check
+simanalysis analyze ~/Mods --tui
+
+# Export detailed report
+simanalysis analyze ~/Mods --output report.json --format json
+```
+
+**That's it!** Simanalysis will:
+- ✅ Scan all your mods and CC
+- 🔍 Detect conflicts, duplicates, and compatibility issues
+- 📊 Show performance impact and load time estimates
+- 💡 Provide actionable recommendations
+- 📤 Export detailed reports
 
 ---
 
