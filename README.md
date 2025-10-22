@@ -85,7 +85,54 @@ pip install -r requirements.txt
 
 ## 📖 Usage
 
-### Basic Usage
+### Command-Line Interface (CLI)
+
+The easiest way to use Simanalysis is through the command-line interface:
+
+```bash
+# Analyze your Mods folder
+simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods"
+
+# Quick scan (faster, no hashing)
+simanalysis analyze ~/Mods --quick
+
+# Export detailed report
+simanalysis analyze ~/Mods --output report.json --format json
+
+# Verbose output with conflict details
+simanalysis analyze ~/Mods --verbose
+
+# Quick directory scan (no conflict detection)
+simanalysis scan ~/Mods
+
+# View a saved report
+simanalysis view report.json
+
+# Show program info
+simanalysis info
+```
+
+#### CLI Options
+
+**analyze** - Full analysis with conflict detection:
+- `--output, -o PATH` - Export report to file
+- `--format, -f [txt|json]` - Report format (default: txt)
+- `--quick, -q` - Skip hash calculation (faster)
+- `--no-tunings` - Skip tuning parsing
+- `--no-scripts` - Skip script analysis
+- `--recursive/--no-recursive` - Scan subdirectories (default: recursive)
+- `--verbose, -v` - Show detailed output
+
+**scan** - Quick directory scan without analysis:
+- `--recursive/--no-recursive` - Scan subdirectories
+- `--verbose, -v` - Show mod list
+
+**view** - View saved JSON report
+**info** - Show program information
+
+### Python API
+
+You can also use Simanalysis as a Python library:
 
 ```python
 from pathlib import Path
