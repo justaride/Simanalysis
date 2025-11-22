@@ -6,6 +6,7 @@ This module provides tools to read and extract resources from these files.
 Format specification: https://simswiki.info/DatabasePackedFile
 """
 
+import logging
 import struct
 import zlib
 from pathlib import Path
@@ -13,6 +14,8 @@ from typing import BinaryIO, List, Optional
 
 from simanalysis.exceptions import DBPFError
 from simanalysis.models import DBPFHeader, DBPFResource
+
+logger = logging.getLogger(__name__)
 
 
 class DBPFReader:
@@ -51,10 +54,15 @@ class DBPFReader:
         self.path = Path(package_path)
 
         if not self.path.exists():
+            logger.error(f"Package file not found: {self.path}")
             raise FileNotFoundError(f"Package file not found: {self.path}")
 
         if not self.path.is_file():
+            logger.error(f"Path is not a file: {self.path}")
             raise DBPFError(f"Path is not a file: {self.path}")
+
+        logger.info(f"Initialized DBPF reader for: {self.path.name}")
+        logger.debug(f"Full path: {self.path}, Size: {self.path.stat().st_size} bytes")
 
         self._header: Optional[DBPFHeader] = None
         self._resources: Optional[List[DBPFResource]] = None
@@ -69,14 +77,15 @@ class DBPFReader:
         Raises:
             DBPFError: If header is invalid or corrupted
         """
+        logger.debug(f"Reading DBPF header from: {self.path.name}")
+
         with open(self.path, "rb") as f:
             header_data = f.read(self.HEADER_SIZE)
 
             if len(header_data) < self.HEADER_SIZE:
-                raise DBPFError(
-                    f"File too small: expected at least {self.HEADER_SIZE} bytes, "
-                    f"got {len(header_data)}"
-                )
+                error_msg = f"File too small: expected at least {self.HEADER_SIZE} bytes, got {len(header_data)}"
+                logger.error(f"{self.path.name}: {error_msg}")
+                raise DBPFError(error_msg)
 
             try:
                 # Parse header fields
@@ -117,13 +126,18 @@ class DBPFReader:
                     file_size=file_size,
                 )
 
+                logger.info(f"Parsed DBPF header: version={major_version}.{minor_version}, resources={index_count}")
+                logger.debug(f"Header details: index_offset={index_offset}, index_size={index_size}, file_size={file_size}")
+
                 self._header = header
                 return header
 
             except struct.error as e:
+                logger.error(f"Failed to parse DBPF header: {e}")
                 raise DBPFError(f"Failed to parse DBPF header: {e}") from e
             except ValueError as e:
                 # Raised by DBPFHeader validation
+                logger.error(f"Invalid DBPF header: {e}")
                 raise DBPFError(f"Invalid DBPF header: {e}") from e
 
     def read_index(self) -> List[DBPFResource]:
@@ -139,6 +153,8 @@ class DBPFReader:
         if self._header is None:
             self._header = self.read_header()
 
+        logger.debug(f"Reading index table: {self._header.index_count} entries")
+
         with open(self.path, "rb") as f:
             # Seek to index table
             f.seek(self._header.index_offset)
@@ -147,11 +163,9 @@ class DBPFReader:
             index_data = f.read(self._header.index_size)
 
             if len(index_data) < self._header.index_size:
-                raise DBPFError(
-                    f"Could not read complete index table: "
-                    f"expected {self._header.index_size} bytes, "
-                    f"got {len(index_data)}"
-                )
+                error_msg = f"Could not read complete index table: expected {self._header.index_size} bytes, got {len(index_data)}"
+                logger.error(f"{self.path.name}: {error_msg}")
+                raise DBPFError(error_msg)
 
             resources = []
             offset = 0
@@ -198,6 +212,15 @@ class DBPFReader:
 
                 offset += self.INDEX_ENTRY_SIZE
 
+            logger.info(f"Parsed {len(resources)} resources from index table")
+
+            # Count resources by type for debug logging
+            if logger.isEnabledFor(logging.DEBUG):
+                type_counts = {}
+                for resource in resources:
+                    type_counts[resource.type] = type_counts.get(resource.type, 0) + 1
+                logger.debug(f"Resource types: {len(type_counts)} unique types")
+
             self._resources = resources
             return resources
 
@@ -214,6 +237,8 @@ class DBPFReader:
         Raises:
             DBPFError: If resource cannot be read
         """
+        logger.debug(f"Extracting resource: type=0x{resource.type:08X}, instance=0x{resource.instance:016X}")
+
         with open(self.path, "rb") as f:
             # Seek to resource offset
             f.seek(resource.offset)
@@ -227,24 +252,24 @@ class DBPFReader:
             data = f.read(read_size)
 
             if len(data) < read_size:
-                raise DBPFError(
-                    f"Could not read complete resource: "
-                    f"expected {read_size} bytes, got {len(data)}"
-                )
+                error_msg = f"Could not read complete resource: expected {read_size} bytes, got {len(data)}"
+                logger.error(f"{self.path.name}: {error_msg}")
+                raise DBPFError(error_msg)
 
             # Decompress if necessary
             if resource.is_compressed:
+                logger.debug(f"Decompressing resource: {resource.compressed_size} -> {resource.size} bytes")
                 try:
                     # DBPF uses zlib compression
                     data = zlib.decompress(data)
 
                     if len(data) != resource.size:
-                        raise DBPFError(
-                            f"Decompressed size mismatch: "
-                            f"expected {resource.size}, got {len(data)}"
-                        )
+                        error_msg = f"Decompressed size mismatch: expected {resource.size}, got {len(data)}"
+                        logger.error(f"{self.path.name}: {error_msg}")
+                        raise DBPFError(error_msg)
 
                 except zlib.error as e:
+                    logger.error(f"Failed to decompress resource: {e}")
                     raise DBPFError(f"Failed to decompress resource: {e}") from e
 
             return data

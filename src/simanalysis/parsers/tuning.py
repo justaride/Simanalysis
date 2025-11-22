@@ -6,12 +6,15 @@ This module provides tools to parse these XML files and extract metadata.
 Tuning files define objects, interactions, buffs, traits, and more.
 """
 
+import logging
 import re
 from typing import Dict, Any, Set, Optional
 from lxml import etree
 
 from simanalysis.exceptions import TuningError
 from simanalysis.models import TuningData, PACK_PREFIXES
+
+logger = logging.getLogger(__name__)
 
 
 class TuningParser:
@@ -48,6 +51,8 @@ class TuningParser:
         Raises:
             TuningError: If XML is invalid or missing required fields
         """
+        logger.debug(f"Parsing XML tuning data ({len(xml_data)} bytes)")
+
         try:
             # Parse XML
             root = etree.fromstring(xml_data)
@@ -58,10 +63,14 @@ class TuningParser:
             tuning_class = self.get_tuning_class(root)
             module = self.get_module(root)
 
+            logger.info(f"Parsed tuning: {tuning_name} (class={tuning_class}, id=0x{instance_id:08X})")
+
             # Extract modifications and references
             modified_attributes = self.extract_modifications(root)
             references = self.find_references(root)
             pack_requirements = self.detect_pack_requirements(root)
+
+            logger.debug(f"Tuning details: {len(modified_attributes)} attributes, {len(references)} references, packs={pack_requirements}")
 
             return TuningData(
                 instance_id=instance_id,
@@ -74,8 +83,13 @@ class TuningParser:
             )
 
         except etree.XMLSyntaxError as e:
+            logger.error(f"Invalid XML syntax: {e}")
             raise TuningError(f"Invalid XML syntax: {e}") from e
+        except TuningError:
+            # Re-raise TuningError (already logged in get_instance_id)
+            raise
         except Exception as e:
+            logger.error(f"Failed to parse tuning: {e}")
             raise TuningError(f"Failed to parse tuning: {e}") from e
 
     def get_instance_id(self, root: etree._Element) -> int:
@@ -102,6 +116,7 @@ class TuningParser:
             instance_str = root.get("i")
 
         if instance_str is None:
+            logger.error("Instance ID not found in tuning XML")
             raise TuningError("Instance ID not found in tuning XML")
 
         try:
@@ -111,6 +126,7 @@ class TuningParser:
             else:
                 return int(instance_str)
         except ValueError as e:
+            logger.error(f"Invalid instance ID format: {instance_str}")
             raise TuningError(f"Invalid instance ID format: {instance_str}") from e
 
     def get_tuning_name(self, root: etree._Element) -> str:

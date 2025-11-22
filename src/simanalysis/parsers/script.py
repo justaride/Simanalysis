@@ -10,12 +10,15 @@ This module provides tools to analyze these scripts for:
 """
 
 import ast
+import logging
 import zipfile
 from pathlib import Path
 from typing import List, Set, Optional
 
 from simanalysis.exceptions import ScriptError
 from simanalysis.models import ScriptMetadata, ScriptModule
+
+logger = logging.getLogger(__name__)
 
 
 class ScriptAnalyzer:
@@ -65,14 +68,20 @@ class ScriptAnalyzer:
         self.path = Path(script_path)
 
         if not self.path.exists():
+            logger.error(f"Script file not found: {self.path}")
             raise FileNotFoundError(f"Script file not found: {self.path}")
 
         if not self.path.is_file():
+            logger.error(f"Path is not a file: {self.path}")
             raise ScriptError(f"Path is not a file: {self.path}")
 
         # Verify it's a valid ZIP archive
         if not zipfile.is_zipfile(self.path):
+            logger.error(f"File is not a valid ZIP archive: {self.path}")
             raise ScriptError(f"File is not a valid ZIP archive: {self.path}")
+
+        logger.info(f"Initialized script analyzer for: {self.path.name}")
+        logger.debug(f"Full path: {self.path}, Size: {self.path.stat().st_size} bytes")
 
         self._metadata: Optional[ScriptMetadata] = None
         self._modules: Optional[List[ScriptModule]] = None
@@ -90,10 +99,16 @@ class ScriptAnalyzer:
         Returns:
             ScriptMetadata with extracted information
         """
+        logger.debug(f"Extracting metadata from script: {self.path.name}")
+
         name = self._extract_name()
         version = self._extract_version()
         author = self._extract_author()
         requires = self._extract_requirements()
+
+        logger.info(f"Extracted metadata: name={name}, version={version}, author={author}")
+        if requires:
+            logger.debug(f"Script requirements: {requires}")
 
         metadata = ScriptMetadata(
             name=name,
