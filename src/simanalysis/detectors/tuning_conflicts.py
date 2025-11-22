@@ -4,6 +4,7 @@ Detects when multiple mods modify the same tuning instance IDs,
 which can cause unexpected game behavior or crashes.
 """
 
+import logging
 from collections import defaultdict
 from typing import Dict, List, Set
 
@@ -13,6 +14,8 @@ from simanalysis.detectors.base import (
     SeverityRules,
 )
 from simanalysis.models import ConflictType, Mod, ModConflict
+
+logger = logging.getLogger(__name__)
 
 
 class TuningConflictDetector(ConflictDetector):
@@ -41,17 +44,21 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             List of detected conflicts
         """
+        logger.info(f"Starting tuning conflict detection for {len(mods)} mods")
         conflicts: List[ModConflict] = []
 
         # Build index: tuning_id -> list of (mod, tuning_data)
         tuning_index = self._build_tuning_index(mods)
+        logger.debug(f"Built tuning index: {len(tuning_index)} unique tuning IDs")
 
         # Find conflicts (tunings modified by multiple mods)
         for tuning_id, tuning_entries in tuning_index.items():
             if len(tuning_entries) > 1:
+                logger.warning(f"Tuning conflict detected: ID 0x{tuning_id:08X} modified by {len(tuning_entries)} mods")
                 conflict = self._create_tuning_conflict(tuning_id, tuning_entries)
                 conflicts.append(conflict)
 
+        logger.info(f"Detected {len(conflicts)} tuning conflicts")
         return conflicts
 
     def _build_tuning_index(

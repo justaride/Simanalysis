@@ -1,10 +1,13 @@
 """Base classes and utilities for conflict detection."""
 
+import logging
 from abc import ABC, abstractmethod
 from typing import List
 from datetime import datetime
 
 from simanalysis.models import Mod, ModConflict, Severity, ConflictType
+
+logger = logging.getLogger(__name__)
 
 
 class ConflictDetector(ABC):
@@ -25,6 +28,7 @@ class ConflictDetector(ABC):
         """Initialize detector."""
         self.conflicts_found = 0
         self.last_run: datetime | None = None
+        logger.debug(f"Initialized {self.__class__.__name__}")
 
     @abstractmethod
     def detect(self, mods: List[Mod]) -> List[ModConflict]:
@@ -56,8 +60,11 @@ class ConflictDetector(ABC):
         Returns:
             Severity level
         """
+        logger.debug(f"Calculating severity: type={conflict_type}, affected={affected_count}, core={is_core_resource}")
+
         # Core resources are always critical
         if is_core_resource:
+            logger.debug("Core resource conflict -> CRITICAL")
             return Severity.CRITICAL
 
         # Script injections are high risk

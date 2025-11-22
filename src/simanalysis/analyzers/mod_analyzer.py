@@ -1,5 +1,6 @@
 """Complete mod analysis pipeline integrating scanning and conflict detection."""
 
+import logging
 import time
 from datetime import datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ from simanalysis.models import (
     Severity,
 )
 from simanalysis.scanners import ModScanner
+
+logger = logging.getLogger(__name__)
 
 
 class ModAnalyzer:
@@ -51,6 +54,9 @@ class ModAnalyzer:
             calculate_hashes: Whether to calculate file hashes
             detectors: Custom list of conflict detectors (uses defaults if None)
         """
+        logger.info("Initializing ModAnalyzer")
+        logger.debug(f"Options: parse_tunings={parse_tunings}, parse_scripts={parse_scripts}, calculate_hashes={calculate_hashes}")
+
         self.scanner = ModScanner(
             parse_tunings=parse_tunings,
             parse_scripts=parse_scripts,
@@ -63,8 +69,10 @@ class ModAnalyzer:
                 TuningConflictDetector(),
                 ResourceConflictDetector(),
             ]
+            logger.debug(f"Using default detectors: {len(self.detectors)} detectors")
         else:
             self.detectors = detectors
+            logger.debug(f"Using custom detectors: {len(self.detectors)} detectors")
 
     def analyze_directory(
         self,
@@ -83,18 +91,26 @@ class ModAnalyzer:
         Returns:
             Complete analysis result with mods and conflicts
         """
+        logger.info(f"Starting analysis of directory: {directory}")
+        logger.debug(f"Analysis options: recursive={recursive}, extensions={extensions}")
         start_time = time.time()
 
         # Scan directory for mods
+        logger.info("Scanning for mod files...")
         mods = self.scanner.scan_directory(directory, recursive, extensions)
+        logger.info(f"Found {len(mods)} mod files")
 
         # Run conflict detection
+        logger.info("Running conflict detection...")
         conflicts = self.detect_conflicts(mods)
+        logger.info(f"Detected {len(conflicts)} conflicts")
 
         # Calculate performance metrics
+        logger.debug("Calculating performance metrics...")
         performance = self._calculate_performance(mods)
 
         # Build dependency map
+        logger.debug("Building dependency map...")
         dependencies = self._build_dependencies(mods)
 
         # Generate recommendations

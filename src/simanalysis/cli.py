@@ -1,5 +1,6 @@
 """Command-line interface for Simanalysis."""
 
+import logging
 import sys
 from pathlib import Path
 from typing import Optional
@@ -9,6 +10,7 @@ import click
 from simanalysis import __version__
 from simanalysis.analyzers import ModAnalyzer
 from simanalysis.models import Severity
+from simanalysis.utils.logging import setup_logging, get_default_log_file
 
 
 @click.group()
@@ -95,6 +97,22 @@ def cli():
     is_flag=True,
     help="Show detailed mod list (TUI mode only)",
 )
+@click.option(
+    "--log-level",
+    type=click.Choice(["DEBUG", "INFO", "WARNING", "ERROR"], case_sensitive=False),
+    default="INFO",
+    help="Set logging level (default: INFO)",
+)
+@click.option(
+    "--log-file",
+    type=click.Path(),
+    help="Write logs to file (default: ~/.simanalysis/logs/simanalysis.log)",
+)
+@click.option(
+    "--quiet",
+    is_flag=True,
+    help="Suppress console logging (still writes to log file if --log-file specified)",
+)
 def analyze(
     mods_directory: str,
     output: Optional[str],
@@ -107,6 +125,9 @@ def analyze(
     tui: bool,
     interactive: bool,
     show_mods: bool,
+    log_level: str,
+    log_file: Optional[str],
+    quiet: bool,
 ):
     """
     Analyze Sims 4 mods directory for conflicts and issues.
@@ -120,6 +141,24 @@ def analyze(
 
     MODS_DIRECTORY: Path to your Sims 4 Mods folder
     """
+    # Setup logging first
+    log_file_path = Path(log_file).expanduser().resolve() if log_file else get_default_log_file()
+
+    # Override log level if verbose flag is set
+    if verbose and log_level == "INFO":
+        log_level = "DEBUG"
+
+    setup_logging(
+        level=log_level,
+        log_file=log_file_path if (log_file or not quiet) else None,
+        console=not quiet,
+        colored=True,
+    )
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Starting Simanalysis v{__version__}")
+    logger.debug(f"Analyzing directory: {mods_directory}")
+
     mods_path = Path(mods_directory).expanduser().resolve()
 
     # Use Interactive TUI if requested

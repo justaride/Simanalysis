@@ -1,6 +1,7 @@
 """Scanner for discovering and categorizing Sims 4 mods."""
 
 import hashlib
+import logging
 from pathlib import Path
 from typing import List, Optional, Set
 
@@ -9,6 +10,8 @@ from simanalysis.models import Mod, ModType
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.script import ScriptAnalyzer
 from simanalysis.parsers.tuning import TuningParser
+
+logger = logging.getLogger(__name__)
 
 
 class ModScanner:
@@ -39,6 +42,7 @@ class ModScanner:
             parse_scripts: Whether to analyze script files
             calculate_hashes: Whether to calculate file hashes
         """
+        logger.debug(f"Initializing ModScanner: parse_tunings={parse_tunings}, parse_scripts={parse_scripts}, calculate_hashes={calculate_hashes}")
         self.parse_tunings = parse_tunings
         self.parse_scripts = parse_scripts
         self.calculate_hashes = calculate_hashes
@@ -65,10 +69,15 @@ class ModScanner:
         Raises:
             SimanalysisError: If directory doesn't exist or isn't accessible
         """
+        logger.info(f"Scanning directory: {directory}")
+        logger.debug(f"Scan options: recursive={recursive}, extensions={extensions}")
+
         if not directory.exists():
+            logger.error(f"Directory not found: {directory}")
             raise SimanalysisError(f"Directory not found: {directory}")
 
         if not directory.is_dir():
+            logger.error(f"Not a directory: {directory}")
             raise SimanalysisError(f"Not a directory: {directory}")
 
         # Default extensions
@@ -81,17 +90,22 @@ class ModScanner:
 
         # Find all mod files
         files = self._find_mod_files(directory, recursive, extensions)
+        logger.info(f"Found {len(files)} potential mod files")
 
         # Scan each file
-        for file_path in files:
+        for i, file_path in enumerate(files, 1):
+            if i % 10 == 0:  # Log progress every 10 files
+                logger.debug(f"Scanning progress: {i}/{len(files)} files")
             try:
                 mod = self.scan_file(file_path)
                 if mod:
                     mods.append(mod)
                     self.mods_scanned += 1
             except Exception as e:
+                logger.warning(f"Failed to scan {file_path.name}: {e}")
                 self.errors_encountered.append((file_path, str(e)))
 
+        logger.info(f"Successfully scanned {len(mods)} mods ({len(self.errors_encountered)} errors)")
         return mods
 
     def scan_file(self, file_path: Path) -> Optional[Mod]:

@@ -4,6 +4,7 @@ Detects when multiple mods contain duplicate or conflicting resources,
 such as textures, meshes, audio files, or string tables.
 """
 
+import logging
 from collections import defaultdict
 from typing import Dict, List, Set
 
@@ -13,6 +14,8 @@ from simanalysis.detectors.base import (
     SeverityRules,
 )
 from simanalysis.models import ConflictType, Mod, ModConflict
+
+logger = logging.getLogger(__name__)
 
 
 class ResourceConflictDetector(ConflictDetector):
@@ -49,21 +52,31 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             List of detected conflicts
         """
+        logger.info(f"Starting resource conflict detection for {len(mods)} mods")
         conflicts: List[ModConflict] = []
 
         # Build index: resource_key -> list of mods
         resource_index = self._build_resource_index(mods)
+        logger.debug(f"Built resource index: {len(resource_index)} unique resource keys")
 
         # Find conflicts (resources in multiple mods)
+        duplicate_count = 0
         for resource_key, mod_list in resource_index.items():
             if len(mod_list) > 1:
+                duplicate_count += 1
+                logger.warning(f"Resource collision: key={resource_key} in {len(mod_list)} mods")
                 conflict = self._create_resource_conflict(resource_key, mod_list)
                 conflicts.append(conflict)
 
+        logger.debug(f"Found {duplicate_count} duplicate resources")
+
         # Also check for hash collisions (same hash, different keys)
         hash_conflicts = self._detect_hash_collisions(mods)
+        if hash_conflicts:
+            logger.warning(f"Detected {len(hash_conflicts)} hash collision conflicts")
         conflicts.extend(hash_conflicts)
 
+        logger.info(f"Detected {len(conflicts)} resource conflicts total")
         return conflicts
 
     def _build_resource_index(
