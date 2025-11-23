@@ -18,7 +18,7 @@ from simanalysis.parsers.save_file import (
     SimInfo,
     TrayItemData,
 )
-from simanalysis.scanner import ModScanner
+from simanalysis.scanners.mod_scanner import ModScanner
 
 logger = logging.getLogger(__name__)
 
