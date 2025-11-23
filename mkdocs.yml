@@ -1,0 +1,126 @@
+site_name: Simanalysis
+site_description: A comprehensive analyzer for The Sims 4 mod files - detect conflicts, analyze packages, and ensure mod compatibility
+site_author: justaride
+site_url: https://simanalysis.readthedocs.io
+
+repo_name: justaride/Simanalysis
+repo_url: https://github.com/justaride/Simanalysis
+edit_uri: blob/main/docs/
+
+copyright: Copyright &copy; 2025 justaride
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - tables
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            signature_crossrefs: true
+            separate_signature: true
+            line_length: 80
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Basic Usage: getting-started/basic-usage.md
+  - User Guide:
+      - Analyzing Mods: user-guide/analyzing-mods.md
+      - Understanding Conflicts: user-guide/understanding-conflicts.md
+      - Exporting Reports: user-guide/exporting-reports.md
+      - Troubleshooting: user-guide/troubleshooting.md
+  - Examples:
+      - Basic Examples: examples/basic.md
+      - Advanced Examples: examples/advanced.md
+      - CI/CD Integration: examples/cicd.md
+  - API Reference:
+      - Overview: api/overview.md
+      - Parsers:
+          - DBPF Parser: api/parsers/dbpf.md
+          - Tuning Parser: api/parsers/tuning.md
+          - Script Parser: api/parsers/script.md
+      - Analyzers:
+          - Mod Analyzer: api/analyzers/mod_analyzer.md
+          - Mod Scanner: api/scanners/mod_scanner.md
+      - Detectors:
+          - Base Detector: api/detectors/base.md
+          - Tuning Conflicts: api/detectors/tuning_conflicts.md
+          - Resource Conflicts: api/detectors/resource_conflicts.md
+      - Models: api/models.md
+      - Exceptions: api/exceptions.md
+  - Development:
+      - Contributing: development/contributing.md
+      - Architecture: development/architecture.md
+      - Testing: development/testing.md
+      - Releasing: development/releasing.md
+  - Changelog: changelog.md
+  - License: license.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/justaride/Simanalysis
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/simanalysis/
+
+  version:
+    provider: mike
