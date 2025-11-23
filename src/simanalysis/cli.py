@@ -649,6 +649,268 @@ def dependencies(
 
 
 @cli.command()
+@click.argument("saves_directory", type=click.Path(exists=True, file_okay=False))
+@click.argument("mods_directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output report file path",
+)
+@click.option(
+    "--format",
+    "-f",
+    type=click.Choice(["txt", "json"], case_sensitive=False),
+    default="txt",
+    help="Report format (default: txt)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def save_scan(saves_directory: str, mods_directory: str, output: Optional[str], format: str, verbose: bool):
+    """
+    Scan save files to identify which CC is actually used.
+
+    Analyzes all save files in the saves directory and matches the
+    custom content used against installed mods.
+
+    Examples:
+
+        simanalysis save-scan ~/Documents/EA/The\\ Sims\\ 4/saves ~/Documents/EA/The\\ Sims\\ 4/Mods
+
+        simanalysis save-scan ~/saves ~/Mods --output usage_report.txt
+    """
+    from simanalysis.analyzers.cc_matcher import CCAnalyzer
+
+    setup_logging(level=logging.DEBUG if verbose else logging.INFO)
+
+    click.echo("\n" + "=" * 70)
+    click.echo("🔍 SAVE FILE CC ANALYSIS")
+    click.echo("=" * 70 + "\n")
+
+    try:
+        analyzer = CCAnalyzer()
+        usage = analyzer.analyze_cc_usage(
+            mods_dir=Path(mods_directory),
+            saves_dir=Path(saves_directory)
+        )
+
+        # Display results
+        click.echo(f"📊 Analysis Results:\n")
+        click.echo(f"Total CC installed:  {len(usage.all_mods):,} mods")
+        click.echo(f"CC used in saves:    {len(usage.used_mods):,} mods")
+        click.echo(f"CC never used:       {len(usage.unused_mods):,} mods")
+        click.echo(f"Usage rate:          {usage.usage_rate:.1f}%\n")
+
+        unused_gb = usage.total_unused_size / (1024**3)
+        click.echo(f"💾 Unused CC size:    {unused_gb:.2f} GB\n")
+
+        # Show most used mods
+        top_mods = usage.get_most_used_mods(10)
+        if top_mods:
+            click.echo("🌟 Most Used CC (Top 10):")
+            for i, (mod, count) in enumerate(top_mods, 1):
+                click.echo(f"  {i:2}. {mod.name} (used {count} times)")
+            click.echo()
+
+        # Save report if requested
+        if output:
+            output_path = Path(output)
+            with open(output_path, 'w') as f:
+                f.write("=" * 70 + "\n")
+                f.write("SAVE FILE CC USAGE ANALYSIS\n")
+                f.write("=" * 70 + "\n\n")
+
+                f.write(f"Total CC installed:  {len(usage.all_mods):,} mods\n")
+                f.write(f"CC used in saves:    {len(usage.used_mods):,} mods\n")
+                f.write(f"CC never used:       {len(usage.unused_mods):,} mods\n")
+                f.write(f"Usage rate:          {usage.usage_rate:.1f}%\n\n")
+
+                f.write(f"Unused CC size:      {unused_gb:.2f} GB\n\n")
+
+                f.write("USED CC:\n")
+                f.write("-" * 70 + "\n")
+                for mod in usage.used_mods:
+                    count = usage.usage_counts.get(mod.path, 0)
+                    f.write(f"{mod.name} (used {count} times)\n")
+
+                f.write("\n\nUNUSED CC (Safe to Remove):\n")
+                f.write("-" * 70 + "\n")
+                for mod in usage.unused_mods:
+                    size_mb = mod.size / (1024**2)
+                    f.write(f"{mod.name} ({size_mb:.1f} MB)\n")
+
+            click.echo(f"✅ Report saved to: {output_path}\n")
+
+    except Exception as e:
+        click.echo(click.style(f"\n❌ Error: {e}", fg="red", bold=True))
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("save_file", type=click.Path(exists=True, dir_okay=False))
+@click.argument("mods_directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def save_check(save_file: str, mods_directory: str, verbose: bool):
+    """
+    Check a save file for missing CC.
+
+    Identifies custom content that is referenced in the save but
+    not currently installed in your Mods folder.
+
+    Examples:
+
+        simanalysis save-check MySave.save ~/Documents/EA/The\\ Sims\\ 4/Mods
+    """
+    from simanalysis.analyzers.cc_matcher import CCAnalyzer
+
+    setup_logging(level=logging.DEBUG if verbose else logging.INFO)
+
+    click.echo("\n" + "=" * 70)
+    click.echo("🔎 SAVE FILE CC CHECK")
+    click.echo("=" * 70 + "\n")
+
+    try:
+        analyzer = CCAnalyzer()
+        missing_ids = analyzer.find_missing_cc(
+            save_file=Path(save_file),
+            mods_dir=Path(mods_directory)
+        )
+
+        if not missing_ids:
+            click.echo("✅ No missing CC detected! All referenced CC is installed.\n")
+        else:
+            click.echo(f"⚠️  Found {len(missing_ids)} missing CC items:\n")
+            click.echo("The following Instance IDs are referenced but not installed:")
+            for i, instance_id in enumerate(missing_ids[:20], 1):  # Show first 20
+                click.echo(f"  {i:2}. 0x{instance_id:016X}")
+
+            if len(missing_ids) > 20:
+                click.echo(f"\n  ... and {len(missing_ids) - 20} more\n")
+
+            click.echo("\n⚠️  These CC items were used when the save was created but are")
+            click.echo("   no longer installed. Sims/objects may appear incomplete.\n")
+
+    except Exception as e:
+        click.echo(click.style(f"\n❌ Error: {e}", fg="red", bold=True))
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
+@click.argument("tray_file", type=click.Path(exists=True, dir_okay=False))
+@click.argument("mods_directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Output CC list file path",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Show detailed output",
+)
+def tray_cc(tray_file: str, mods_directory: str, output: Optional[str], verbose: bool):
+    """
+    List required CC for a tray item (Sim/household/lot).
+
+    Generates a list of all custom content required for a Sim,
+    household, or lot from the Tray/Gallery.
+
+    Useful for sharing Sims - shows exactly which CC files are needed.
+
+    Examples:
+
+        simanalysis tray-cc MySim.trayitem ~/Documents/EA/The\\ Sims\\ 4/Mods
+
+        simanalysis tray-cc MySim.trayitem ~/Mods --output required_cc.txt
+    """
+    from simanalysis.analyzers.cc_matcher import CCAnalyzer
+
+    setup_logging(level=logging.DEBUG if verbose else logging.INFO)
+
+    click.echo("\n" + "=" * 70)
+    click.echo("📋 TRAY ITEM REQUIRED CC")
+    click.echo("=" * 70 + "\n")
+
+    try:
+        analyzer = CCAnalyzer()
+        result = analyzer.generate_required_cc_list(
+            tray_file=Path(tray_file),
+            mods_dir=Path(mods_directory)
+        )
+
+        tray_name = Path(tray_file).stem
+
+        click.echo(f"Tray Item: {tray_name}\n")
+        click.echo(f"Required CC: {len(result.matched)} items from {len(result.unique_mods)} mods")
+        click.echo(f"Match rate:  {result.match_rate:.1f}%\n")
+
+        if result.unmatched_instance_ids:
+            click.echo(f"⚠️  {len(result.unmatched_instance_ids)} CC items could not be matched")
+            click.echo("   (may be EA content or missing CC)\n")
+
+        # Show required mods
+        if result.unique_mods:
+            click.echo("📦 Required CC Mods:\n")
+            for i, mod in enumerate(result.unique_mods, 1):
+                count = result.mod_usage_count.get(mod.path, 0)
+                click.echo(f"  {i:2}. {mod.name} ({count} items)")
+            click.echo()
+
+        # Save CC list if requested
+        if output:
+            output_path = Path(output)
+            with open(output_path, 'w') as f:
+                f.write("=" * 70 + "\n")
+                f.write(f"REQUIRED CC FOR: {tray_name}\n")
+                f.write("=" * 70 + "\n\n")
+
+                f.write(f"Total CC items: {len(result.matched)}\n")
+                f.write(f"Total CC files: {len(result.unique_mods)}\n\n")
+
+                f.write("REQUIRED CC FILES:\n")
+                f.write("-" * 70 + "\n")
+                for mod in result.unique_mods:
+                    count = result.mod_usage_count.get(mod.path, 0)
+                    f.write(f"\n{mod.name}\n")
+                    f.write(f"  File: {mod.path.name}\n")
+                    f.write(f"  Items used: {count}\n")
+                    if mod.creator:
+                        f.write(f"  Creator: {mod.creator}\n")
+
+                if result.unmatched_instance_ids:
+                    f.write("\n\nUNMATCHED INSTANCE IDs:\n")
+                    f.write("-" * 70 + "\n")
+                    for instance_id in result.unmatched_instance_ids:
+                        f.write(f"0x{instance_id:016X}\n")
+
+            click.echo(f"✅ CC list saved to: {output_path}\n")
+
+    except Exception as e:
+        click.echo(click.style(f"\n❌ Error: {e}", fg="red", bold=True))
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        sys.exit(1)
+
+
+@cli.command()
 @click.option(
     "--version",
     "-v",
@@ -677,16 +939,21 @@ def info(version: bool):
     click.echo("  ✓ Deep conflict detection (tuning, resource, script)")
     click.echo("  ✓ Dependency analysis and load order optimization")
     click.echo("  ✓ Performance metrics and load time estimation")
+    click.echo("  ✓ Save file CC analysis (identify used vs unused CC)")
+    click.echo("  ✓ Tray item CC listing (for sharing Sims)")
     click.echo("  ✓ Smart recommendations")
     click.echo("  ✓ Report export (TXT, JSON)")
     click.echo("\nUsage:")
     click.echo("  simanalysis analyze /path/to/Mods")
     click.echo("  simanalysis scan /path/to/Mods")
     click.echo("  simanalysis dependencies /path/to/Mods --verbose")
+    click.echo("  simanalysis save-scan /path/to/saves /path/to/Mods")
+    click.echo("  simanalysis tray-cc MySim.trayitem /path/to/Mods")
     click.echo("\nFor help:")
     click.echo("  simanalysis --help")
     click.echo("  simanalysis analyze --help")
     click.echo("  simanalysis dependencies --help")
+    click.echo("  simanalysis save-scan --help")
     click.echo("")
 
 
