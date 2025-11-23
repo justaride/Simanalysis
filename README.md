@@ -26,6 +26,15 @@ simanalysis analyze ~/Mods --tui
 
 # Export detailed report
 simanalysis analyze ~/Mods --output report.json --format json
+
+# ⭐ NEW: Find unused CC (save disk space!)
+simanalysis save-scan ~/saves ~/Mods --output usage_report.txt
+
+# Check save for missing CC
+simanalysis save-check MySave.save ~/Mods
+
+# Generate CC list for sharing Sims
+simanalysis tray-cc MySim.trayitem ~/Mods --output required_cc.txt
 ```
 
 **That's it!** Simanalysis will:
@@ -34,6 +43,7 @@ simanalysis analyze ~/Mods --output report.json --format json
 - 📊 Show performance impact and load time estimates
 - 💡 Provide actionable recommendations
 - 📤 Export detailed reports
+- 💾 **NEW:** Identify used/unused CC and generate sharing lists
 
 ---
 
@@ -68,6 +78,13 @@ Simanalysis is a **proactive conflict detection and analysis tool** for The Sims
 - **Dependency Mapping**: Tracks mod requirements and pack dependencies
 - **Severity Classification**: CRITICAL/HIGH/MEDIUM/LOW priority system
 - **Smart Recommendations**: Actionable advice for resolving conflicts
+
+### 💾 **Save File & CC Analysis** ⭐ NEW IN v4.0!
+- **Used CC Detection**: Identifies which CC is actually used in your saves
+- **Unused CC Cleanup**: Find CC that's safe to remove (often 5-10 GB!)
+- **Missing CC Detection**: Check saves for missing/broken custom content
+- **Tray CC Lists**: Generate required CC lists for sharing Sims
+- **Usage Analytics**: Track CC usage frequency across all saves
 
 ### 📝 **Professional Reports**
 - **Text Reports**: Human-readable summaries with conflict details
