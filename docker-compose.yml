@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  simanalysis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: simanalysis:latest
+    container_name: simanalysis
+    volumes:
+      # Mount your Sims 4 Mods directory
+      - ${MODS_DIR:-./mods}:/mods:ro
+      # Mount output directory for reports
+      - ${OUTPUT_DIR:-./output}:/output
+    environment:
+      - SIMANALYSIS_LOG_DIR=/output/logs
+    # Override command (default shows help)
+    # Uncomment and modify to run specific analysis:
+    # command: analyze /mods --output /output/report.json --format json
+
+  # Development service with source code mounted
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: simanalysis:dev
+    container_name: simanalysis-dev
+    volumes:
+      - .:/app
+      - ${MODS_DIR:-./mods}:/mods:ro
+      - ${OUTPUT_DIR:-./output}:/output
+    entrypoint: /bin/bash
+    stdin_open: true
+    tty: true
+
+# Example usage:
+#
+# 1. Set environment variables (optional):
+#    export MODS_DIR=/path/to/your/mods
+#    export OUTPUT_DIR=/path/to/output
+#
+# 2. Build the image:
+#    docker-compose build
+#
+# 3. Run analysis:
+#    docker-compose run simanalysis analyze /mods --output /output/report.json
+#
+# 4. Interactive TUI:
+#    docker-compose run simanalysis analyze /mods --tui
+#
+# 5. Development mode:
+#    docker-compose run dev
+#
+# 6. Run tests:
+#    docker-compose run dev pytest
