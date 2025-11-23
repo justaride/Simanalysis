@@ -447,6 +447,208 @@ def view(report_file: str):
 
 
 @cli.command()
+@click.argument("mods_directory", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(),
+    help="Export dependency graph to DOT file",
+)
+@click.option(
+    "--show-load-order",
+    is_flag=True,
+    help="Display recommended load order",
+)
+@click.option(
+    "--show-missing",
+    is_flag=True,
+    help="Show missing dependencies",
+)
+@click.option(
+    "--recursive/--no-recursive",
+    default=True,
+    help="Scan subdirectories (default: recursive)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Verbose output",
+)
+def dependencies(
+    mods_directory: str,
+    output: Optional[str],
+    show_load_order: bool,
+    show_missing: bool,
+    recursive: bool,
+    verbose: bool,
+):
+    """
+    Analyze mod dependencies and load order.
+
+    Shows dependency relationships, load order issues, and missing dependencies.
+
+    MODS_DIRECTORY: Path to your Sims 4 Mods folder
+    """
+    from simanalysis.analyzers.mod_analyzer import ModAnalyzer
+    from simanalysis.analyzers.dependency_detector import DependencyDetector
+    from simanalysis.analyzers.dependency_graph import DependencyGraph
+
+    mods_path = Path(mods_directory).expanduser().resolve()
+
+    click.echo(f"🔍 Analyzing dependencies in: {mods_path}\n")
+
+    # Step 1: Scan mods
+    if verbose:
+        click.echo("Step 1/3: Scanning mods...")
+
+    analyzer = ModAnalyzer(
+        parse_tunings=True,
+        parse_scripts=True,
+        calculate_hashes=False,  # Not needed for dependencies
+    )
+
+    result = analyzer.analyze_directory(mods_path, recursive=recursive)
+
+    if len(result.mods) == 0:
+        click.echo("❌ No mods found in directory")
+        return
+
+    if verbose:
+        click.echo(f"   Found {len(result.mods)} mods\n")
+
+    # Step 2: Detect dependencies
+    if verbose:
+        click.echo("Step 2/3: Detecting dependencies...")
+
+    detector = DependencyDetector()
+    all_deps = detector.detect_all_dependencies(result.mods)
+
+    if verbose:
+        click.echo(f"   Found {len(all_deps)} mods with dependencies\n")
+
+    # Step 3: Build dependency graph
+    if verbose:
+        click.echo("Step 3/3: Building dependency graph...")
+
+    graph = DependencyGraph()
+
+    # Add all mods to graph
+    for mod in result.mods:
+        deps = all_deps.get(mod.name, [])
+        graph.add_mod(mod, dependencies=deps)
+
+    if verbose:
+        click.echo(f"   Graph built with {graph.graph.number_of_nodes()} nodes\n")
+
+    # Display results
+    click.echo("=" * 70)
+    click.echo("📊 DEPENDENCY ANALYSIS RESULTS")
+    click.echo("=" * 70 + "\n")
+
+    # Statistics
+    stats = graph.get_statistics()
+    click.echo(f"✅ Total Mods: {stats['total_mods']}")
+    click.echo(f"🔗 Dependency Relationships: {stats['total_dependencies']}")
+    click.echo(f"🔄 Circular Dependencies: {'Yes' if stats['has_cycles'] else 'No'}")
+
+    if stats['has_cycles']:
+        click.echo(click.style(f"   ⚠️  {stats['cycle_count']} cycle(s) detected!", fg="red", bold=True))
+        cycles = graph.detect_cycles()
+        for i, cycle in enumerate(cycles[:3], 1):
+            click.echo(f"      Cycle {i}: {' → '.join(cycle)}")
+        if len(cycles) > 3:
+            click.echo(f"      ... and {len(cycles) - 3} more cycles")
+
+    # Most depended on mod
+    if 'most_depended_on' in stats and stats['most_depended_on']:
+        most_dep = stats['most_depended_on']
+        click.echo(f"\n🌟 Most Depended On: {most_dep['mod']} ({most_dep['dependent_count']} mods depend on it)")
+
+    # Show mods with dependencies
+    if all_deps and verbose:
+        click.echo(f"\n📦 MODS WITH DEPENDENCIES:")
+        click.echo("-" * 70)
+        for mod_name, deps in sorted(all_deps.items())[:15]:
+            click.echo(f"\n{mod_name}")
+            for dep in deps:
+                click.echo(f"   → {dep}")
+        if len(all_deps) > 15:
+            click.echo(f"\n... and {len(all_deps) - 15} more mods with dependencies")
+
+    # Load order analysis
+    if show_load_order or verbose:
+        click.echo(f"\n📋 LOAD ORDER ANALYSIS:")
+        click.echo("-" * 70)
+
+        optimal_order = graph.topological_sort()
+
+        if optimal_order is None:
+            click.echo(click.style("⚠️  Cannot determine optimal load order due to circular dependencies!", fg="red"))
+        else:
+            click.echo(f"✅ Optimal load order determined ({len(optimal_order)} mods)")
+
+            if show_load_order:
+                click.echo("\nRecommended load order (first to last):")
+                for i, mod_name in enumerate(optimal_order[:20], 1):
+                    click.echo(f"  {i:2d}. {mod_name}")
+                if len(optimal_order) > 20:
+                    click.echo(f"  ... and {len(optimal_order) - 20} more mods")
+
+            # Check current load order issues
+            current_order = [mod.name for mod in result.mods]
+            issues = graph.get_load_order_issues(current_order)
+
+            if issues:
+                click.echo(f"\n⚠️  {len(issues)} load order issues detected:")
+                for issue in issues[:10]:
+                    severity_color = {"HIGH": "red", "MEDIUM": "yellow", "LOW": "green"}
+                    color = severity_color.get(issue["severity"], "white")
+                    click.echo(click.style(
+                        f"\n  [{issue['severity']}] {issue['mod']}",
+                        fg=color,
+                        bold=(issue['severity'] == 'HIGH')
+                    ))
+                    click.echo(f"    {issue['reason']}")
+                    click.echo(f"    Current position: {issue['current_position']}, Should be: {issue['should_be_at']}")
+
+                if len(issues) > 10:
+                    click.echo(f"\n  ... and {len(issues) - 10} more issues")
+            else:
+                click.echo("\n✅ No load order issues detected")
+
+    # Missing dependencies
+    if show_missing or verbose:
+        click.echo(f"\n🔍 MISSING DEPENDENCIES:")
+        click.echo("-" * 70)
+
+        installed = {mod.name for mod in result.mods}
+        missing = graph.find_missing_dependencies(installed)
+
+        if missing:
+            click.echo(click.style(f"⚠️  {len(missing)} missing dependencies detected:", fg="yellow"))
+            for mod_name, dep_name in missing[:15]:
+                click.echo(f"   {mod_name} → {click.style(dep_name, fg='red', bold=True)} (missing)")
+            if len(missing) > 15:
+                click.echo(f"   ... and {len(missing) - 15} more missing dependencies")
+        else:
+            click.echo("✅ No missing dependencies detected")
+
+    # Export DOT file
+    if output:
+        output_path = Path(output).expanduser().resolve()
+        graph.export_dot(output_path)
+        click.echo(f"\n📄 Dependency graph exported to: {output_path}")
+        click.echo("   (Use Graphviz to visualize: dot -Tpng graph.dot -o graph.png)")
+
+    # ASCII visualization
+    if verbose:
+        click.echo("\n" + graph.to_ascii())
+
+    click.echo("")
+
+
+@cli.command()
 @click.option(
     "--version",
     "-v",
@@ -473,15 +675,18 @@ def info(version: bool):
     click.echo("  Proactive conflict detection BEFORE game launch.")
     click.echo("\nFeatures:")
     click.echo("  ✓ Deep conflict detection (tuning, resource, script)")
+    click.echo("  ✓ Dependency analysis and load order optimization")
     click.echo("  ✓ Performance metrics and load time estimation")
     click.echo("  ✓ Smart recommendations")
     click.echo("  ✓ Report export (TXT, JSON)")
     click.echo("\nUsage:")
     click.echo("  simanalysis analyze /path/to/Mods")
     click.echo("  simanalysis scan /path/to/Mods")
+    click.echo("  simanalysis dependencies /path/to/Mods --verbose")
     click.echo("\nFor help:")
     click.echo("  simanalysis --help")
     click.echo("  simanalysis analyze --help")
+    click.echo("  simanalysis dependencies --help")
     click.echo("")
 
 
