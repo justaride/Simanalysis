@@ -62,3 +62,27 @@ When you run the executable, it will:
 
 - **Missing Files**: If the browser opens but shows a 404 or blank page, ensure `web/dist` was correctly built and included. Check `dist/Simanalysis/_internal/web/dist`.
 - **Port Conflicts**: The app defaults to port 8000. If this is in use, the server might fail to start.
+
+## Automated Builds
+
+This repository includes a GitHub Actions workflow (`.github/workflows/build_standalone.yml`) that automatically builds the standalone application for Windows, macOS, and Linux.
+
+**Triggers:**
+- Pushing to the `main` branch.
+- Publishing a release.
+- Manual trigger via the "Actions" tab.
+
+**Artifacts:**
+The build artifacts (the `Simanalysis` executable folder) are uploaded to the workflow run summary. You can download them from there.
+
+## Manual Release Process
+
+To create a release manually:
+
+1.  **Build**: Follow the "Build Steps" above.
+2.  **Verify**: Run the executable to ensure it works.
+3.  **Package**:
+    - **Windows**: Zip the `dist/Simanalysis` folder.
+    - **macOS**: Zip the `dist/Simanalysis` folder (or create a DMG if you have the tools).
+    - **Linux**: Tar/Gzip the `dist/Simanalysis` folder.
+4.  **Distribute**: Upload the archive to your desired platform (GitHub Releases, website, etc.).
