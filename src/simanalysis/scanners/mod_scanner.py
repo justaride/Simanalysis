@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import List, Optional, Set
+from typing import Callable, List, Optional, Set
 
 from simanalysis.exceptions import SimanalysisError
 from simanalysis.models import Mod, ModType
@@ -50,6 +50,7 @@ class ModScanner:
         directory: Path,
         recursive: bool = True,
         extensions: Optional[Set[str]] = None,
+        progress_callback: Optional["Callable[[int, int, str], None]"] = None,
     ) -> List[Mod]:
         """
         Scan directory for mods.
@@ -58,6 +59,7 @@ class ModScanner:
             directory: Directory to scan
             recursive: Whether to scan subdirectories
             extensions: File extensions to scan (default: .package, .ts4script)
+            progress_callback: Optional callback (current, total, filename)
 
         Returns:
             List of discovered mods
@@ -81,9 +83,13 @@ class ModScanner:
 
         # Find all mod files
         files = self._find_mod_files(directory, recursive, extensions)
+        total_files = len(files)
 
         # Scan each file
-        for file_path in files:
+        for i, file_path in enumerate(files, 1):
+            if progress_callback:
+                progress_callback(i, total_files, file_path.name)
+                
             try:
                 mod = self.scan_file(file_path)
                 if mod:

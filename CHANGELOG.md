@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Testing infrastructure with pytest
 - Documentation structure
 - Development guidelines (CONTRIBUTING.md)
+- Standalone application support via PyInstaller
+- Web GUI integration for standalone executable
+- `run_standalone.py` entry point for frozen applications
+- `BUILD_INSTRUCTIONS.md` for creating standalone executables
 
 ### Changed
 - Migrated from standalone script to package structure

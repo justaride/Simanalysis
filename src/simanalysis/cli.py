@@ -446,6 +446,33 @@ def info(version: bool):
     click.echo("")
 
 
+@cli.command()
+@click.option(
+    "--port",
+    "-p",
+    default=8000,
+    help="Port to run the server on",
+)
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    help="Host to bind the server to",
+)
+def web(port: int, host: str):
+    """
+    Launch the Web GUI.
+    
+    Starts the FastAPI backend and serves the React frontend.
+    """
+    """
+    Launch the Web GUI.
+    
+    Starts the FastAPI backend and serves the React frontend.
+    """
+    from simanalysis.web.run import run_web_gui
+    run_web_gui(host=host, port=port)
+
+
 def main():
     """Entry point for CLI."""
     try:

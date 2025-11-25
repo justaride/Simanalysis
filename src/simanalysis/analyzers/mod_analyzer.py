@@ -3,7 +3,7 @@
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 from simanalysis import __version__
 from simanalysis.detectors.base import ConflictDetector
@@ -71,6 +71,7 @@ class ModAnalyzer:
         directory: Path,
         recursive: bool = True,
         extensions: Optional[Set[str]] = None,
+        progress_callback: Optional["Callable[[int, int, str], None]"] = None,
     ) -> AnalysisResult:
         """
         Analyze all mods in a directory.
@@ -79,6 +80,7 @@ class ModAnalyzer:
             directory: Directory to analyze
             recursive: Whether to scan subdirectories
             extensions: File extensions to scan (default: .package, .ts4script)
+            progress_callback: Optional callback for progress updates
 
         Returns:
             Complete analysis result with mods and conflicts
@@ -86,7 +88,12 @@ class ModAnalyzer:
         start_time = time.time()
 
         # Scan directory for mods
-        mods = self.scanner.scan_directory(directory, recursive, extensions)
+        mods = self.scanner.scan_directory(
+            directory, 
+            recursive, 
+            extensions,
+            progress_callback=progress_callback
+        )
 
         # Run conflict detection
         conflicts = self.detect_conflicts(mods)
@@ -386,6 +393,15 @@ class ModAnalyzer:
         # Build JSON structure
         report = {
             "summary": self.get_summary(result),
+            "performance": {
+                "total_size_mb": result.performance.total_size_mb,
+                "total_resources": result.performance.total_resources,
+                "total_tunings": result.performance.total_tunings,
+                "total_scripts": result.performance.total_scripts,
+                "estimated_load_time_seconds": result.performance.estimated_load_time_seconds,
+                "estimated_memory_mb": result.performance.estimated_memory_mb,
+                "complexity_score": result.performance.complexity_score,
+            },
             "recommendations": self.get_recommendations(result),
             "mods": [
                 {

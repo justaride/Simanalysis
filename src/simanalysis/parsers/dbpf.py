@@ -99,9 +99,19 @@ class DBPFReader:
                 user_version = struct.unpack("<I", header_data[12:16])[0]
 
                 # Skip flags, dates, index_version (24 bytes)
-                index_count = struct.unpack("<I", header_data[40:44])[0]
-                index_offset = struct.unpack("<I", header_data[44:48])[0]
-                index_size = struct.unpack("<I", header_data[48:52])[0]
+                # DBPF 2.1 Header Layout:
+                # 36: Index Count
+                # 40: Unused? (0)
+                # 44: Index Size
+                # 64: Index Offset
+                
+                index_count = struct.unpack("<I", header_data[36:40])[0]
+                index_size = struct.unpack("<I", header_data[44:48])[0]
+                
+                # Try standard offset first, if 0 check extended offset
+                index_offset = struct.unpack("<I", header_data[40:44])[0]
+                if index_offset == 0:
+                    index_offset = struct.unpack("<I", header_data[64:68])[0]
 
                 # Get file size
                 file_size = self.path.stat().st_size

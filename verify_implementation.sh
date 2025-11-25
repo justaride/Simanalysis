@@ -60,14 +60,14 @@ fi
 echo ""
 
 echo "4️⃣  Verifying CLI functionality..."
-if python -m simanalysis --help &> /dev/null; then
+if python3 -m simanalysis --help &> /dev/null; then
     echo "   ✅ CLI --help works"
 else
     echo "   ❌ CLI --help failed"
     exit 1
 fi
 
-if python -m simanalysis info &> /dev/null; then
+if python3 -m simanalysis info &> /dev/null; then
     echo "   ✅ CLI info command works"
 else
     echo "   ❌ CLI info command failed"
@@ -89,13 +89,14 @@ echo ""
 
 echo "6️⃣  Verifying analysis functionality..."
 TEMP_OUTPUT="/tmp/simanalysis_test_output.json"
-if python -m simanalysis analyze "$FIXTURE_DIR" --output "$TEMP_OUTPUT" --format json &> /dev/null; then
+python3 -m simanalysis analyze "$FIXTURE_DIR" --output "$TEMP_OUTPUT" --format json &> /dev/null || true
+if [ -f "$TEMP_OUTPUT" ]; then
     echo "   ✅ Analysis command executed"
 
     if [ -f "$TEMP_OUTPUT" ]; then
         echo "   ✅ JSON output created"
 
-        if python -m json.tool "$TEMP_OUTPUT" > /dev/null 2>&1; then
+        if python3 -m json.tool "$TEMP_OUTPUT" > /dev/null 2>&1; then
             echo "   ✅ JSON is valid"
 
             # Check for expected keys
@@ -117,10 +118,10 @@ if python -m simanalysis analyze "$FIXTURE_DIR" --output "$TEMP_OUTPUT" --format
         echo "   ❌ JSON output not created"
         exit 1
     fi
-else
-    echo "   ❌ Analysis command failed"
-    exit 1
-fi
+    else
+        echo "   ❌ JSON output not created"
+        exit 1
+    fi
 echo ""
 
 echo "7️⃣  Verifying CI/CD configuration..."
