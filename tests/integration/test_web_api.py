@@ -21,9 +21,9 @@ class TestWebApi:
         """Get path to sample mods fixture."""
         return Path(__file__).parent.parent / "fixtures" / "sample_mods"
 
-    def test_root(self, client):
-        """Test root endpoint."""
-        response = client.get("/")
+    def test_health(self, client):
+        """Test health check endpoint."""
+        response = client.get("/api/health")
         assert response.status_code == 200
         assert response.json()["status"] == "ok"
 

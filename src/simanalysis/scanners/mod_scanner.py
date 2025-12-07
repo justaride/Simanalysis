@@ -204,8 +204,9 @@ class ModScanner:
 
             return mod
 
-        except Exception:
-            # Return minimal mod on parse error
+        except Exception as e:
+            # Log error but return minimal mod for graceful degradation
+            self.errors_encountered.append((file_path, f"Package parse error: {e}"))
             return Mod(
                 name=file_path.name,
                 path=file_path,
@@ -276,8 +277,9 @@ class ModScanner:
 
             return mod
 
-        except Exception:
-            # Return minimal mod on parse error
+        except Exception as e:
+            # Log error but return minimal mod for graceful degradation
+            self.errors_encountered.append((file_path, f"Script parse error: {e}"))
             return Mod(
                 name=file_path.name,
                 path=file_path,
@@ -350,5 +352,5 @@ class ModScanner:
         return {
             "mods_scanned": self.mods_scanned,
             "errors_encountered": len(self.errors_encountered),
-            "error_details": self.errors_encountered,
+            "error_details": [(str(path), msg) for path, msg in self.errors_encountered],
         }

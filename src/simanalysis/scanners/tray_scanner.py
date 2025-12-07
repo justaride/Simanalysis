@@ -157,8 +157,8 @@ class TrayScanner:
                             # Filter out binary junk, keep only printable strings
                             if text.isprintable() and len(text.strip()) >= 3:
                                 decoded_parts.append(text.strip())
-                        except:
-                            pass
+                        except (UnicodeDecodeError, ValueError):
+                            pass  # Binary data that can't be decoded as text
                     i = j + 2
                 else:
                     i += 1
@@ -210,7 +210,7 @@ class TrayScanner:
                     return "Lot"
                 elif type_code == 0x00000003:
                     return "Room"
-            except:
-                pass
+            except struct.error:
+                pass  # Invalid binary data format
         
         return "Tray Item"  # More specific than just "Unknown"
