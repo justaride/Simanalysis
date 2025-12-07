@@ -50,14 +50,15 @@ class TestModScanner:
         # User version = 0
         header[12:16] = struct.pack("<I", 0)
 
-        # Index count = 1
-        header[40:44] = struct.pack("<I", 1)
+        # DBPF 2.0 spec (Sims 4):
+        # Index count at offset 36
+        header[36:40] = struct.pack("<I", 1)
 
-        # Index offset = 96 (right after header)
-        header[44:48] = struct.pack("<I", 96)
+        # Index size at offset 44 (1 entry * 32 bytes = 32)
+        header[44:48] = struct.pack("<I", 32)
 
-        # Index size = 32 (1 entry * 32 bytes)
-        header[48:52] = struct.pack("<I", 32)
+        # Index offset at offset 64 (right after header = 96)
+        header[64:68] = struct.pack("<I", 96)
 
         # Create one resource entry
         resource_data = b"Test resource content"
@@ -65,14 +66,16 @@ class TestModScanner:
         resource_offset = 96 + 32  # After header and index
 
         # Create index entry (32 bytes)
+        # Format: type(4) + group(4) + instance(8) + offset(4) + size(4) + compressed_size(4) + flags(4)
         index_entry = struct.pack(
-            "<IIQIII",
+            "<IIQIIII",
             0x12345678,  # type
             0x00000000,  # group
             0xAABBCCDDEEFF0011,  # instance
             resource_offset,  # offset
+            len(resource_data),  # size (uncompressed)
             len(compressed_data),  # compressed size
-            len(resource_data),  # uncompressed_size
+            0,  # flags
         )
 
         # Write file

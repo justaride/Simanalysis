@@ -49,20 +49,24 @@ class TestDBPFReader:
         # 4 bytes reserved (skip)
         header[32:36] = struct.pack("<I", 0)
 
-        # 4 bytes reserved (skip)
-        header[36:40] = struct.pack("<I", 0)
+        # DBPF 2.0 spec (Sims 4):
+        # Index count at offset 36
+        header[36:40] = struct.pack("<I", 2)
 
-        # Index count = 2 (we'll create 2 resources)
-        header[40:44] = struct.pack("<I", 2)
+        # Unknown/reserved at offset 40 (set to 0, parser will use offset 64)
+        header[40:44] = struct.pack("<I", 0)
 
-        # Index offset = 96 (right after header)
-        header[44:48] = struct.pack("<I", 96)
+        # Index size at offset 44 (2 entries * 32 bytes = 64)
+        header[44:48] = struct.pack("<I", 64)
 
-        # Index size = 64 (2 entries * 32 bytes)
-        header[48:52] = struct.pack("<I", 64)
+        # Reserved bytes 48-64
+        header[48:64] = bytes(16)
+
+        # Index offset at offset 64 (right after header = 96)
+        header[64:68] = struct.pack("<I", 96)
 
         # Rest of header is zeros/reserved
-        header[52:96] = bytes(44)
+        header[68:96] = bytes(28)
 
         # Create index table (2 entries * 32 bytes = 64 bytes)
         index = bytearray(64)

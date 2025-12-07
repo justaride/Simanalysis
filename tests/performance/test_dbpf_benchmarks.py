@@ -75,12 +75,12 @@ class TestDBPFPerformance:
         Returns:
             Path to created package
         """
-        # Create header (96 bytes)
+        # Create header (96 bytes) - DBPF 2.0 spec
         header = bytearray(96)
         header[0:4] = b"DBPF"
         header[4:8] = struct.pack("<I", 2)  # Major version
         header[8:12] = struct.pack("<I", 1)  # Minor version
-        header[40:44] = struct.pack("<I", resource_count)
+        header[36:40] = struct.pack("<I", resource_count)  # Index count at offset 36
 
         # Calculate index position (after all resources)
         resource_data_size = 0
@@ -106,8 +106,8 @@ class TestDBPFPerformance:
         index_offset = 96 + resource_data_size
         index_size = resource_count * 32
 
-        header[44:48] = struct.pack("<I", index_offset)
-        header[48:52] = struct.pack("<I", index_size)
+        header[44:48] = struct.pack("<I", index_size)  # Index size at offset 44
+        header[64:68] = struct.pack("<I", index_offset)  # Index offset at offset 64
 
         # Create index entries
         index = bytearray(index_size)
@@ -442,19 +442,19 @@ class TestDBPFScalability:
         """Helper to create package with specific resource count."""
         package = tmp_path / f"package_{count}.package"
 
-        # Header
+        # Header - DBPF 2.0 spec
         header = bytearray(96)
         header[0:4] = b"DBPF"
         header[4:8] = struct.pack("<I", 2)
-        header[40:44] = struct.pack("<I", count)
+        header[36:40] = struct.pack("<I", count)  # Index count at offset 36
 
         # Small resources for faster creation
         resource_size = 100
         index_offset = 96 + (count * resource_size)
         index_size = count * 32
 
-        header[44:48] = struct.pack("<I", index_offset)
-        header[48:52] = struct.pack("<I", index_size)
+        header[44:48] = struct.pack("<I", index_size)  # Index size at offset 44
+        header[64:68] = struct.pack("<I", index_offset)  # Index offset at offset 64
 
         # Index
         index = bytearray(index_size)
