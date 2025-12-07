@@ -9,6 +9,7 @@ from simanalysis import __version__
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
 from simanalysis.detectors.tuning_conflicts import TuningConflictDetector
+from simanalysis.analyzers.mesh_analyzer import MeshAnalyzer
 from simanalysis.models import (
     AnalysisMetadata,
     AnalysisResult,
@@ -63,8 +64,10 @@ class ModAnalyzer:
                 TuningConflictDetector(),
                 ResourceConflictDetector(),
             ]
+            self.mesh_analyzer = MeshAnalyzer()
         else:
             self.detectors = detectors
+            self.mesh_analyzer = None # Custom detectors might not want mesh analysis
 
     def analyze_directory(
         self,
@@ -177,6 +180,10 @@ class ModAnalyzer:
         for detector in self.detectors:
             conflicts = detector.run(mods)
             all_conflicts.extend(conflicts)
+
+        if self.mesh_analyzer:
+            mesh_conflicts = self.mesh_analyzer.analyze(mods)
+            all_conflicts.extend(mesh_conflicts)
 
         return all_conflicts
 

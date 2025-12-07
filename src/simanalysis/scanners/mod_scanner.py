@@ -82,11 +82,23 @@ class ModScanner:
         self.errors_encountered = []
 
         # Find all mod files
+        if progress_callback:
+            progress_callback(0, 0, "Discovering files...")
+            
         files = self._find_mod_files(directory, recursive, extensions)
         total_files = len(files)
+        
+        # Batch processing configuration
+        BATCH_SIZE = 50
+        
+        import time
 
         # Scan each file
         for i, file_path in enumerate(files, 1):
+            # Yield to other threads every batch
+            if i % BATCH_SIZE == 0:
+                time.sleep(0.01)
+
             if progress_callback:
                 progress_callback(i, total_files, file_path.name)
                 

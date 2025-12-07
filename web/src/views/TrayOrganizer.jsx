@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Grid, List, Search, Download, Loader2 } from 'lucide-react';
+import { Grid, List, Search, Download, Loader2, FolderOpen } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
+import FilePicker from '../components/FilePicker';
 
 function TrayOrganizer() {
     const { trayScanResult, isScanning, startTrayScan, completeTrayScan } = useAppContext();
@@ -10,6 +11,7 @@ function TrayOrganizer() {
     const [scanPath, setScanPath] = useState('');
     const [error, setError] = useState(null);
     const [scanProgress, setScanProgress] = useState(null);
+    const [showFilePicker, setShowFilePicker] = useState(false);
 
     const handleScan = () => {
         if (!scanPath.trim()) {
@@ -53,13 +55,22 @@ function TrayOrganizer() {
             {/* Scan Input */}
             <div className="bg-gray-800 p-6 rounded-xl mb-6">
                 <div className="flex gap-4">
-                    <input
-                        type="text"
-                        placeholder="/path/to/Tray"
-                        value={scanPath}
-                        onChange={(e) => setScanPath(e.target.value)}
-                        className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
-                    />
+                    <div className="flex-1 flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="/path/to/Tray"
+                            value={scanPath}
+                            onChange={(e) => setScanPath(e.target.value)}
+                            className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                        />
+                        <button
+                            onClick={() => setShowFilePicker(true)}
+                            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg border border-gray-600 transition-colors"
+                            title="Browse Folder"
+                        >
+                            <FolderOpen size={20} />
+                        </button>
+                    </div>
                     <button
                         onClick={handleScan}
                         disabled={isScanning}
@@ -99,6 +110,15 @@ function TrayOrganizer() {
                     </div>
                 )}
             </div>
+
+            <FilePicker
+                isOpen={showFilePicker}
+                onClose={() => setShowFilePicker(false)}
+                onSelect={(path) => setScanPath(path)}
+                initialPath={scanPath || '~/Documents/Electronic Arts/The Sims 4/Tray'}
+                selectDirectory={true}
+                title="Select Tray Folder"
+            />
 
             {trayScanResult && (
                 <>

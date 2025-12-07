@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import api from '../api';
-import { Search, FileText, Package, HardDrive, AlertCircle, CheckCircle } from 'lucide-react';
+import { Search, FileText, Package, HardDrive, AlertCircle, CheckCircle, FolderOpen, File } from 'lucide-react';
+import FilePicker from '../components/FilePicker';
 
 function SaveAnalyzer() {
     const { saveScanResult, isScanning, startSaveScan, completeSaveScan } = useAppContext();
@@ -11,6 +12,10 @@ function SaveAnalyzer() {
     const [scanProgress, setScanProgress] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [showUnused, setShowUnused] = useState(false);
+
+    // File Picker States
+    const [showSavePicker, setShowSavePicker] = useState(false);
+    const [showModsPicker, setShowModsPicker] = useState(false);
 
     const handleAnalyze = () => {
         if (!savePath.trim()) {
@@ -63,26 +68,44 @@ function SaveAnalyzer() {
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                         Save File Path
                     </label>
-                    <input
-                        type="text"
-                        value={savePath}
-                        onChange={(e) => setSavePath(e.target.value)}
-                        placeholder="~/Documents/Electronic Arts/The Sims 4/saves/Slot_00000001.save"
-                        className="w-full px-4 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={savePath}
+                            onChange={(e) => setSavePath(e.target.value)}
+                            placeholder="~/Documents/Electronic Arts/The Sims 4/saves/Slot_00000001.save"
+                            className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onClick={() => setShowSavePicker(true)}
+                            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg border border-gray-600 transition-colors"
+                            title="Browse File"
+                        >
+                            <File size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                         Mods Folder Path
                     </label>
-                    <input
-                        type="text"
-                        value={modsPath}
-                        onChange={(e) => setModsPath(e.target.value)}
-                        placeholder="~/Documents/Electronic Arts/The Sims 4/Mods"
-                        className="w-full px-4 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            value={modsPath}
+                            onChange={(e) => setModsPath(e.target.value)}
+                            placeholder="~/Documents/Electronic Arts/The Sims 4/Mods"
+                            className="flex-1 px-4 py-2 bg-gray-700 text-white rounded-md border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                            onClick={() => setShowModsPicker(true)}
+                            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg border border-gray-600 transition-colors"
+                            title="Browse Folder"
+                        >
+                            <FolderOpen size={20} />
+                        </button>
+                    </div>
                 </div>
 
                 <button
@@ -114,6 +137,25 @@ function SaveAnalyzer() {
                     </div>
                 )}
             </div>
+
+            {/* File Pickers */}
+            <FilePicker
+                isOpen={showSavePicker}
+                onClose={() => setShowSavePicker(false)}
+                onSelect={(path) => setSavePath(path)}
+                initialPath={savePath || '~/Documents/Electronic Arts/The Sims 4/saves'}
+                selectDirectory={false}
+                title="Select Save File"
+            />
+
+            <FilePicker
+                isOpen={showModsPicker}
+                onClose={() => setShowModsPicker(false)}
+                onSelect={(path) => setModsPath(path)}
+                initialPath={modsPath || '~/Documents/Electronic Arts/The Sims 4/Mods'}
+                selectDirectory={true}
+                title="Select Mods Folder"
+            />
 
             {/* Results Section */}
             {saveScanResult && (
@@ -188,8 +230,8 @@ function SaveAnalyzer() {
                                 <button
                                     onClick={() => setShowUnused(false)}
                                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${!showUnused
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                         }`}
                                 >
                                     Used ({saveScanResult.summary.used_mods})
@@ -197,8 +239,8 @@ function SaveAnalyzer() {
                                 <button
                                     onClick={() => setShowUnused(true)}
                                     className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${showUnused
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                                         }`}
                                 >
                                     Unused ({saveScanResult.summary.unused_mods})

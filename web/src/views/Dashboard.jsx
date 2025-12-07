@@ -1,161 +1,160 @@
+import { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Activity, Package, HardDrive, Clock } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { Activity, ShieldCheck, ShieldAlert, FileText, HardDrive } from 'lucide-react';
+import VisualConflictExplorer from '../components/VisualConflictExplorer';
 
 function Dashboard() {
-    const { modScanResult, trayScanResult } = useAppContext();
+    const { modScanResult } = useAppContext();
+    const conflicts = modScanResult?.conflicts || [];
+    const totalFiles = modScanResult?.total_files || 0;
 
-    // Calculate stats from scan results
-    const hasModData = modScanResult?.summary;
-    const hasTrayData = trayScanResult?.summary;
+    // Calculate stats
+    const stats = useMemo(() => {
+        const severityCounts = {
+            critical: conflicts.filter(c => c.severity === 'critical').length,
+            high: conflicts.filter(c => c.severity === 'high').length,
+            medium: conflicts.filter(c => c.severity === 'medium').length,
+            low: conflicts.filter(c => c.severity === 'low').length,
+        };
 
-    const stats = {
-        healthScore: hasModData
-            ? Math.max(0, 100 - (modScanResult.summary.total_conflicts || 0) * 10)
-            : 85,
-        totalMods: modScanResult?.summary?.total_mods || 0,
-        totalSize: modScanResult?.performance?.total_size_mb
-            ? `${modScanResult.performance.total_size_mb.toFixed(1)} MB`
-            : '0 MB',
-        loadTime: modScanResult?.performance?.estimated_load_time_seconds
-            ? `${modScanResult.performance.estimated_load_time_seconds.toFixed(1)}s`
-            : '0s',
-        conflicts: modScanResult?.summary?.total_conflicts || 0,
+        // Mock file types for now (backend needs to send this)
+        const fileTypes = [
+            { name: '.package', value: Math.floor(totalFiles * 0.8) },
+            { name: '.ts4script', value: Math.floor(totalFiles * 0.2) },
+        ];
+
+        return { severityCounts, fileTypes };
+    }, [conflicts, totalFiles]);
+
+    // Data for Donut Chart
+    const severityData = [
+        { name: 'Critical', value: stats.severityCounts.critical, color: '#ef4444' },
+        { name: 'High', value: stats.severityCounts.high, color: '#f97316' },
+        { name: 'Medium', value: stats.severityCounts.medium, color: '#eab308' },
+        { name: 'Low', value: stats.severityCounts.low, color: '#3b82f6' },
+    ].filter(d => d.value > 0);
+
+    // Calculate Health Score (0-100)
+    const healthScore = Math.max(0, 100 - (stats.severityCounts.critical * 10) - (stats.severityCounts.high * 5) - (stats.severityCounts.medium * 2));
+
+    const getHealthColor = (score) => {
+        if (score >= 90) return 'text-green-500';
+        if (score >= 70) return 'text-yellow-500';
+        return 'text-red-500';
     };
 
-    // Mock mod type data (in a real implementation, this would come from backend)
-    const modTypeData = [
-        { name: 'CAS', value: 120, color: '#3b82f6' },
-        { name: 'Build/Buy', value: 80, color: '#10b981' },
-        { name: 'Script', value: 47, color: '#f59e0b' },
-    ];
-
-    const storageData = [
-        {
-            category: 'Mods',
-            size: modScanResult?.performance?.total_size_mb || 0
-        },
-        {
-            category: 'Tray',
-            size: trayScanResult?.summary?.total_size_mb || 0
-        },
-    ];
-
     return (
-        <div className="p-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-                <p className="text-gray-400 mt-1">Overview of your Sims 4 game health</p>
-            </div>
+        <div className="h-full overflow-y-auto p-6 space-y-6">
+            <header>
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <Activity className="text-blue-500" />
+                    Dashboard
+                </h1>
+                <p className="text-gray-400 mt-1">Overview of your modding environment</p>
+            </header>
 
-            {/* Health Score */}
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-8 mb-8">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h2 className="text-white text-lg mb-2">System Health</h2>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-6xl font-bold text-white">{stats.healthScore}</span>
-                            <span className="text-2xl text-blue-200">/100</span>
-                        </div>
-                        <p className="text-blue-100 mt-2">
-                            {stats.conflicts > 0 ? `${stats.conflicts} conflicts detected` : 'All systems normal'}
-                        </p>
+            {/* Top Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <ShieldCheck size={64} />
                     </div>
-                    <Activity size={80} className="text-white opacity-20" />
+                    <span className="text-gray-400 text-sm font-medium uppercase tracking-wider mb-2">Game Health</span>
+                    <div className={`text-5xl font-bold ${getHealthColor(healthScore)}`}>
+                        {healthScore}%
+                    </div>
+                    <span className="text-xs text-gray-500 mt-2">Based on conflict severity</span>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col justify-center">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-blue-500/20 rounded-lg text-blue-400">
+                            <FileText size={24} />
+                        </div>
+                        <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">Total Mods</span>
+                    </div>
+                    <div className="text-3xl font-bold text-white ml-1">{totalFiles}</div>
+                    <div className="text-xs text-gray-500 ml-1 mt-1">Files scanned</div>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col justify-center">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-orange-500/20 rounded-lg text-orange-400">
+                            <ShieldAlert size={24} />
+                        </div>
+                        <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">Conflicts</span>
+                    </div>
+                    <div className="text-3xl font-bold text-white ml-1">{conflicts.length}</div>
+                    <div className="text-xs text-gray-500 ml-1 mt-1">Issues detected</div>
+                </div>
+
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 flex flex-col justify-center">
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-purple-500/20 rounded-lg text-purple-400">
+                            <HardDrive size={24} />
+                        </div>
+                        <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">Space Used</span>
+                    </div>
+                    <div className="text-3xl font-bold text-white ml-1">-- GB</div>
+                    <div className="text-xs text-gray-500 ml-1 mt-1">Estimated size</div>
                 </div>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <StatCard icon={Package} title="Total Mods" value={stats.totalMods} color="blue" />
-                <StatCard icon={HardDrive} title="Storage Used" value={stats.totalSize} color="green" />
-                <StatCard icon={Clock} title="Load Time" value={stats.loadTime} color="yellow" />
-                <StatCard
-                    icon={Activity}
-                    title="Conflicts"
-                    value={stats.conflicts}
-                    color={stats.conflicts > 0 ? 'red' : 'green'}
-                />
-            </div>
-
-            {/* Charts */}
+            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Mod Type Distribution */}
-                <div className="bg-gray-800 p-6 rounded-xl">
-                    <h3 className="text-xl font-bold mb-4">Mod Type Distribution</h3>
-                    {hasModData ? (
-                        <ResponsiveContainer width="100%" height={250}>
+                {/* Conflict Severity Chart */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 h-[300px]">
+                    <h3 className="text-lg font-bold text-white mb-4">Conflict Severity</h3>
+                    {severityData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={modTypeData}
+                                    data={severityData}
                                     cx="50%"
                                     cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                    innerRadius={60}
                                     outerRadius={80}
-                                    fill="#8884d8"
+                                    paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {modTypeData.map((entry, index) => (
+                                    {severityData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
                                     ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
+                                    itemStyle={{ color: '#fff' }}
+                                />
+                                <Legend verticalAlign="bottom" height={36} />
                             </PieChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="h-[250px] flex items-center justify-center text-gray-500">
-                            <p>Run a mod scan to see distribution</p>
+                        <div className="h-full flex items-center justify-center text-gray-500">
+                            No conflicts detected
                         </div>
                     )}
                 </div>
 
-                {/* Storage Usage */}
-                <div className="bg-gray-800 p-6 rounded-xl">
-                    <h3 className="text-xl font-bold mb-4">Storage Usage (MB)</h3>
-                    {hasModData || hasTrayData ? (
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={storageData}>
-                                <XAxis dataKey="category" stroke="#9ca3af" />
-                                <YAxis stroke="#9ca3af" />
-                                <Tooltip contentStyle={{ backgroundColor: '#1f2937', border: 'none' }} />
-                                <Bar dataKey="size" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    ) : (
-                        <div className="h-[250px] flex items-center justify-center text-gray-500">
-                            <p>Run scans to see storage usage</p>
-                        </div>
-                    )}
+                {/* File Types Chart */}
+                <div className="bg-gray-800 p-6 rounded-xl border border-gray-700 h-[300px]">
+                    <h3 className="text-lg font-bold text-white mb-4">File Distribution</h3>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={stats.fileTypes}>
+                            <XAxis dataKey="name" stroke="#9ca3af" />
+                            <YAxis stroke="#9ca3af" />
+                            <Tooltip
+                                cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
+                                contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
+                            />
+                            <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 
-            {!hasModData && !hasTrayData && (
-                <div className="mt-8 bg-gray-800 rounded-xl p-12 text-center">
-                    <Activity size={64} className="mx-auto mb-4 text-gray-600" />
-                    <h3 className="text-xl font-bold text-white mb-2">No Scan Data</h3>
-                    <p className="text-gray-400">
-                        Visit "Mod Manager" or "Tray Organizer" to scan your files and populate the dashboard
-                    </p>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function StatCard({ icon: Icon, title, value, color }) {
-    const colors = {
-        blue: 'from-blue-600 to-blue-700',
-        green: 'from-green-600 to-green-700',
-        yellow: 'from-yellow-600 to-yellow-700',
-        red: 'from-red-600 to-red-700',
-    };
-
-    return (
-        <div className={`bg-gradient-to-br ${colors[color]} p-6 rounded-xl`}>
-            <Icon className="text-white opacity-80 mb-2" size={24} />
-            <p className="text-sm text-white opacity-90">{title}</p>
-            <p className="text-3xl font-bold text-white mt-1">{value}</p>
+            {/* Visual Conflict Explorer */}
+            <VisualConflictExplorer conflicts={conflicts} />
         </div>
     );
 }

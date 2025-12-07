@@ -19,6 +19,8 @@ a = Analysis(
         'uvicorn.lifespan',
         'uvicorn.lifespan.on',
         'simanalysis.web.api',
+        'aiohttp',
+        'certifi',
     ],
     hookspath=[],
     hooksconfig={},

@@ -1,184 +1,206 @@
+import { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronRight, FileText, Download, Copy } from 'lucide-react';
+import { Virtuoso } from 'react-virtuoso';
+import DuplicateModal from '../components/DuplicateModal';
 
 function Conflicts() {
-    const { modScanResult } = useAppContext();
+    const { modScanResult, refreshModScan } = useAppContext();
+    const [selectedType, setSelectedType] = useState('all');
+    const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+    const [selectedConflict, setSelectedConflict] = useState(null);
 
     const conflicts = modScanResult?.conflicts || [];
 
-    const criticalCount = conflicts.filter((c) => c.severity === 'critical').length;
-    const highCount = conflicts.filter((c) => c.severity === 'high').length;
+    const stats = useMemo(() => {
+        return {
+            critical: conflicts.filter((c) => c.severity === 'critical').length,
+            high: conflicts.filter((c) => c.severity === 'high').length,
+            medium: conflicts.filter((c) => c.severity === 'medium').length,
+            low: conflicts.filter((c) => c.severity === 'low').length,
+        };
+    }, [conflicts]);
+
+    const filteredConflicts = useMemo(() => {
+        if (selectedType === 'all') return conflicts;
+        return conflicts.filter(c => c.severity === selectedType);
+    }, [conflicts, selectedType]);
 
     const getSeverityColor = (severity) => {
         switch (severity) {
-            case 'critical':
-                return 'border-red-500 bg-red-900/20';
-            case 'high':
-                return 'border-orange-500 bg-orange-900/20';
-            case 'medium':
-                return 'border-yellow-500 bg-yellow-900/20';
-            case 'low':
-                return 'border-blue-500 bg-blue-900/20';
-            default:
-                return 'border-gray-500 bg-gray-900/20';
+            case 'critical': return 'border-red-500 bg-red-900/20';
+            case 'high': return 'border-orange-500 bg-orange-900/20';
+            case 'medium': return 'border-yellow-500 bg-yellow-900/20';
+            case 'low': return 'border-blue-500 bg-blue-900/20';
+            default: return 'border-gray-500 bg-gray-900/20';
         }
     };
 
-    const gameHealth = conflicts.length === 0 ? 'Excellent' : criticalCount > 0 ? 'Poor' : highCount > 3 ? 'Fair' : 'Good';
+    const handleDownloadReport = () => {
+        const report = JSON.stringify(modScanResult, null, 2);
+        const blob = new Blob([report], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `simanalysis-report-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+
+    const handleManageDuplicates = (conflict) => {
+        setSelectedConflict(conflict);
+        setDuplicateModalOpen(true);
+    };
+
+    const handleFilesDeleted = () => {
+        // Trigger a rescan or refresh the conflict data
+        if (refreshModScan) {
+            refreshModScan();
+        }
+    };
+
+    const isDuplicateConflict = (conflict) => {
+        return conflict.details?.file_hash !== undefined;
+    };
+
+    const gameHealth = conflicts.length === 0 ? 'Excellent' : stats.critical > 0 ? 'Poor' : stats.high > 3 ? 'Fair' : 'Good';
+
+    const ConflictCard = ({ conflict }) => (
+        <div className={`border-l-4 ${getSeverityColor(conflict.severity)} bg-gray-800 p-4 rounded-r-xl mb-4`}>
+            <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${conflict.severity === 'critical' ? 'bg-red-600 text-white' :
+                            conflict.severity === 'high' ? 'bg-orange-600 text-white' :
+                                conflict.severity === 'medium' ? 'bg-yellow-600 text-white' :
+                                    'bg-blue-600 text-white'
+                            }`}>
+                            {conflict.severity}
+                        </span>
+                        <span className="text-gray-400 text-sm font-mono">{conflict.type}</span>
+                        {isDuplicateConflict(conflict) && (
+                            <span className="px-2 py-0.5 bg-purple-600 text-white rounded text-xs font-bold flex items-center gap-1">
+                                <Copy size={12} />
+                                DUPLICATE
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-gray-200 text-sm">{conflict.description}</p>
+                </div>
+            </div>
+
+            <div className="mt-3 bg-gray-900/50 p-3 rounded-lg">
+                <p className="text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Affected Mods</p>
+                <div className="flex flex-wrap gap-2">
+                    {conflict.affected_mods.map((mod, index) => (
+                        <span key={index} className="px-2 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded text-xs truncate max-w-[300px]" title={mod}>
+                            {mod}
+                        </span>
+                    ))}
+                </div>
+            </div>
+
+            {isDuplicateConflict(conflict) && (
+                <div className="mt-3">
+                    <button
+                        onClick={() => handleManageDuplicates(conflict)}
+                        className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm font-medium flex items-center gap-2"
+                    >
+                        <Copy size={16} />
+                        Manage Duplicates
+                    </button>
+                </div>
+            )}
+        </div>
+    );
 
     return (
-        <div className="p-8">
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white">Conflict Resolver</h1>
-                <p className="text-gray-400 mt-1">Identify and resolve mod conflicts</p>
+        <div className="h-full flex flex-col p-6">
+            <div className="flex justify-between items-start mb-6 shrink-0">
+                <div>
+                    <h1 className="text-3xl font-bold text-white">Conflict Resolver</h1>
+                    <p className="text-gray-400 mt-1">Found {conflicts.length} potential issues</p>
+                </div>
+                <button
+                    onClick={handleDownloadReport}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                >
+                    <Download size={18} />
+                    Export Report
+                </button>
             </div>
 
             {modScanResult ? (
                 <>
-                    {/* Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                        <div className="bg-red-900/20 border border-red-500 p-6 rounded-xl">
-                            <XCircle className="text-red-400 mb-2" size={32} />
-                            <p className="text-sm text-red-200">Critical Issues</p>
-                            <p className="text-3xl font-bold text-red-400 mt-1">{criticalCount}</p>
-                        </div>
-                        <div className="bg-orange-900/20 border border-orange-500 p-6 rounded-xl">
-                            <AlertTriangle className="text-orange-400 mb-2" size={32} />
-                            <p className="text-sm text-orange-200">High Priority</p>
-                            <p className="text-3xl font-bold text-orange-400 mt-1">{highCount}</p>
-                        </div>
-                        <div
-                            className={`p-6 rounded-xl ${gameHealth === 'Excellent'
-                                    ? 'bg-green-900/20 border border-green-500'
-                                    : gameHealth === 'Good'
-                                        ? 'bg-blue-900/20 border border-blue-500'
-                                        : gameHealth === 'Fair'
-                                            ? 'bg-yellow-900/20 border border-yellow-500'
-                                            : 'bg-red-900/20 border border-red-500'
-                                }`}
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 shrink-0">
+                        <button
+                            onClick={() => setSelectedType(selectedType === 'critical' ? 'all' : 'critical')}
+                            className={`p-4 rounded-xl border transition-all text-left ${selectedType === 'critical' ? 'bg-red-900/30 border-red-500 ring-1 ring-red-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-750'}`}
                         >
-                            <CheckCircle
-                                className={`mb-2 ${gameHealth === 'Excellent'
-                                        ? 'text-green-400'
-                                        : gameHealth === 'Good'
-                                            ? 'text-blue-400'
-                                            : gameHealth === 'Fair'
-                                                ? 'text-yellow-400'
-                                                : 'text-red-400'
-                                    }`}
-                                size={32}
-                            />
-                            <p
-                                className={`text-sm ${gameHealth === 'Excellent'
-                                        ? 'text-green-200'
-                                        : gameHealth === 'Good'
-                                            ? 'text-blue-200'
-                                            : gameHealth === 'Fair'
-                                                ? 'text-yellow-200'
-                                                : 'text-red-200'
-                                    }`}
-                            >
-                                Game Health
-                            </p>
-                            <p
-                                className={`text-3xl font-bold mt-1 ${gameHealth === 'Excellent'
-                                        ? 'text-green-400'
-                                        : gameHealth === 'Good'
-                                            ? 'text-blue-400'
-                                            : gameHealth === 'Fair'
-                                                ? 'text-yellow-400'
-                                                : 'text-red-400'
-                                    }`}
-                            >
-                                {gameHealth}
-                            </p>
-                        </div>
+                            <p className="text-xs text-red-400 uppercase font-bold">Critical</p>
+                            <p className="text-2xl font-bold text-white mt-1">{stats.critical}</p>
+                        </button>
+                        <button
+                            onClick={() => setSelectedType(selectedType === 'high' ? 'all' : 'high')}
+                            className={`p-4 rounded-xl border transition-all text-left ${selectedType === 'high' ? 'bg-orange-900/30 border-orange-500 ring-1 ring-orange-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-750'}`}
+                        >
+                            <p className="text-xs text-orange-400 uppercase font-bold">High</p>
+                            <p className="text-2xl font-bold text-white mt-1">{stats.high}</p>
+                        </button>
+                        <button
+                            onClick={() => setSelectedType(selectedType === 'medium' ? 'all' : 'medium')}
+                            className={`p-4 rounded-xl border transition-all text-left ${selectedType === 'medium' ? 'bg-yellow-900/30 border-yellow-500 ring-1 ring-yellow-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-750'}`}
+                        >
+                            <p className="text-xs text-yellow-400 uppercase font-bold">Medium</p>
+                            <p className="text-2xl font-bold text-white mt-1">{stats.medium}</p>
+                        </button>
+                        <button
+                            onClick={() => setSelectedType(selectedType === 'low' ? 'all' : 'low')}
+                            className={`p-4 rounded-xl border transition-all text-left ${selectedType === 'low' ? 'bg-blue-900/30 border-blue-500 ring-1 ring-blue-500' : 'bg-gray-800 border-gray-700 hover:bg-gray-750'}`}
+                        >
+                            <p className="text-xs text-blue-400 uppercase font-bold">Low</p>
+                            <p className="text-2xl font-bold text-white mt-1">{stats.low}</p>
+                        </button>
                     </div>
 
-                    {/* Conflicts List */}
-                    <div className="space-y-4">
-                        {conflicts.length === 0 ? (
-                            <div className="bg-gray-800 rounded-xl p-12 text-center">
-                                <CheckCircle className="text-green-500 mx-auto mb-4" size={64} />
-                                <h3 className="text-2xl font-bold text-white mb-2">No Conflicts Detected!</h3>
-                                <p className="text-gray-400">Your mod setup looks clean</p>
+                    {/* Virtualized List */}
+                    <div className="flex-1 min-h-0 bg-gray-900/30 rounded-xl border border-gray-800">
+                        {filteredConflicts.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                                <CheckCircle size={48} className="mb-4 text-green-500/50" />
+                                <p className="text-lg font-medium">No conflicts found</p>
+                                <p className="text-sm">Select a different filter or run a new scan</p>
                             </div>
                         ) : (
-                            conflicts.map((conflict) => (
-                                <div
-                                    key={conflict.id}
-                                    className={`border-l-4 ${getSeverityColor(
-                                        conflict.severity
-                                    )} bg-gray-800 p-6 rounded-xl`}
-                                >
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div>
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <h3 className="text-xl font-bold text-white">{conflict.type}</h3>
-                                                <span
-                                                    className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${conflict.severity === 'critical'
-                                                            ? 'bg-red-600 text-white'
-                                                            : conflict.severity === 'high'
-                                                                ? 'bg-orange-600 text-white'
-                                                                : conflict.severity === 'medium'
-                                                                    ? 'bg-yellow-600 text-white'
-                                                                    : 'bg-blue-600 text-white'
-                                                        }`}
-                                                >
-                                                    {conflict.severity}
-                                                </span>
-                                            </div>
-                                            <p className="text-gray-300">{conflict.description}</p>
-                                        </div>
+                            <Virtuoso
+                                style={{ height: '100%' }}
+                                data={filteredConflicts}
+                                itemContent={(index, conflict) => (
+                                    <div className="px-4 pt-4">
+                                        <ConflictCard conflict={conflict} />
                                     </div>
-
-                                    {/* Affected Mods */}
-                                    <div className="mb-4">
-                                        <p className="text-sm text-gray-400 mb-2">Affected Mods:</p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {conflict.affected_mods.map((mod, index) => (
-                                                <span
-                                                    key={index}
-                                                    className="px-3 py-1 bg-gray-700 text-white rounded-lg text-sm"
-                                                >
-                                                    {mod}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-
-                                    {/* Resolution */}
-                                    {conflict.resolution && (
-                                        <div className="mb-4 p-4 bg-blue-900/20 border border-blue-500 rounded-lg">
-                                            <p className="text-sm text-blue-200 font-medium mb-1">💡 Recommended Action:</p>
-                                            <p className="text-blue-100">{conflict.resolution}</p>
-                                        </div>
-                                    )}
-
-                                    {/* Actions */}
-                                    <div className="flex gap-2">
-                                        <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                                            Resolve
-                                        </button>
-                                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
-                                            Ignore
-                                        </button>
-                                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">
-                                            More Info
-                                        </button>
-                                    </div>
-                                </div>
-                            ))
+                                )}
+                            />
                         )}
                     </div>
                 </>
             ) : (
-                <div className="bg-gray-800 rounded-xl p-12 text-center text-gray-400">
-                    <AlertTriangle size={64} className="mx-auto mb-4 opacity-50" />
+                <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-gray-800/50 rounded-xl border border-gray-700 border-dashed">
+                    <AlertTriangle size={48} className="mb-4 opacity-50" />
                     <h3 className="text-xl font-bold text-white mb-2">No Scan Data</h3>
                     <p>Run a mod scan to detect conflicts</p>
                 </div>
             )}
+
+            <DuplicateModal
+                isOpen={duplicateModalOpen}
+                onClose={() => setDuplicateModalOpen(false)}
+                conflict={selectedConflict}
+                onFilesDeleted={handleFilesDeleted}
+            />
         </div>
     );
 }

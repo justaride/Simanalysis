@@ -84,13 +84,20 @@ class SaveAnalyzer:
         if progress_callback:
             progress_callback("Scanning save file", 0, 3)
         
+        print(f"Scanning save file: {save_path}")
         save_data = self.save_scanner.scan_save_file(save_path)
+        print(f"Save file scanned. Found {len(save_data.referenced_resources)} resources.")
         
         # Step 2: Scan mods folder
-        if progress_callback:
-            progress_callback("Scanning Mods folder", 1, 3)
-        
-        mods = self.mod_scanner.scan_directory(mods_path, recursive=True)
+        def mod_progress_handler(current: int, total: int, filename: str) -> None:
+            if progress_callback:
+                progress_callback(f"Scanning: {filename}", current, total)
+
+        mods = self.mod_scanner.scan_directory(
+            mods_path, 
+            recursive=True,
+            progress_callback=mod_progress_handler
+        )
         
         # Step 3: Build resource index from mods
         if progress_callback:
