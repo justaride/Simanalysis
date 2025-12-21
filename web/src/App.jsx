@@ -1,23 +1,35 @@
 import { Routes, Route } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import Layout from './components/Layout';
-import Dashboard from './views/Dashboard';
-import ModManager from './views/ModManager';
-import TrayOrganizer from './views/TrayOrganizer';
-import SaveAnalyzer from './views/SaveAnalyzer';
-import Conflicts from './views/Conflicts';
-import Settings from './views/Settings';
+
+const Dashboard = lazy(() => import('./views/Dashboard'));
+const ModManager = lazy(() => import('./views/ModManager'));
+const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
+const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
+const Conflicts = lazy(() => import('./views/Conflicts'));
+const Settings = lazy(() => import('./views/Settings'));
+
+function LoadingFallback() {
+    return (
+        <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        </div>
+    );
+}
 
 function App() {
     return (
         <Layout>
-            <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/mods" element={<ModManager />} />
-                <Route path="/tray" element={<TrayOrganizer />} />
-                <Route path="/save-analyzer" element={<SaveAnalyzer />} />
-                <Route path="/conflicts" element={<Conflicts />} />
-                <Route path="/settings" element={<Settings />} />
-            </Routes>
+            <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/mods" element={<ModManager />} />
+                    <Route path="/tray" element={<TrayOrganizer />} />
+                    <Route path="/save-analyzer" element={<SaveAnalyzer />} />
+                    <Route path="/conflicts" element={<Conflicts />} />
+                    <Route path="/settings" element={<Settings />} />
+                </Routes>
+            </Suspense>
         </Layout>
     );
 }

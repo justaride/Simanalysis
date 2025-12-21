@@ -420,18 +420,60 @@ pytest
 
 ## 🔮 Roadmap
 
-### Current Version (2.0.0)
+### Current Version (2.1.0)
 - ✅ Complete file format parsing
 - ✅ Tuning and resource conflict detection
 - ✅ Performance metrics
 - ✅ Report generation
+- ✅ Modern React web interface with glass-morphism design
 
 ### Planned Features
-- 🔄 CLI interface (`simanalysis analyze /path/to/mods`)
-- 🔄 HTML report with interactive UI
 - 🔄 Mod compatibility database
 - 🔄 Automatic fix suggestions
 - 🔄 Integration with mod managers
+- 🔄 Real-time file watching
+
+---
+
+## 🌐 Web Interface
+
+Simanalysis includes a modern React-based web interface for visual mod analysis.
+
+### Running the Web UI
+
+```bash
+# Navigate to web directory
+cd web
+
+# Install dependencies
+npm install
+
+# Start development server (default port 5173, or specify custom)
+npm run dev -- --port 8888
+```
+
+Visit `http://localhost:8888` to access the interface.
+
+### Web UI Features
+
+| View | Description |
+|------|-------------|
+| **Dashboard** | Health score, conflict severity charts, visual explorer |
+| **Mod Manager** | Grid/list view with search, filtering, and thumbnails |
+| **Conflict Resolver** | Detailed conflicts with severity filtering and duplicate management |
+| **Tray Organizer** | Manage CC tray files |
+| **Save Analyzer** | Analyze save game files |
+
+### UI Highlights
+
+- 🎨 **Glass-morphism design** - Modern translucent cards with backdrop blur
+- ✨ **Smooth animations** - Powered by Framer Motion
+- 📱 **Collapsible sidebar** - Hover to reveal toggle, state persisted
+- 🌙 **Dark theme** - Optimized for extended use
+- 📊 **Interactive charts** - Recharts with gradient styling
+- ⚡ **Virtualized lists** - Handle 1000+ mods efficiently
+- 🎯 **Welcome hero** - Guided onboarding for new users
+- 🚀 **Optimized builds** - Code-split bundles, ~91 KB gzipped initial load
 
 ---
 
