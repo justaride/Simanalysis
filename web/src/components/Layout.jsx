@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Toaster, toast } from 'sonner';
 import { Download } from 'lucide-react';

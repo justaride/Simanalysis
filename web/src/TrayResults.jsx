@@ -1,4 +1,3 @@
-import React from 'react';
 
 function TrayResults({ result }) {
     if (!result) return null;

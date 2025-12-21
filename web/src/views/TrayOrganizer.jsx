@@ -243,7 +243,7 @@ function TrayOrganizer() {
                 <div className="bg-gray-800 rounded-xl p-12 text-center text-gray-400">
                     <Download size={64} className="mx-auto mb-4 opacity-50" />
                     <h3 className="text-xl font-bold text-white mb-2">No Scan Results</h3>
-                    <p>Enter a path and click "Scan Folder" to analyze your tray files</p>
+                    <p>Enter a path and click &quot;Scan Folder&quot; to analyze your tray files</p>
                 </div>
             )}
         </div>

@@ -9,7 +9,7 @@ export function AppProvider({ children }) {
     const [isScanning, setIsScanning] = useState(false);
     const [scanProgress, setScanProgress] = useState(null);
 
-    const startModScan = useCallback((path) => {
+    const startModScan = useCallback(() => {
         setIsScanning(true);
         setScanProgress({ current: 0, total: 0, file: '' });
         setModScanResult(null);
@@ -25,7 +25,7 @@ export function AppProvider({ children }) {
         setScanProgress(null);
     }, []);
 
-    const startTrayScan = useCallback((path) => {
+    const startTrayScan = useCallback(() => {
         setIsScanning(true);
         setTrayScanResult(null);
     }, []);
@@ -76,6 +76,7 @@ export function AppProvider({ children }) {
     );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAppContext() {
     const context = useContext(AppContext);
     if (!context) {

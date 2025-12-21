@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronRight, FileText, Download, Copy } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Download, Copy } from 'lucide-react';
 import { Virtuoso } from 'react-virtuoso';
 import DuplicateModal from '../components/DuplicateModal';
 
@@ -10,7 +10,7 @@ function Conflicts() {
     const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
     const [selectedConflict, setSelectedConflict] = useState(null);
 
-    const conflicts = modScanResult?.conflicts || [];
+    const conflicts = useMemo(() => modScanResult?.conflicts || [], [modScanResult?.conflicts]);
 
     const stats = useMemo(() => {
         return {
@@ -64,8 +64,6 @@ function Conflicts() {
     const isDuplicateConflict = (conflict) => {
         return conflict.details?.file_hash !== undefined;
     };
-
-    const gameHealth = conflicts.length === 0 ? 'Excellent' : stats.critical > 0 ? 'Poor' : stats.high > 3 ? 'Fair' : 'Good';
 
     const ConflictCard = ({ conflict }) => (
         <div className={`border-l-4 ${getSeverityColor(conflict.severity)} bg-gray-800 p-4 rounded-r-xl mb-4`}>

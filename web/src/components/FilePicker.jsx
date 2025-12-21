@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Folder, File, ChevronUp, Loader2, HardDrive } from 'lucide-react';
 
 function FilePicker({ isOpen, onClose, onSelect, initialPath, selectDirectory = true, title = "Select Path" }) {

@@ -133,7 +133,7 @@ function DuplicateModal({ isOpen, onClose, conflict, onFilesDeleted }) {
 
                 {/* File List */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-3">
-                    {sortedFiles.map((file, index) => {
+                    {sortedFiles.map((file) => {
                         const isNewest = file.path === newestFile.path;
                         const isSelected = selectedFiles.has(file.path);
 

@@ -1,4 +1,4 @@
-import { Folder, Bell, Palette, Info } from 'lucide-react';
+import { Folder, Palette, Info } from 'lucide-react';
 
 function Settings() {
     return (

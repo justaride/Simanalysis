@@ -1,9 +1,10 @@
 import { useState, useEffect, forwardRef } from 'react';
-import { Search, Filter, Download, Loader2, LayoutGrid, List as ListIcon, Package, FileCode, FolderOpen } from 'lucide-react';
+import { Search, Filter, Download, Loader2, LayoutGrid, List as ListIcon, Package, FileCode, FolderOpen, Sparkles } from 'lucide-react';
 import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 import { toast } from 'sonner';
 import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
+import { motion, AnimatePresence } from 'framer-motion';
 import FilePicker from '../components/FilePicker';
 import AnimatedProgress from '../components/AnimatedProgress';
 
@@ -13,7 +14,7 @@ function ModManager() {
     const [filterType, setFilterType] = useState('all');
     const [scanPath, setScanPath] = useState('');
     const [error, setError] = useState(null);
-    const [viewMode, setViewMode] = useState('grid'); // 'list' or 'grid'
+    const [viewMode, setViewMode] = useState('grid');
     const [showFilePicker, setShowFilePicker] = useState(false);
 
     // Load config on mount
@@ -97,31 +98,49 @@ function ModManager() {
     };
 
     // Virtualized Grid Components
-    const GridList = forwardRef(({ children, ...props }, ref) => (
-        <div
-            ref={ref}
-            {...props}
-            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-4"
-        >
-            {children}
-        </div>
-    ));
+    const GridList = forwardRef(function GridList({ children, ...props }, ref) {
+        return (
+            <div
+                ref={ref}
+                {...props}
+                className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-4"
+            >
+                {children}
+            </div>
+        );
+    });
 
-    const GridItem = forwardRef(({ children, ...props }, ref) => (
-        <div ref={ref} {...props} className="contents">
-            {children}
-        </div>
-    ));
+    const GridItem = forwardRef(function GridItem({ children, ...props }, ref) {
+        return (
+            <div ref={ref} {...props} className="contents">
+                {children}
+            </div>
+        );
+    });
 
     return (
         <div className="p-8 h-screen flex flex-col">
-            <div className="mb-8 shrink-0">
-                <h1 className="text-3xl font-bold text-white">Mod Manager</h1>
-                <p className="text-gray-400 mt-1">View and manage your installed mods</p>
-            </div>
+            <motion.div
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-8 shrink-0"
+            >
+                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+                    <div className="p-2 bg-blue-500/20 rounded-xl">
+                        <Package className="text-blue-400" size={28} />
+                    </div>
+                    Mod Manager
+                </h1>
+                <p className="text-gray-400 mt-2">View and manage your installed mods</p>
+            </motion.div>
 
             {/* Scan Input */}
-            <div className="bg-gray-800 p-6 rounded-xl mb-6 shrink-0">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="glass-card p-6 mb-6 shrink-0"
+            >
                 <div className="flex gap-4">
                     <div className="flex-1 flex gap-2">
                         <input
@@ -129,20 +148,22 @@ function ModManager() {
                             placeholder="/path/to/Mods"
                             value={scanPath}
                             onChange={(e) => setScanPath(e.target.value)}
-                            className="flex-1 bg-gray-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:outline-none focus:border-blue-500"
+                            className="flex-1 bg-gray-700/50 text-white px-4 py-3 rounded-xl border border-gray-600/50 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
                         />
                         <button
                             onClick={() => setShowFilePicker(true)}
-                            className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg border border-gray-600 transition-colors"
+                            className="bg-gray-700/50 hover:bg-gray-600 text-white px-4 py-3 rounded-xl border border-gray-600/50 transition-all hover:border-gray-500"
                             title="Browse Folder"
                         >
                             <FolderOpen size={20} />
                         </button>
                     </div>
-                    <button
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={handleScan}
                         disabled={isScanning}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition-colors"
+                        className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 disabled:opacity-50 text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
                     >
                         {isScanning ? (
                             <>
@@ -155,21 +176,39 @@ function ModManager() {
                                 <span>Scan Mods</span>
                             </>
                         )}
-                    </button>
+                    </motion.button>
                 </div>
-                {error && <p className="text-red-500 mt-2">{error}</p>}
+                <AnimatePresence>
+                    {error && (
+                        <motion.p
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="text-red-400 mt-3"
+                        >
+                            {error}
+                        </motion.p>
+                    )}
+                </AnimatePresence>
 
                 {/* Progress Bar */}
-                {isScanning && (
-                    <div className="mt-6 flex justify-center">
-                        <AnimatedProgress
-                            progress={scanProgress.percentage}
-                            status={scanProgress.file ? `Scanning: ${scanProgress.file.split('/').pop()}` : 'Processing...'}
-                            size={180}
-                        />
-                    </div>
-                )}
-            </div>
+                <AnimatePresence>
+                    {isScanning && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="mt-6 flex justify-center"
+                        >
+                            <AnimatedProgress
+                                progress={scanProgress.percentage}
+                                status={scanProgress.file ? `Scanning: ${scanProgress.file.split('/').pop()}` : 'Processing...'}
+                                size={180}
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </motion.div>
 
             <FilePicker
                 isOpen={showFilePicker}
@@ -298,14 +337,19 @@ function ModManager() {
                                     const hasMissingMesh = conflicts.some(c => c.type === 'DEPENDENCY_MISSING');
 
                                     return (
-                                        <div className="bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-blue-500 transition-all group h-full">
-                                            <div className="aspect-square bg-gray-900 relative overflow-hidden">
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            transition={{ delay: index * 0.02, duration: 0.3 }}
+                                            className="glass-card overflow-hidden card-hover group h-full"
+                                        >
+                                            <div className="aspect-square bg-gradient-to-br from-gray-800 to-gray-900 relative overflow-hidden">
                                                 {mod.type === 'package' ? (
                                                     <img
-                                                        src={`/ api / mods / thumbnail ? path = ${encodeURIComponent(mod.path)} `}
+                                                        src={`/api/mods/thumbnail?path=${encodeURIComponent(mod.path)}`}
                                                         alt={mod.name}
                                                         loading="lazy"
-                                                        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                                                         onError={(e) => {
                                                             e.target.onerror = null;
                                                             e.target.style.display = 'none';
@@ -314,28 +358,35 @@ function ModManager() {
                                                     />
                                                 ) : null}
 
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-800" style={{ display: mod.type === 'package' ? 'none' : 'flex' }}>
+                                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900" style={{ display: mod.type === 'package' ? 'none' : 'flex' }}>
                                                     {mod.type === 'package' ? (
                                                         <Package size={48} className="text-gray-600" />
                                                     ) : (
-                                                        <FileCode size={48} className="text-purple-500" />
+                                                        <div className="p-4 bg-purple-500/20 rounded-2xl">
+                                                            <FileCode size={40} className="text-purple-400" />
+                                                        </div>
                                                     )}
                                                 </div>
 
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+
                                                 {hasMissingMesh ? (
-                                                    <div className="absolute top-2 right-2 bg-yellow-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">MESH?</div>
+                                                    <div className="absolute top-3 right-3 bg-yellow-500/90 backdrop-blur-sm text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                                                        <Sparkles size={12} />
+                                                        MESH?
+                                                    </div>
                                                 ) : mod.conflicts > 0 && (
-                                                    <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">!</div>
+                                                    <div className="absolute top-3 right-3 bg-red-500/90 backdrop-blur-sm text-white text-xs font-bold w-6 h-6 rounded-full shadow-lg flex items-center justify-center">!</div>
                                                 )}
                                             </div>
                                             <div className="p-4">
-                                                <h3 className="text-white font-medium truncate mb-1" title={mod.name}>{mod.name}</h3>
-                                                <div className="flex justify-between items-center text-xs text-gray-400">
-                                                    <span>{formatSize(mod.size)}</span>
-                                                    <span className={mod.type === 'script' ? 'text-purple-400' : 'text-blue-400'}>{mod.type}</span>
+                                                <h3 className="text-white font-medium truncate mb-2 group-hover:text-blue-400 transition-colors" title={mod.name}>{mod.name}</h3>
+                                                <div className="flex justify-between items-center text-xs">
+                                                    <span className="text-gray-400">{formatSize(mod.size)}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full ${mod.type === 'script' ? 'bg-purple-500/20 text-purple-400' : 'bg-blue-500/20 text-blue-400'}`}>{mod.type}</span>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     );
                                 }}
                             />
@@ -351,11 +402,18 @@ function ModManager() {
             )}
 
             {!modScanResult && !isScanning && (
-                <div className="bg-gray-800 rounded-xl p-12 text-center text-gray-400">
-                    <Download size={64} className="mx-auto mb-4 opacity-50" />
-                    <h3 className="text-xl font-bold text-white mb-2">No Scan Results</h3>
-                    <p>Enter a path and click "Scan Folder" to analyze your mods</p>
-                </div>
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.2 }}
+                    className="glass-card p-12 text-center flex-1 flex flex-col items-center justify-center"
+                >
+                    <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center mb-6">
+                        <Download size={40} className="text-blue-400" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-white mb-3">No Scan Results</h3>
+                    <p className="text-gray-400 max-w-md">Enter the path to your Sims 4 Mods folder above and click &quot;Scan Mods&quot; to analyze your collection</p>
+                </motion.div>
             )}
         </div>
     );
