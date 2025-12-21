@@ -2,8 +2,8 @@
 **Derrick - The PhD in Simology and Complexity Theory**
 
 ## Document Control
-- **Version:** 2.1.0
-- **Date:** 2025-12-09
+- **Version:** 2.1.2
+- **Date:** 2025-12-21
 - **Status:** Production Ready
 - **Authors:** SuperClaude (Architecture), justaride (Vision)
 
@@ -126,6 +126,11 @@ dist/
 - Manual chunks for vendor libraries (better caching)
 - Heavy dependencies (recharts, framer-motion) in separate chunks
 - Initial page load: ~277 KB (91 KB gzipped)
+
+**Development Tooling:**
+- Vite v6.4.1 (production build)
+- ESLint with React/Vite configuration
+- 0 linting errors/warnings enforced
 
 ### 2.2 Directory Structure
 
