@@ -101,6 +101,7 @@ def crash_result_to_dict(result: Any) -> dict[str, Any]:
                     {
                         "mod": s.mod_name,
                         "confidence": s.confidence,
+                        "status": s.status,
                         "reason": s.reason,
                         "evidence": [fr.raw_path for fr in s.evidence],
                     }

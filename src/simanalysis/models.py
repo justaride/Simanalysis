@@ -89,6 +89,7 @@ class TracebackFrame:
     func: Optional[str] = None
     kind: str = "unknown"  # "game" | "mod" | "unknown"
     mod_name: Optional[str] = None  # set when kind == "mod"
+    mod_status: Optional[str] = None  # "active" | "disabled" | "not_installed", set with mod_name
 
 
 @dataclass
@@ -115,6 +116,7 @@ class Suspect:
     confidence: str  # "high" | "medium" | "low"
     reason: str
     evidence: list[TracebackFrame] = field(default_factory=list)
+    status: str = "active"  # "active" | "disabled" | "not_installed"
 
 
 @dataclass
