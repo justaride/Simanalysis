@@ -134,7 +134,7 @@ def test_function():
     def test_scan_directory_not_dir(self, scanner: ModScanner, tmp_path: Path) -> None:
         """Test scanning a file raises error."""
         file_path = tmp_path / "test.txt"
-        file_path.write_text("test")
+        file_path.write_text("test", encoding="utf-8")
 
         with pytest.raises(SimanalysisError, match="Not a directory"):
             scanner.scan_directory(file_path)
@@ -185,7 +185,7 @@ def test_function():
         """Test scanning with custom file extensions."""
         # Create a .txt file
         txt_file = test_directory / "readme.txt"
-        txt_file.write_text("Test")
+        txt_file.write_text("Test", encoding="utf-8")
 
         # Scan with default extensions
         mods = scanner.scan_directory(test_directory, extensions={".package"})
@@ -318,7 +318,7 @@ def test_function():
     ) -> None:
         """Test scanning file with unsupported extension."""
         txt_file = test_directory / "readme.txt"
-        txt_file.write_text("Test")
+        txt_file.write_text("Test", encoding="utf-8")
 
         mod = scanner.scan_file(txt_file)
 

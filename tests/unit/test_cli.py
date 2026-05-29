@@ -103,7 +103,7 @@ class TestCLI:
         assert result.exit_code in [0, 1]
         assert output_file.exists()
 
-        content = output_file.read_text()
+        content = output_file.read_text(encoding="utf-8")
         assert "MOD ANALYSIS REPORT" in content
         assert "SUMMARY" in content
 
@@ -127,7 +127,7 @@ class TestCLI:
         assert output_file.exists()
 
         # Verify JSON structure
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
         assert "summary" in data
         assert "mods" in data
@@ -222,7 +222,7 @@ class TestCLI:
     def test_view_txt_report_fails(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test view command fails with TXT report."""
         txt_file = tmp_path / "report.txt"
-        txt_file.write_text("Test report")
+        txt_file.write_text("Test report", encoding="utf-8")
 
         result = runner.invoke(cli, ["view", str(txt_file)])
         assert result.exit_code != 0
@@ -352,7 +352,7 @@ class TestCLI:
         assert result.exit_code in [0, 1]
 
         # Verify JSON structure
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
 
         # Check required fields

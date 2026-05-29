@@ -273,7 +273,7 @@ class TestModAnalyzer:
         analyzer.export_report(result, output_path, format="txt")
 
         assert output_path.exists()
-        content = output_path.read_text()
+        content = output_path.read_text(encoding="utf-8")
 
         assert "MOD ANALYSIS REPORT" in content
         assert "SUMMARY" in content
@@ -292,7 +292,7 @@ class TestModAnalyzer:
         assert output_path.exists()
 
         # Parse JSON
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         assert "summary" in data
@@ -392,7 +392,7 @@ class TestModAnalyzer:
 
         analyzer.export_report(result, output_path, format="txt")
 
-        content = output_path.read_text()
+        content = output_path.read_text(encoding="utf-8")
         assert "RECOMMENDATIONS" in content
 
     def test_text_report_groups_by_severity(
@@ -404,7 +404,7 @@ class TestModAnalyzer:
 
         analyzer.export_report(result, output_path, format="txt")
 
-        content = output_path.read_text()
+        content = output_path.read_text(encoding="utf-8")
         # Should have severity sections
         assert "CONFLICTS" in content
         # Will have at least one severity level mentioned
@@ -419,7 +419,7 @@ class TestModAnalyzer:
 
         analyzer.export_report(result, output_path, format="json")
 
-        with open(output_path) as f:
+        with open(output_path, encoding="utf-8") as f:
             data = json.load(f)
 
         # Check mod structure
