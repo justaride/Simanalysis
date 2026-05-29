@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import zipfile
+from collections.abc import Iterable
 from pathlib import Path
 
 from simanalysis.models import (
@@ -24,6 +25,21 @@ CURATED_FRAMEWORKS = ("betterexceptions", "xmlinjector", "xml injector")
 # configurable via the CrashAnalyzer constructor.)
 FRAMEWORK_CRASH_FRACTION = 0.5
 FRAMEWORK_DEEPEST_FRACTION = 0.3
+
+STATUS_ACTIVE = "active"
+STATUS_DISABLED = "disabled"
+STATUS_NOT_INSTALLED = "not_installed"
+# Path segments (case-insensitive prefixes) that mark a deliberately set-aside mod copy.
+_DISABLED_MARKERS = ("_disabled", "_quarantine")
+
+
+def _status_for(path: Path) -> str:
+    """active, unless any path segment marks a disabled/quarantine folder."""
+    for part in Path(path).parts:
+        pl = part.lower()
+        if any(pl.startswith(m) for m in _DISABLED_MARKERS):
+            return STATUS_DISABLED
+    return STATUS_ACTIVE
 
 
 def _norm(p: str) -> str:
@@ -50,20 +66,34 @@ class CrashAnalyzer:
     ) -> None:
         self.framework_fraction = framework_fraction
         self.framework_deepest_fraction = framework_deepest_fraction
+        self.mod_status: dict[str, str] = {}  # ts4script filename (lowercased) -> status
 
-    def build_module_index(self, mods_dir: str | Path) -> dict[str, str]:
-        """Map each installed .ts4script's internal module path -> the .ts4script filename.
+    def build_module_index(
+        self, mods_dir: str | Path, extra_roots: Iterable[str | Path] = ()
+    ) -> dict[str, str]:
+        """Map each installed .ts4script's internal module path -> the .ts4script filename,
+        and record each mod's status in self.mod_status (active beats disabled).
 
         Sims 4 scripts ship COMPILED modules (.pyc); traceback frames cite the original
-        .py source path, so .pyc entries are normalized to .py before indexing.
+        .py source path, so .pyc entries are normalized to .py before indexing. Besides
+        mods_dir, any extra_roots (e.g. sibling _Disabled_*/_Quarantine_* folders) are
+        scanned so set-aside culprits are still named.
         """
+        self.mod_status = {}
         index: dict[str, str] = {}
-        for ts4 in Path(mods_dir).rglob("*.ts4script"):
-            for name in _archive_names(ts4):
-                if name.endswith(".pyc"):
-                    index[_norm(name[:-1])] = ts4.name  # 'module.pyc' -> 'module.py'
-                elif name.endswith(".py"):
-                    index[_norm(name)] = ts4.name
+        for root in [Path(mods_dir), *(Path(r) for r in extra_roots)]:
+            for ts4 in root.rglob("*.ts4script"):
+                key = ts4.name.lower()
+                status = _status_for(ts4)
+                prev = self.mod_status.get(key)
+                self.mod_status[key] = (
+                    STATUS_ACTIVE if STATUS_ACTIVE in (prev, status) else STATUS_DISABLED
+                )
+                for name in _archive_names(ts4):
+                    if name.endswith(".pyc"):
+                        index[_norm(name[:-1])] = ts4.name  # 'module.pyc' -> 'module.py'
+                    elif name.endswith(".py"):
+                        index[_norm(name)] = ts4.name
         return index
 
     def classify_frame(self, frame: TracebackFrame, index: dict[str, str]) -> None:
@@ -74,6 +104,7 @@ class CrashAnalyzer:
             frame.kind = "mod"
             frame.module_path = tail
             frame.mod_name = head.split("/")[-1] + ".ts4script"
+            frame.mod_status = self.mod_status.get(frame.mod_name.lower(), STATUS_ACTIVE)
             return
         # 2. Known installed mod: frame path ends with an indexed module path (longest wins).
         #    Checked BEFORE the game heuristic so an installed mod whose own package mirrors
@@ -86,6 +117,7 @@ class CrashAnalyzer:
             frame.kind = "mod"
             frame.module_path = best
             frame.mod_name = index[best]
+            frame.mod_status = self.mod_status.get(frame.mod_name.lower(), STATUS_ACTIVE)
             return
         # 3. Base-game module: a known game root as the LEADING path segment (anchored, so a
         #    '/server/' deeper in a mod's own path no longer false-matches as base-game).
