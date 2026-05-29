@@ -56,8 +56,8 @@ class TestDBPFReader:
         # Unknown/reserved at offset 40 (set to 0, parser will use offset 64)
         header[40:44] = struct.pack("<I", 0)
 
-        # Index size at offset 44 (2 entries * 32 bytes = 64)
-        header[44:48] = struct.pack("<I", 64)
+        # Index size at offset 44 (4-byte flags word + 2 entries * 32 bytes = 68)
+        header[44:48] = struct.pack("<I", 68)
 
         # Reserved bytes 48-64
         header[48:64] = bytes(16)
@@ -68,50 +68,44 @@ class TestDBPFReader:
         # Rest of header is zeros/reserved
         header[68:96] = bytes(28)
 
-        # Create index table (2 entries * 32 bytes = 64 bytes)
-        index = bytearray(64)
+        # Build a real Sims 4 DBPF v2 index: a 32-bit mnIndexType flags word
+        # followed by the entries. Here mnIndexType=0 (no constant fields), so
+        # every entry is the full 32 bytes:
+        #   type(4) group(4) instanceHi(4) instanceLo(4) chunkOffset(4)
+        #   fileSize(4) memSize(4) compressed(2) committed(2)
+        index_block_size = 4 + 2 * 32  # flags word + two 32-byte entries
+        index = bytearray()
+        index += struct.pack("<I", 0)  # mnIndexType: no constant fields
 
-        # Resource 1: XML Tuning
-        resource1_offset = 96 + 64  # After header and index
+        # Resource 1: XML Tuning (uncompressed)
+        resource1_offset = 96 + index_block_size  # after header + index
         resource1_data = b"<I>Test XML Tuning Data</I>"
         resource1_size = len(resource1_data)
+        index += struct.pack("<I", 0x545238C9)  # type (XML Tuning)
+        index += struct.pack("<I", 0x00000000)  # group
+        index += struct.pack("<I", 0x12345678)  # instance high
+        index += struct.pack("<I", 0x90ABCDEF)  # instance low
+        index += struct.pack("<I", resource1_offset)  # chunk offset
+        index += struct.pack("<I", resource1_size)  # file size (on disk)
+        index += struct.pack("<I", resource1_size)  # mem size (uncompressed)
+        index += struct.pack("<H", 0x0000)  # compressed: none
+        index += struct.pack("<H", 1)  # committed
 
-        # Type = 0x545238C9 (XML Tuning)
-        index[0:4] = struct.pack("<I", 0x545238C9)
-        # Group = 0
-        index[4:8] = struct.pack("<I", 0x00000000)
-        # Instance = 0x1234567890ABCDEF
-        index[8:16] = struct.pack("<Q", 0x1234567890ABCDEF)
-        # Offset
-        index[16:20] = struct.pack("<I", resource1_offset)
-        # Size
-        index[20:24] = struct.pack("<I", resource1_size)
-        # Compressed size = 0 (not compressed)
-        index[24:28] = struct.pack("<I", 0)
-        # Flags = 0
-        index[28:32] = struct.pack("<I", 0)
-
-        # Resource 2: SimData (compressed)
-        resource2_offset = resource1_offset + resource1_size
+        # Resource 2: SimData (zlib-compressed)
         resource2_data = b"This is test SimData that will be compressed" * 10
         resource2_compressed = zlib.compress(resource2_data)
         resource2_size = len(resource2_data)
         resource2_compressed_size = len(resource2_compressed)
-
-        # Type = 0x0333406C (SimData)
-        index[32:36] = struct.pack("<I", 0x0333406C)
-        # Group = 0
-        index[36:40] = struct.pack("<I", 0x00000000)
-        # Instance = 0xFEDCBA0987654321
-        index[40:48] = struct.pack("<Q", 0xFEDCBA0987654321)
-        # Offset
-        index[48:52] = struct.pack("<I", resource2_offset)
-        # Size (uncompressed)
-        index[52:56] = struct.pack("<I", resource2_size)
-        # Compressed size
-        index[56:60] = struct.pack("<I", resource2_compressed_size)
-        # Flags = 0
-        index[60:64] = struct.pack("<I", 0)
+        resource2_offset = resource1_offset + resource1_size
+        index += struct.pack("<I", 0x0333406C)  # type (SimData)
+        index += struct.pack("<I", 0x00000000)  # group
+        index += struct.pack("<I", 0xFEDCBA09)  # instance high
+        index += struct.pack("<I", 0x87654321)  # instance low
+        index += struct.pack("<I", resource2_offset)  # chunk offset
+        index += struct.pack("<I", resource2_compressed_size)  # file size (compressed)
+        index += struct.pack("<I", resource2_size)  # mem size (uncompressed)
+        index += struct.pack("<H", 0x5A42)  # compressed: zlib
+        index += struct.pack("<H", 1)  # committed
 
         # Write complete file
         with open(dbpf_file, "wb") as f:
@@ -183,7 +177,7 @@ class TestDBPFReader:
         assert header.user_version == 0
         assert header.index_count == 2
         assert header.index_offset == 96
-        assert header.index_size == 64
+        assert header.index_size == 68
         assert header.file_size > 0
 
     def test_read_header_invalid_magic(self, invalid_magic_file: Path) -> None:
@@ -229,6 +223,81 @@ class TestDBPFReader:
         assert res2.instance == 0xFEDCBA0987654321
         assert res2.size > 0
         assert res2.is_compressed
+
+    @pytest.fixture
+    def flagged_dbpf_file(self, tmp_path: Path) -> Path:
+        """Create a DBPF whose index uses constant Type+Group (mnIndexType=0x3).
+
+        This is the real-world Sims 4 layout the old flat 32-byte parser could
+        not read: constant fields are stored once and each entry is only 24
+        bytes, so index_count * 32 overruns the (smaller) index table.
+        """
+        dbpf_file = tmp_path / "flagged.package"
+        const_type = 0x034AEECB  # CAS Part
+        const_group = 0x80000000
+        entries = [
+            # (instance_hi, instance_lo, payload)
+            (0x00000000, 0x11111111, b"resource one"),
+            (0x0000000A, 0x22222222, b"resource two is longer"),
+            (0xDEADBEEF, 0x33333333, b"three"),
+        ]
+        n = len(entries)
+        index_block_size = 4 + 4 + 4 + n * 24  # flags + const type + const group + 24B entries
+        data_offset = 96 + index_block_size
+
+        index = bytearray()
+        index += struct.pack("<I", 0x3)  # mnIndexType: Type + Group constant
+        index += struct.pack("<I", const_type)
+        index += struct.pack("<I", const_group)
+
+        blob = bytearray()
+        for inst_hi, inst_lo, payload in entries:
+            offset = data_offset + len(blob)
+            index += struct.pack("<I", inst_hi)  # instance high
+            index += struct.pack("<I", inst_lo)  # instance low
+            index += struct.pack("<I", offset)  # chunk offset
+            index += struct.pack("<I", len(payload))  # file size (on disk)
+            index += struct.pack("<I", len(payload))  # mem size
+            index += struct.pack("<H", 0x0000)  # compressed: none
+            index += struct.pack("<H", 1)  # committed
+            blob += payload
+
+        header = bytearray(96)
+        header[0:4] = b"DBPF"
+        header[4:8] = struct.pack("<I", 2)  # major version
+        header[8:12] = struct.pack("<I", 1)  # minor version
+        header[36:40] = struct.pack("<I", n)  # index count
+        header[44:48] = struct.pack("<I", len(index))  # index size
+        header[64:68] = struct.pack("<I", 96)  # index offset
+
+        with open(dbpf_file, "wb") as f:
+            f.write(header)
+            f.write(index)
+            f.write(blob)
+        return dbpf_file
+
+    def test_read_index_with_constant_fields(self, flagged_dbpf_file: Path) -> None:
+        """Index with constant Type/Group (24-byte entries) must parse correctly."""
+        reader = DBPFReader(flagged_dbpf_file)
+        header = reader.read_header()
+
+        # The old flat parser assumed 32 bytes/entry, which overruns this table.
+        assert header.index_count * 32 > header.index_size
+
+        resources = reader.read_index()
+        assert len(resources) == 3
+
+        # The constant Type+Group (stored once) apply to every entry.
+        assert all(r.type == 0x034AEECB for r in resources)
+        assert all(r.group == 0x80000000 for r in resources)
+
+        # Per-entry instances reconstruct as (hi << 32) | lo.
+        assert resources[0].instance == 0x0000000011111111
+        assert resources[1].instance == (0x0000000A << 32) | 0x22222222
+        assert resources[2].instance == (0xDEADBEEF << 32) | 0x33333333
+
+        # Offsets/sizes parsed from variable-size entries extract correctly.
+        assert reader.get_resource(resources[2]) == b"three"
 
     def test_get_resource_uncompressed(self, valid_dbpf_file: Path) -> None:
         """Test extracting uncompressed resource."""

@@ -53,34 +53,34 @@ class TestModScanner:
         # Index count at offset 36
         header[36:40] = struct.pack("<I", 1)
 
-        # Index size at offset 44 (1 entry * 32 bytes = 32)
-        header[44:48] = struct.pack("<I", 32)
+        # Index size at offset 44 (4-byte flags word + 1 entry * 32 bytes = 36)
+        header[44:48] = struct.pack("<I", 36)
 
         # Index offset at offset 64 (right after header = 96)
         header[64:68] = struct.pack("<I", 96)
 
-        # Create one resource entry
+        # One zlib-compressed resource in the real Sims 4 DBPF v2 layout:
+        # a mnIndexType flags word (0 = no constant fields) then a 32-byte entry.
         resource_data = b"Test resource content"
         compressed_data = zlib.compress(resource_data)
-        resource_offset = 96 + 32  # After header and index
+        resource_offset = 96 + 36  # after header + index block
 
-        # Create index entry (32 bytes)
-        # Format: type(4) + group(4) + instance(8) + offset(4) + size(4) + compressed_size(4) + flags(4)
-        index_entry = struct.pack(
-            "<IIQIIII",
-            0x12345678,  # type
-            0x00000000,  # group
-            0xAABBCCDDEEFF0011,  # instance
-            resource_offset,  # offset
-            len(resource_data),  # size (uncompressed)
-            len(compressed_data),  # compressed size
-            0,  # flags
-        )
+        index = bytearray()
+        index += struct.pack("<I", 0)  # mnIndexType: no constant fields
+        index += struct.pack("<I", 0x12345678)  # type
+        index += struct.pack("<I", 0x00000000)  # group
+        index += struct.pack("<I", 0xAABBCCDD)  # instance high
+        index += struct.pack("<I", 0xEEFF0011)  # instance low
+        index += struct.pack("<I", resource_offset)  # chunk offset
+        index += struct.pack("<I", len(compressed_data))  # file size (compressed, on disk)
+        index += struct.pack("<I", len(resource_data))  # mem size (uncompressed)
+        index += struct.pack("<H", 0x5A42)  # compressed: zlib
+        index += struct.pack("<H", 1)  # committed
 
         # Write file
         with open(package_path, "wb") as f:
             f.write(header)
-            f.write(index_entry)
+            f.write(index)
             f.write(compressed_data)
 
         return package_path
