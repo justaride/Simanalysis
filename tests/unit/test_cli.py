@@ -543,3 +543,36 @@ def test_crash_command_txt_groups_by_status(tmp_path):
     )
     # not_installed culprits omit the 'seen in N' clause (no on-disk count)
     assert "seen in 0" not in out
+
+
+def test_crash_command_finds_nested_disabled_folder(tmp_path):
+    import json
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    # a disabled mod nested several levels deep, not a top-level sibling
+    nested = sims4 / "Archive" / "Old" / "_Disabled_batch"
+    nested.mkdir(parents=True)
+    with zipfile.ZipFile(nested / "NestedMod.ts4script", "w") as zf:
+        zf.writestr("nestedmod/n.pyc", b"\x00")
+
+    (sims4 / "lastException_1.txt").write_text(
+        "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+        "Traceback (most recent call last):&#13;&#10;"
+        'File "Core\\sims4\\u.py", line 1, in w&#13;&#10;'
+        'File "E:\\p\\nestedmod\\n.py", line 7, in run&#13;&#10;'
+        "</desyncdata></report></root>",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, ["crash", str(sims4), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    top = data["ranked_mods"][0]
+    assert top["mod"] == "NestedMod.ts4script"
+    assert top["status"] == "disabled"  # discovered in a deeply-nested _Disabled_* folder

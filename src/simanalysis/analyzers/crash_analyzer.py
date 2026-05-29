@@ -126,7 +126,9 @@ class CrashAnalyzer:
             frame.kind = "mod"
             frame.module_path = tail
             frame.mod_name = head.split("/")[-1] + ".ts4script"
-            frame.mod_status = self.mod_status.get(frame.mod_name.lower(), STATUS_ACTIVE)
+            # Named via an explicit .ts4script path but not found on disk in any scanned
+            # (active or disabled) location -> not_installed, rather than a misleading "active".
+            frame.mod_status = self.mod_status.get(frame.mod_name.lower(), STATUS_NOT_INSTALLED)
             return
         # 2. Known installed mod: frame path ends with an indexed module path (longest wins).
         #    Checked BEFORE the game heuristic so an installed mod whose own package mirrors

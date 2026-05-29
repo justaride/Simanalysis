@@ -245,3 +245,14 @@ def test_active_culprit_summary_count():
     result = CrashAnalyzer().analyze(reports, index)
     assert result.summary["active_culprits"] == 1
     assert result.findings[0].suspects[0].status == "active"
+
+
+def test_explicit_ts4script_unknown_on_disk_is_not_installed():
+    # A mod named by an explicit .ts4script path but found nowhere on disk (not in Mods/
+    # nor any scanned disabled folder) is not_installed — not a misleading "active".
+    a = CrashAnalyzer()  # nothing scanned -> mod_status empty
+    fr = TracebackFrame(raw_path=r".\Mods\Removed.ts4script\pkg\m.py")
+    a.classify_frame(fr, {})
+    assert fr.kind == "mod"
+    assert fr.mod_name == "removed.ts4script"
+    assert fr.mod_status == "not_installed"

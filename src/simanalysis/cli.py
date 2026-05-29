@@ -513,8 +513,9 @@ def crash(
             parse_errors.append(f"{lf.name}: {exc}")
 
     analyzer = CrashAnalyzer()
-    # Auto-discover deliberately set-aside folders so disabled/quarantined culprits are named.
-    extra_roots = [d for d in base.iterdir() if d.is_dir() and _is_disabled_name(d.name)]
+    # Auto-discover deliberately set-aside folders (at any depth, e.g. Archive/.../_DISABLED_*)
+    # so disabled/quarantined culprits are named instead of mislabeled active.
+    extra_roots = [d for d in base.glob("**/_*") if d.is_dir() and _is_disabled_name(d.name)]
     index = analyzer.build_module_index(mods_dir, extra_roots=extra_roots)
     result = analyzer.analyze(reports, index)
     result.parse_errors = parse_errors
