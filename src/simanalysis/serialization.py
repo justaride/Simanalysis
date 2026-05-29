@@ -1,7 +1,8 @@
 """Result -> JSON-serialisable dict transforms.
 
-Single source of truth shared by the FastAPI/WebSocket layer (simanalysis.web.api)
-and the desktop stdio bridge (simanalysis.bridge), so the two transports never drift.
+Intended as the single source of truth for both the desktop stdio bridge
+(simanalysis.bridge — already wired) and the FastAPI/WebSocket layer
+(simanalysis.web.api — wiring pending; it still inlines its own transforms today).
 """
 from __future__ import annotations
 

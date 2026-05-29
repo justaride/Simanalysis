@@ -29,7 +29,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: "list[str] | None" = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     emit = setup()
     try:

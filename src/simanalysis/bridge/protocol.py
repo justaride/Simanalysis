@@ -5,17 +5,18 @@ sys.stdout -> stderr and emits only through a private handle to the real stdout.
 """
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import sys
 import time
-from typing import Any, Optional
+from typing import Any
 
 PROTOCOL_VERSION = 1
 
 
 class Emitter:
-    def __init__(self, stream: "io.TextIOBase") -> None:
+    def __init__(self, stream: io.TextIOBase) -> None:
         self._out = stream
         self._last_progress = 0.0
 
@@ -26,9 +27,15 @@ class Emitter:
             self._out.write("\n")
             self._out.flush()
         except BrokenPipeError:
-            raise SystemExit(0)
+            # Parent (Tauri) closed the read end, e.g. on cancel. Raise SystemExit
+            # (a BaseException) rather than returning: it unwinds cleanly through the
+            # analyzer's own `except Exception` blocks, so a cancelled scan terminates
+            # promptly instead of writing into a dead pipe for the rest of the run.
+            raise SystemExit(0) from None
 
     def start(self, task: str, total: int = 0) -> None:
+        # total=0 means "unknown at start"; consumers should treat the first
+        # progress event as authoritative for the real total.
         self._write({"type": "start", "task": task, "total": total})
 
     def progress(
@@ -36,8 +43,8 @@ class Emitter:
         current: int,
         total: int,
         *,
-        file: Optional[str] = None,
-        stage: Optional[str] = None,
+        file: str | None = None,
+        stage: str | None = None,
         force: bool = False,
     ) -> None:
         now = time.monotonic()
@@ -65,9 +72,7 @@ def setup() -> Emitter:
     """Capture real stdout for NDJSON; point sys.stdout at stderr so stray prints
     / library chatter cannot corrupt the data stream."""
     real_stdout = sys.stdout
-    try:
+    with contextlib.suppress(AttributeError, ValueError):
         real_stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[attr-defined]
-    except (AttributeError, ValueError):
-        pass
     sys.stdout = sys.stderr
     return Emitter(real_stdout)

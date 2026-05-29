@@ -88,7 +88,8 @@ def test_analyze_save_uses_stage_callback_and_emits_in_order(monkeypatch, tmp_pa
     assert [e["type"] for e in events] == ["start", "progress", "result", "done"]
     progress = next(e for e in events if e["type"] == "progress")
     assert progress["stage"] == "reading"
-    assert progress["current"] == 1 and progress["total"] == 3
+    assert progress["current"] == 1
+    assert progress["total"] == 3
 
 
 def test_analyze_save_rejects_missing_save_file(tmp_path):

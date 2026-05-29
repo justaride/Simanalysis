@@ -45,7 +45,7 @@ def scan_tray(args: argparse.Namespace, emit: Emitter) -> None:
 
 def analyze_save(args: argparse.Namespace, emit: Emitter) -> None:
     save_path = Path(args.save_path).expanduser().resolve()
-    if not save_path.exists():
+    if not save_path.exists() or not save_path.is_file():
         raise ValueError("Save file not found")
     mods_path = _require_dir(args.mods_path)
     emit.start("analyze-save")

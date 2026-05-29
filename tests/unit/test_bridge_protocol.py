@@ -1,9 +1,10 @@
 import io
 import json
+import sys
 
 import pytest
 
-from simanalysis.bridge.protocol import Emitter
+from simanalysis.bridge.protocol import Emitter, setup
 
 
 def _buf():
@@ -20,7 +21,8 @@ def test_emit_writes_one_json_line_per_event():
     assert len(lines) == 3
     parsed = [json.loads(line) for line in lines]
     assert parsed[0] == {"v": 1, "type": "start", "task": "scan-mods", "total": 0}
-    assert parsed[1]["type"] == "result" and parsed[1]["data"] == {"summary": {}}
+    assert parsed[1]["type"] == "result"
+    assert parsed[1]["data"] == {"summary": {}}
     assert parsed[2]["type"] == "done"
 
 
@@ -52,9 +54,6 @@ def test_broken_pipe_exits_quietly():
 
 
 def test_setup_redirects_stdout_and_binds_emitter_to_real_stdout(monkeypatch):
-    import sys
-    from simanalysis.bridge.protocol import setup
-
     sentinel = io.StringIO()
     monkeypatch.setattr(sys, "stdout", sentinel)      # monkeypatch auto-restores after test
     monkeypatch.setattr(sys, "stderr", io.StringIO())
