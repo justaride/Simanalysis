@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import zipfile
 from pathlib import Path
 
 from simanalysis.models import (
@@ -11,15 +12,17 @@ from simanalysis.models import (
     Suspect,
     TracebackFrame,
 )
-from simanalysis.parsers.script import ScriptAnalyzer
 
 # Leading path segments that mark a base-game module (never a mod).
 GAME_ROOTS = ("core", "server", "gamedata", "widgets", "olympus", "sims4")
 # Mods that hook broadly and appear in most stacks; not the per-crash culprit.
 CURATED_FRAMEWORKS = ("betterexceptions", "xmlinjector", "xml injector")
-# A mod implicated in MORE THAN this fraction of all crash reports is treated as a
-# broadly-hooking framework and down-weighted as a per-crash culprit (tunable; see Task 7).
+# A mod is treated as a broadly-hooking framework (and down-weighted as a per-crash
+# culprit) when it is implicated in MORE THAN FRAMEWORK_CRASH_FRACTION of all crash reports
+# AND is the deepest (culprit) frame in fewer than FRAMEWORK_DEEPEST_FRACTION of its crashes
+# — i.e. a frequent pass-through hook, not the thing actually crashing. (Tunable; see Task 7.)
 FRAMEWORK_CRASH_FRACTION = 0.5
+FRAMEWORK_DEEPEST_FRACTION = 0.3
 
 
 def _norm(p: str) -> str:
@@ -30,18 +33,32 @@ def _norm(p: str) -> str:
 
 
 class CrashAnalyzer:
-    def __init__(self, framework_fraction: float = FRAMEWORK_CRASH_FRACTION) -> None:
+    def __init__(
+        self,
+        framework_fraction: float = FRAMEWORK_CRASH_FRACTION,
+        framework_deepest_fraction: float = FRAMEWORK_DEEPEST_FRACTION,
+    ) -> None:
         self.framework_fraction = framework_fraction
+        self.framework_deepest_fraction = framework_deepest_fraction
 
     def build_module_index(self, mods_dir: str | Path) -> dict[str, str]:
-        """Map each installed .ts4script's internal module path -> the .ts4script filename."""
+        """Map each installed .ts4script's internal module path -> the .ts4script filename.
+
+        Sims 4 scripts ship COMPILED modules (.pyc); traceback frames cite the original
+        .py source path, so .pyc entries are normalized to .py before indexing.
+        """
         index: dict[str, str] = {}
         for ts4 in Path(mods_dir).rglob("*.ts4script"):
             try:
-                for module_path in ScriptAnalyzer(ts4).module_paths:
-                    index[_norm(module_path)] = ts4.name
+                with zipfile.ZipFile(ts4) as zf:
+                    names = zf.namelist()
             except Exception:
                 continue  # corrupt/non-zip archive — skip
+            for name in names:
+                if name.endswith(".pyc"):
+                    index[_norm(name[:-1])] = ts4.name  # 'module.pyc' -> 'module.py'
+                elif name.endswith(".py"):
+                    index[_norm(name)] = ts4.name
         return index
 
     def classify_frame(self, frame: TracebackFrame, index: dict[str, str]) -> None:
@@ -79,21 +96,26 @@ class CrashAnalyzer:
 
         total = len(reports) or 1
         mod_in_crash: dict[str, int] = {}
+        deepest_count: dict[str, int] = {}
         attributable = 0
         for r in reports:
-            mods = {f.mod_name for f in r.frames if f.kind == "mod" and f.mod_name}
+            mod_frames = [f for f in r.frames if f.kind == "mod" and f.mod_name]
+            mods = {f.mod_name for f in mod_frames if f.mod_name}
             if mods:
                 attributable += 1
             for m in mods:
                 mod_in_crash[m] = mod_in_crash.get(m, 0) + 1
+            if mod_frames:  # deepest mod frame = this crash's culprit candidate
+                deepest = mod_frames[-1].mod_name
+                if deepest:
+                    deepest_count[deepest] = deepest_count.get(deepest, 0) + 1
 
         frameworks: set[str] = set()
         for m, count in mod_in_crash.items():
             ml = m.lower()
-            if (
-                any(cf in ml for cf in CURATED_FRAMEWORKS)
-                or (count / total) > self.framework_fraction
-            ):
+            frequent = (count / total) > self.framework_fraction
+            rarely_deepest = (deepest_count.get(m, 0) / count) < self.framework_deepest_fraction
+            if any(cf in ml for cf in CURATED_FRAMEWORKS) or (frequent and rarely_deepest):
                 frameworks.add(m)
 
         findings: list[CrashFinding] = []

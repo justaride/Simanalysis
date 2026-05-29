@@ -130,3 +130,25 @@ def test_curated_framework_only_crash_is_low_confidence():
     assert sus
     assert sus[0].mod_name == "BetterExceptions.ts4script"
     assert sus[0].confidence == "low"
+
+
+def test_build_module_index_handles_compiled_pyc(tmp_path: Path):
+    ts = tmp_path / "Compiled.ts4script"
+    with zipfile.ZipFile(ts, "w") as zf:
+        zf.writestr("compiledmod/sub/logic.pyc", b"\x00\x00")  # compiled module, no .py source
+    index = CrashAnalyzer().build_module_index(tmp_path)
+    # .pyc is indexed and normalized to .py so it matches traceback (.py) frames
+    assert index["compiledmod/sub/logic.py"] == "Compiled.ts4script"
+
+
+def test_frequent_mod_that_is_the_culprit_is_not_downweighted():
+    # A mod in >50% of crashes but which is the DEEPEST frame each time is the culprit,
+    # NOT a pass-through framework — it must not be down-weighted. The broadly-hooking
+    # library (present every crash but never deepest) IS the framework.
+    index = {"bustedcareer/career.py": "BustedCareer.ts4script", "lib/hook.py": "Lib.ts4script"}
+    reports = [_report(r"x\lib\hook.py", r"y\bustedcareer\career.py") for _ in range(4)]
+    result = CrashAnalyzer().analyze(reports, index)
+    assert "Lib.ts4script" in result.summary["frameworks_downweighted"]
+    assert "BustedCareer.ts4script" not in result.summary["frameworks_downweighted"]
+    assert result.ranked_mods[0]["mod"] == "BustedCareer.ts4script"
+    assert result.findings[0].suspects[0].confidence == "high"
