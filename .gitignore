@@ -63,3 +63,4 @@ test_mods/
 # Tauri build artifacts
 /src-tauri/binaries/
 /src-tauri/target/
+/src-tauri/gen/
