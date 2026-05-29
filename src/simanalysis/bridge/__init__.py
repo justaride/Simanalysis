@@ -27,6 +27,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_save.add_argument("save_path")
     p_save.add_argument("mods_path")
 
+    p_thumb = sub.add_parser("thumbnail")
+    p_thumb.add_argument("path")
+
     return parser
 
 

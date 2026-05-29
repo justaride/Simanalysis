@@ -15,6 +15,9 @@ use tauri_plugin_shell::ShellExt;
 #[derive(Default)]
 struct ChildRegistry(Mutex<HashMap<String, CommandChild>>);
 
+#[derive(Default)]
+struct ThumbnailCache(Mutex<HashMap<String, Option<String>>>);
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct AnalysisOptions {
@@ -174,7 +177,13 @@ async fn start_analysis(
 
 #[tauri::command]
 fn cancel_analysis(app: AppHandle, task_id: String) -> Result<(), String> {
-    if let Some(child) = app.state::<ChildRegistry>().0.lock().unwrap().remove(&task_id) {
+    if let Some(child) = app
+        .state::<ChildRegistry>()
+        .0
+        .lock()
+        .unwrap()
+        .remove(&task_id)
+    {
         child
             .kill()
             .map_err(|e| format!("failed to kill task {task_id}: {e}"))?;
@@ -187,13 +196,281 @@ fn health() -> Value {
     serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") })
 }
 
+// ── Config dir helper ────────────────────────────────────────────────────────
+
+fn simanalysis_config_dir() -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or_else(|| "cannot determine home directory".to_string())?;
+    Ok(home.join(".simanalysis"))
+}
+
+fn config_file_path() -> Result<std::path::PathBuf, String> {
+    Ok(simanalysis_config_dir()?.join("config.json"))
+}
+
+// ── get_config ───────────────────────────────────────────────────────────────
+
+/// Read ~/.simanalysis/config.json and return it.
+/// If the file is absent, returns the default shape: {"last_scan_path": null}.
+#[tauri::command]
+fn get_config() -> Value {
+    match config_file_path() {
+        Err(_) => serde_json::json!({ "last_scan_path": null }),
+        Ok(path) => {
+            if !path.exists() {
+                return serde_json::json!({ "last_scan_path": null });
+            }
+            match std::fs::read_to_string(&path) {
+                Ok(contents) => serde_json::from_str::<Value>(&contents)
+                    .unwrap_or_else(|_| serde_json::json!({ "last_scan_path": null })),
+                Err(_) => serde_json::json!({ "last_scan_path": null }),
+            }
+        }
+    }
+}
+
+// ── set_config ───────────────────────────────────────────────────────────────
+
+/// Shallow-merge `patch` into ~/.simanalysis/config.json (creating it if absent).
+/// Returns {"status":"ok"}.
+#[tauri::command]
+fn set_config(patch: Value) -> Result<Value, String> {
+    let config_dir = simanalysis_config_dir()?;
+    let config_path = config_dir.join("config.json");
+
+    std::fs::create_dir_all(&config_dir).map_err(|e| format!("cannot create config dir: {e}"))?;
+
+    // Load existing config (or start with {})
+    let mut existing: serde_json::Map<String, Value> = if config_path.exists() {
+        match std::fs::read_to_string(&config_path) {
+            Ok(s) => serde_json::from_str::<Value>(&s)
+                .ok()
+                .and_then(|v| v.as_object().cloned())
+                .unwrap_or_default(),
+            Err(_) => Default::default(),
+        }
+    } else {
+        Default::default()
+    };
+
+    // Shallow-merge patch
+    if let Some(patch_obj) = patch.as_object() {
+        for (k, v) in patch_obj {
+            existing.insert(k.clone(), v.clone());
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&Value::Object(existing))
+        .map_err(|e| format!("serialization error: {e}"))?;
+
+    std::fs::write(&config_path, serialized).map_err(|e| format!("cannot write config: {e}"))?;
+
+    Ok(serde_json::json!({ "status": "ok" }))
+}
+
+// ── delete_mod_file ──────────────────────────────────────────────────────────
+
+/// Move a mod file to the OS trash with safety checks and audit logging.
+/// Returns {"status":"ok","moved_to_trash":true,"message":"..."}.
+#[tauri::command]
+fn delete_mod_file(path: String) -> Result<Value, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let file_path = std::path::Path::new(&path)
+        .canonicalize()
+        .map_err(|e| format!("cannot resolve path '{path}': {e}"))?;
+
+    if !file_path.exists() {
+        return Err(format!("File not found: {path}"));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Path is not a file: {path}"));
+    }
+    let suffix = file_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    if suffix != "package" && suffix != "ts4script" {
+        return Err(format!(
+            "Not a valid mod file (suffix '.{suffix}' not allowed)"
+        ));
+    }
+
+    // Audit log
+    let config_dir = simanalysis_config_dir()?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| format!("cannot create config dir: {e}"))?;
+    let log_path = config_dir.join("deletion_log.txt");
+
+    let unix_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Format as a simple RFC-3339-ish UTC timestamp without chrono dependency
+    let timestamp = format_unix_timestamp(unix_secs);
+    let log_line = format!("{timestamp} | DELETED | {}\n", file_path.display());
+
+    // Append (best-effort; don't fail the delete if the log write fails)
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .and_then(|mut f| std::io::Write::write_all(&mut f, log_line.as_bytes()));
+
+    // Move to trash
+    trash::delete(&file_path).map_err(|e| format!("failed to move to trash: {e}"))?;
+
+    let msg = format!("File moved to trash: {}", file_path.display());
+    Ok(serde_json::json!({
+        "status": "ok",
+        "moved_to_trash": true,
+        "message": msg
+    }))
+}
+
+/// Format a Unix timestamp (seconds since epoch) as "YYYY-MM-DDTHH:MM:SSZ".
+fn format_unix_timestamp(secs: u64) -> String {
+    // Days since epoch
+    let s = secs % 60;
+    let m = (secs / 60) % 60;
+    let h = (secs / 3600) % 24;
+    let days = secs / 86400;
+
+    // Gregorian calendar calculation (simple but correct for modern dates)
+    let (year, month, day) = days_to_ymd(days);
+    format!("{year:04}-{month:02}-{day:02}T{h:02}:{m:02}:{s:02}Z")
+}
+
+fn days_to_ymd(days: u64) -> (u64, u64, u64) {
+    // Civil calendar conversion — Fliegel & Van Flandern algorithm adapted for epoch
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z % 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+// ── get_thumbnail ─────────────────────────────────────────────────────────────
+
+/// Fetch a thumbnail for the given .package path via the sidecar.
+/// Returns `Some("data:image/png;base64,...")` on success, `None` if no thumbnail,
+/// or `Err(...)` on spawn/parse failure. Results are cached per-path.
+#[tauri::command]
+async fn get_thumbnail(
+    app: AppHandle,
+    path: String,
+    cache: tauri::State<'_, ThumbnailCache>,
+) -> Result<Option<String>, String> {
+    // Check cache first — hold the lock only briefly, no await while locked.
+    {
+        let guard = cache.0.lock().unwrap();
+        if let Some(cached) = guard.get(&path) {
+            return Ok(cached.clone());
+        }
+    }
+
+    // Spawn the sidecar one-shot and collect all stdout.
+    let sidecar = app
+        .shell()
+        .sidecar("simanalysis-bridge")
+        .map_err(|e| format!("sidecar lookup failed: {e}"))?
+        .args(["thumbnail", &path]);
+
+    let (mut rx, _child) = sidecar
+        .spawn()
+        .map_err(|e| format!("failed to spawn sidecar: {e}"))?;
+
+    let mut stdout_buf: Vec<u8> = Vec::new();
+    let mut result_value: Option<Value> = None;
+
+    loop {
+        match rx.recv().await {
+            Some(CommandEvent::Stdout(bytes)) => {
+                stdout_buf.extend_from_slice(&bytes);
+            }
+            Some(CommandEvent::Stderr(bytes)) => {
+                if let Ok(text) = std::str::from_utf8(&bytes) {
+                    let t = text.trim_end();
+                    if !t.is_empty() {
+                        eprintln!("[thumbnail] {t}");
+                    }
+                }
+            }
+            Some(CommandEvent::Terminated(_)) | None => {
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    // Parse all complete NDJSON lines and find the "result" event.
+    for line in std::str::from_utf8(&stdout_buf)
+        .unwrap_or("")
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+    {
+        if let Ok(v) = serde_json::from_str::<Value>(line) {
+            if v.get("type").and_then(|t| t.as_str()) == Some("result") {
+                result_value = Some(v);
+                break;
+            }
+        }
+    }
+
+    let url = match result_value {
+        Some(v) => {
+            let data = &v["data"];
+            if data["found"].as_bool().unwrap_or(false) {
+                data["b64"]
+                    .as_str()
+                    .map(|b| format!("data:image/png;base64,{b}"))
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+
+    // Store in cache (no await held, just a short lock).
+    {
+        let mut guard = cache.0.lock().unwrap();
+        guard.insert(path, url.clone());
+    }
+
+    Ok(url)
+}
+
+// ── check_updates ────────────────────────────────────────────────────────────
+
+/// Stub: always reports no update available.
+/// Returns null (JSON null) so Layout.jsx's `if (update)` guard suppresses the banner.
+#[tauri::command]
+fn check_updates() -> Value {
+    Value::Null
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ChildRegistry::default())
-        .invoke_handler(tauri::generate_handler![start_analysis, cancel_analysis, health])
+        .manage(ThumbnailCache::default())
+        .invoke_handler(tauri::generate_handler![
+            start_analysis,
+            cancel_analysis,
+            health,
+            get_config,
+            set_config,
+            delete_mod_file,
+            check_updates,
+            get_thumbnail
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

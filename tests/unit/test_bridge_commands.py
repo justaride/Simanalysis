@@ -98,3 +98,39 @@ def test_analyze_save_rejects_missing_save_file(tmp_path):
     args = argparse.Namespace(save_path=str(tmp_path / "missing.save"), mods_path=str(mods_dir))
     with pytest.raises(ValueError, match="Save file not found"):
         commands.analyze_save(args, Emitter(io.StringIO()))
+
+
+def test_thumbnail_found(monkeypatch, tmp_path):
+    f = tmp_path / "m.package"
+    f.write_bytes(b"x")
+
+    class FakeSvc:
+        def get_thumbnail(self, p):
+            return b"PNGDATA"
+
+    monkeypatch.setattr(commands, "ThumbnailService", FakeSvc)
+    buf = io.StringIO()
+    commands.thumbnail(argparse.Namespace(path=str(f)), Emitter(buf))
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    res = next(e for e in events if e["type"] == "result")
+    assert res["data"]["found"] is True
+    assert res["data"]["b64"]  # base64 string present
+
+
+def test_thumbnail_missing(monkeypatch, tmp_path):
+    f = tmp_path / "m.package"
+    f.write_bytes(b"x")
+
+    class FakeSvc:
+        def get_thumbnail(self, p):
+            return None
+
+    monkeypatch.setattr(commands, "ThumbnailService", FakeSvc)
+    buf = io.StringIO()
+    commands.thumbnail(argparse.Namespace(path=str(f)), Emitter(buf))
+    res = next(
+        json.loads(line)
+        for line in buf.getvalue().splitlines()
+        if json.loads(line)["type"] == "result"
+    )
+    assert res["data"]["found"] is False

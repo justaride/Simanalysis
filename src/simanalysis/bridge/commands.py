@@ -10,6 +10,7 @@ from simanalysis.analyzers.mod_analyzer import ModAnalyzer
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.bridge.protocol import Emitter
+from simanalysis.services.thumbnail_service import ThumbnailService
 
 
 def _require_dir(path: str) -> Path:
@@ -60,8 +61,22 @@ def analyze_save(args: argparse.Namespace, emit: Emitter) -> None:
     emit.done()
 
 
+def thumbnail(args: argparse.Namespace, emit: Emitter) -> None:
+    import base64
+
+    path = Path(args.path).expanduser().resolve()
+    svc = ThumbnailService()
+    data = svc.get_thumbnail(path)
+    if data:
+        emit.result({"found": True, "b64": base64.b64encode(data).decode("ascii")})
+    else:
+        emit.result({"found": False, "b64": None})
+    emit.done()
+
+
 DISPATCH = {
     "scan-mods": scan_mods,
     "scan-tray": scan_tray,
     "analyze-save": analyze_save,
+    "thumbnail": thumbnail,
 }

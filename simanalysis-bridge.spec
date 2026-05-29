@@ -5,13 +5,14 @@ block_cipher = None
 
 a = Analysis(
     ['run_bridge.py'],
-    pathex=[],
+    pathex=['src'],
     binaries=[],
     datas=[],
     hiddenimports=[
         'simanalysis.analyzers.mod_analyzer',
         'simanalysis.analyzers.tray_analyzer',
         'simanalysis.analyzers.save_analyzer',
+        'simanalysis.services.thumbnail_service',
     ],
     hookspath=[],
     runtime_hooks=[],
