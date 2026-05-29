@@ -199,7 +199,7 @@ git commit -m "feat: add UI crash analysis models"
 - Create: `src/simanalysis/parsers/ui_exception_log.py`
 - Test: `tests/unit/parsers/test_ui_exception_log.py`
 
-- [ ] **Step 1: Write parser tests**
+- [x] **Step 1: Write parser tests**
 
 Create `tests/unit/parsers/test_ui_exception_log.py`:
 
@@ -275,7 +275,7 @@ def test_parse_ui_exception_file_malformed_returns_empty(tmp_path: Path) -> None
     assert parse_ui_exception_file(log) == []
 ```
 
-- [ ] **Step 2: Run parser tests to verify they fail**
+- [x] **Step 2: Run parser tests to verify they fail**
 
 Run:
 
@@ -285,7 +285,7 @@ Run:
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'simanalysis.parsers.ui_exception_log'`.
 
-- [ ] **Step 3: Implement parser**
+- [x] **Step 3: Implement parser**
 
 Create `src/simanalysis/parsers/ui_exception_log.py`:
 
@@ -375,7 +375,7 @@ def parse_ui_exception_file(path: str | Path) -> list[UIExceptionReport]:
     return reports
 ```
 
-- [ ] **Step 4: Run parser tests**
+- [x] **Step 4: Run parser tests**
 
 Run:
 
@@ -385,7 +385,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Run lint/type checks for new parser**
+- [x] **Step 5: Run lint/type checks for new parser**
 
 Run:
 
@@ -396,7 +396,7 @@ Run:
 
 Expected: both commands pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run:
 
