@@ -379,7 +379,7 @@ class ModAnalyzer:
                             lines.append(f"  Resolution: {conflict.resolution}")
 
         # Write file
-        output_path.write_text("\n".join(lines))
+        output_path.write_text("\n".join(lines), encoding="utf-8")
 
     def _export_json_report(self, result: AnalysisResult, output_path: Path) -> None:
         """Export JSON report."""
@@ -426,5 +426,5 @@ class ModAnalyzer:
         }
 
         # Write file
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

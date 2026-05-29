@@ -378,7 +378,7 @@ def view(report_file: str) -> None:
         click.echo(click.style("❌ Error: Only JSON reports can be viewed", fg="red"))
         sys.exit(1)
 
-    with open(report_path) as f:
+    with open(report_path, encoding="utf-8") as f:
         report = json.load(f)
 
     # Display summary

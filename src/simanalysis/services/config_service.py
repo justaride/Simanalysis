@@ -27,7 +27,7 @@ class ConfigService:
                 self.config_dir.mkdir(parents=True, exist_ok=True)
 
             if self.config_file.exists():
-                with open(self.config_file) as f:
+                with open(self.config_file, encoding="utf-8") as f:
                     self._config = json.load(f)
             else:
                 self._config = {}
@@ -40,7 +40,7 @@ class ConfigService:
     def _save_config(self) -> None:
         """Save configuration to file."""
         try:
-            with open(self.config_file, "w") as f:
+            with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(self._config, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save config: {e}")

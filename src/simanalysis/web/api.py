@@ -111,7 +111,7 @@ async def delete_mod_file(
         log_path = Path.home() / ".simanalysis" / "deletion_log.txt"
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(log_path, "a") as log_file:
+        with open(log_path, "a", encoding="utf-8") as log_file:
             timestamp = datetime.now(timezone.utc).isoformat()
             log_file.write(f"{timestamp} | DELETED | {file_path}\n")
 
