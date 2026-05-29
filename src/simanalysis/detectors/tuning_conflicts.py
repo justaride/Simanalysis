@@ -5,6 +5,7 @@ which can cause unexpected game behavior or crashes.
 """
 
 from collections import defaultdict
+from typing import Any
 
 from simanalysis.detectors.base import (
     ConflictDetector,
@@ -179,7 +180,7 @@ class TuningConflictDetector(ConflictDetector):
         """
         return [c for c in conflicts if c.details.get("is_core_tuning", False)]
 
-    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, int]:
+    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, Any]:
         """
         Get summary statistics about conflicts.
 
@@ -189,7 +190,7 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             Dictionary with summary statistics
         """
-        summary = {
+        summary: dict[str, Any] = {
             "total_conflicts": len(conflicts),
             "critical_conflicts": sum(1 for c in conflicts if c.severity.value == "CRITICAL"),
             "high_conflicts": sum(1 for c in conflicts if c.severity.value == "HIGH"),

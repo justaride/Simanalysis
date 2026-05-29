@@ -13,7 +13,7 @@ from simanalysis.models import Severity
 
 @click.group()
 @click.version_option(version=__version__, prog_name="simanalysis")
-def cli():
+def cli() -> None:
     """
     🔬 Simanalysis - Sims 4 Mod Conflict Analyzer
 
@@ -106,7 +106,7 @@ def analyze(
     tui: bool,
     interactive: bool,
     show_mods: bool,
-):
+) -> None:
     """
     Analyze Sims 4 mods directory for conflicts and issues.
 
@@ -296,7 +296,7 @@ def analyze(
     is_flag=True,
     help="Use rich terminal interface (beautiful output)",
 )
-def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool):
+def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool) -> None:
     """
     Quick scan of mods directory (no conflict detection).
 
@@ -364,7 +364,7 @@ def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool):
 
 @cli.command()
 @click.argument("report_file", type=click.Path(exists=True))
-def view(report_file: str):
+def view(report_file: str) -> None:
     """
     View a previously exported report.
 
@@ -415,7 +415,7 @@ def view(report_file: str):
     is_flag=True,
     help="Show version information",
 )
-def info(version: bool):
+def info(version: bool) -> None:
     """
     Show information about Simanalysis.
     """
@@ -459,12 +459,7 @@ def info(version: bool):
     default="127.0.0.1",
     help="Host to bind the server to",
 )
-def web(port: int, host: str):
-    """
-    Launch the Web GUI.
-
-    Starts the FastAPI backend and serves the React frontend.
-    """
+def web(port: int, host: str) -> None:
     """
     Launch the Web GUI.
 
@@ -475,7 +470,7 @@ def web(port: int, host: str):
     run_web_gui(host=host, port=port)
 
 
-def main():
+def main() -> None:
     """Entry point for CLI."""
     try:
         cli()

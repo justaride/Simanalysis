@@ -5,7 +5,7 @@ such as textures, meshes, audio files, or string tables.
 """
 
 from collections import defaultdict
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from simanalysis.detectors.base import (
     ConflictDetector,
@@ -257,7 +257,7 @@ class ResourceConflictDetector(ConflictDetector):
         """
         return [c for c in conflicts if "file_hash" in c.details]
 
-    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, int]:
+    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, Any]:
         """
         Get summary statistics about resource conflicts.
 
@@ -267,7 +267,7 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             Dictionary with summary statistics
         """
-        summary = {
+        summary: dict[str, Any] = {
             "total_conflicts": len(conflicts),
             "critical_resource_conflicts": sum(
                 1 for c in conflicts if c.details.get("is_critical_resource", False)

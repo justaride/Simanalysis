@@ -14,7 +14,7 @@ class ConfigService:
     Stores config in ~/.simanalysis/config.json
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_dir = Path.home() / ".simanalysis"
         self.config_file = self.config_dir / "config.json"
         self._config: dict[str, Any] = {}
@@ -57,7 +57,10 @@ class ConfigService:
     @property
     def last_scan_path(self) -> Optional[str]:
         """Get the last scanned directory path."""
-        return self.get("last_scan_path")
+        value = self.get("last_scan_path")
+        if value is None or isinstance(value, str):
+            return value
+        return str(value)
 
     @last_scan_path.setter
     def last_scan_path(self, path: str) -> None:

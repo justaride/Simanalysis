@@ -120,7 +120,7 @@ class MeshAnalyzer:
         signature: bytes,
         target_type: int,
         results: list[tuple[Mod, int, int]],
-    ):
+    ) -> None:
         """Scan a resource for a specific TGI signature."""
         try:
             data = reader.get_resource(resource)

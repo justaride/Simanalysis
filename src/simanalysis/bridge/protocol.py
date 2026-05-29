@@ -74,6 +74,9 @@ def setup() -> Emitter:
     / library chatter cannot corrupt the data stream."""
     real_stdout = sys.stdout
     with contextlib.suppress(AttributeError, ValueError):
-        real_stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[attr-defined]
+        # TextIOWrapper (the common concrete type) has reconfigure(); TextIO (the
+        # abstract Protocol) does not.  The suppress catches AttributeError on any
+        # stream that lacks it, so this is safe at runtime.
+        real_stdout.reconfigure(encoding="utf-8", errors="backslashreplace")  # type: ignore[union-attr]
     sys.stdout = sys.stderr
-    return Emitter(real_stdout)
+    return Emitter(real_stdout)  # type: ignore[arg-type]  # sys.stdout is always writable TextIO in practice

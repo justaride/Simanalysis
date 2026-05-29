@@ -59,6 +59,7 @@ class ModAnalyzer:
         )
 
         # Use default detectors if none provided
+        self.mesh_analyzer: Optional[MeshAnalyzer]
         if detectors is None:
             self.detectors = [
                 TuningConflictDetector(),
@@ -248,18 +249,7 @@ class ModAnalyzer:
 
     def get_recommendations_list(self, mods: list[Mod], conflicts: list[ModConflict]) -> list[str]:
         """Generate recommendations for a list of mods and conflicts."""
-
-        # Create a minimal AnalysisResult-like object for compatibility
-        class TempResult:
-            def __init__(self):
-                self.mods = mods
-                self.conflicts = conflicts
-                self.critical_conflicts = [c for c in conflicts if c.severity == Severity.CRITICAL]
-
-            def get_conflicts_by_severity(self, severity):
-                return [c for c in conflicts if c.severity == severity]
-
-        return self.get_recommendations(TempResult())
+        return self._build_recommendations(mods=mods, conflicts=conflicts)
 
     def get_recommendations(self, result: AnalysisResult) -> list[str]:
         """
@@ -271,10 +261,14 @@ class ModAnalyzer:
         Returns:
             List of recommendation strings
         """
+        return self._build_recommendations(mods=result.mods, conflicts=result.conflicts)
+
+    def _build_recommendations(self, mods: list[Mod], conflicts: list[ModConflict]) -> list[str]:
+        """Core recommendation logic operating on plain lists."""
         recommendations: list[str] = []
 
         # Critical conflicts
-        critical = result.critical_conflicts
+        critical = [c for c in conflicts if c.severity == Severity.CRITICAL]
         if len(critical) > 0:
             recommendations.append(
                 f"⚠️  CRITICAL: {len(critical)} critical conflicts detected. "
@@ -289,7 +283,7 @@ class ModAnalyzer:
                 recommendations.append(f"  ... and {len(critical) - 5} more")
 
         # High severity
-        high = [c for c in result.conflicts if c.severity == Severity.HIGH]
+        high = [c for c in conflicts if c.severity == Severity.HIGH]
         if len(high) > 0:
             recommendations.append(
                 f"⚠️  HIGH: {len(high)} high-severity conflicts detected. "
@@ -297,7 +291,7 @@ class ModAnalyzer:
             )
 
         # Duplicate files (hash collisions)
-        hash_conflicts = [c for c in result.conflicts if "file_hash" in c.details]
+        hash_conflicts = [c for c in conflicts if "file_hash" in c.details]
         if len(hash_conflicts) > 0:
             recommendations.append(
                 f"💡 TIP: {len(hash_conflicts)} duplicate mods found. "
@@ -305,13 +299,13 @@ class ModAnalyzer:
             )
 
         # No conflicts
-        if len(result.conflicts) == 0:
+        if len(conflicts) == 0:
             recommendations.append("✅ No conflicts detected! Your mod setup looks good.")
 
         # General recommendations
-        if len(result.mods) > 100:
+        if len(mods) > 100:
             recommendations.append(
-                f"💡 TIP: You have {len(result.mods)} mods installed. "
+                f"💡 TIP: You have {len(mods)} mods installed. "
                 f"Consider organizing them into subfolders for easier management."
             )
 

@@ -88,7 +88,7 @@ class ConflictsTable(Static):
 
     def compose(self) -> ComposeResult:
         """Compose the conflicts table."""
-        table = DataTable()
+        table: DataTable[str] = DataTable()
         table.add_columns("Severity", "Type", "Description", "Affected")
         table.cursor_type = "row"
         table.zebra_stripes = True
@@ -142,7 +142,7 @@ class ModsTable(Static):
 
     def compose(self) -> ComposeResult:
         """Compose the mods table."""
-        table = DataTable()
+        table: DataTable[str] = DataTable()
         table.add_columns("Type", "Name", "Size (MB)", "Resources", "Tunings")
         table.cursor_type = "row"
         table.zebra_stripes = True

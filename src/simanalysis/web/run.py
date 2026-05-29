@@ -7,14 +7,14 @@ from pathlib import Path
 import uvicorn
 
 
-def run_web_gui(host: str = "127.0.0.1", port: int = 8000, open_browser_flag: bool = True):
+def run_web_gui(host: str = "127.0.0.1", port: int = 8000, open_browser_flag: bool = True) -> None:
     """
     Launch the Simanalysis Web GUI.
     """
     print("🚀 Starting Simanalysis Web GUI...")
     print(f"   URL: http://{host}:{port}")
 
-    def open_browser():
+    def open_browser() -> None:
         time.sleep(1.5)  # Wait for server to start
         webbrowser.open(f"http://{host}:{port}")
 

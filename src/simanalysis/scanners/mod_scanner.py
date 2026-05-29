@@ -268,8 +268,8 @@ class ModScanner:
                 resources=[],
                 tunings=[],
                 scripts=scripts,
-                version=metadata.get("version"),
-                author=metadata.get("author"),
+                version=metadata.version,
+                author=metadata.author,
                 requires=list(set(requires)),  # Deduplicate
             )
 

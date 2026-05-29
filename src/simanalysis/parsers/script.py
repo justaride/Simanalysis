@@ -351,6 +351,17 @@ class ScriptAnalyzer:
         return complexity
 
     @property
+    def module_paths(self) -> list[str]:
+        """
+        Get list of Python module paths inside the ZIP archive.
+
+        Returns:
+            List of .py module paths within the archive
+        """
+        with zipfile.ZipFile(self.path, "r") as zf:
+            return [name for name in zf.namelist() if name.endswith(".py")]
+
+    @property
     def metadata(self) -> ScriptMetadata:
         """
         Get metadata (lazy loaded).

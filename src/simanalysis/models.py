@@ -52,7 +52,7 @@ class DBPFHeader:
     def __post_init__(self) -> None:
         """Validate header data."""
         if self.magic != b"DBPF":
-            raise ValueError(f"Invalid DBPF magic: {self.magic}")
+            raise ValueError(f"Invalid DBPF magic: {self.magic!r}")
         if self.major_version != 2:
             raise ValueError(f"Unsupported DBPF version: {self.major_version}")
 
@@ -122,7 +122,7 @@ class Mod:
     path: Path
     type: ModType
     size: int
-    hash: str
+    hash: Optional[str]
 
     # Parsed data
     resources: list[DBPFResource] = field(default_factory=list)

@@ -28,7 +28,7 @@ class SimanalysisTUI:
     Provides beautiful, interactive displays for mod analysis results.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize TUI."""
         self.console = console
 
@@ -213,6 +213,7 @@ class SimanalysisTUI:
 
     def create_recommendations_panel(self, recommendations: list[str]) -> Panel:
         """Create recommendations panel."""
+        content: Text | Group
         if not recommendations:
             content = Text("✅ No recommendations - everything looks good!", style="green")
         else:

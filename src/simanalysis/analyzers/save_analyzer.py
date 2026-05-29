@@ -106,7 +106,7 @@ class SaveAnalyzer:
         resource_to_mods: dict[ResourceKey, list[Mod]] = {}
 
         for mod in mods:
-            for resource_key in mod.resources:
+            for resource_key in mod.resource_keys:
                 if resource_key not in resource_to_mods:
                     resource_to_mods[resource_key] = []
                 resource_to_mods[resource_key].append(mod)
@@ -134,9 +134,10 @@ class SaveAnalyzer:
 
         # Categorize mods as used or unused
         for mod in mods:
-            matching_res = set()
+            matching_res: set[ResourceKey] = set()
+            mod_resource_keys = mod.resource_keys
             for res_key in save_data.referenced_resources:
-                if res_key in mod.resources:
+                if res_key in mod_resource_keys:
                     matching_res.add(res_key)
 
             mod_file = ModFile(

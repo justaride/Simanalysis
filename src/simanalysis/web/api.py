@@ -41,7 +41,9 @@ update_service = UpdateService()
 
 
 @app.get("/api/mods/thumbnail")
-async def get_mod_thumbnail(path: str = Query(..., description="Absolute path to the mod file")):
+async def get_mod_thumbnail(
+    path: str = Query(..., description="Absolute path to the mod file"),
+) -> Response:
     """Get thumbnail for a specific mod file."""
     try:
         mod_path = Path(path).expanduser().resolve()
@@ -67,27 +69,29 @@ async def get_mod_thumbnail(path: str = Query(..., description="Absolute path to
 
 
 @app.get("/api/config")
-async def get_config():
+async def get_config() -> dict[str, object]:
     """Get current configuration."""
     return {"last_scan_path": config_service.last_scan_path}
 
 
 @app.post("/api/config")
-async def update_config(config: dict):
+async def update_config(config: dict[str, object]) -> dict[str, str]:
     """Update configuration."""
     if "last_scan_path" in config:
-        config_service.last_scan_path = config["last_scan_path"]
+        config_service.last_scan_path = str(config["last_scan_path"])
     return {"status": "ok"}
 
 
 @app.get("/api/updates")
-async def check_updates():
+async def check_updates() -> object:
     """Check for application updates."""
     return await update_service.check_for_updates()
 
 
 @app.delete("/api/mods/file")
-async def delete_mod_file(path: str = Query(..., description="Absolute path to the mod file")):
+async def delete_mod_file(
+    path: str = Query(..., description="Absolute path to the mod file"),
+) -> dict[str, object]:
     """Delete a mod file with safety checks and audit logging."""
     try:
         file_path = Path(path).expanduser().resolve()
@@ -141,7 +145,7 @@ async def delete_mod_file(path: str = Query(..., description="Absolute path to t
 
 
 @app.get("/api/conflicts/{conflict_id}")
-async def get_conflict_details(conflict_id: str):
+async def get_conflict_details(conflict_id: str) -> dict[str, str]:
     """Get detailed information about a specific conflict."""
     # This endpoint will be used by the DuplicateModal
     # For now, return a placeholder - we'll need to store conflict data
@@ -173,13 +177,13 @@ class ScanResponse(BaseModel):
 
 
 @app.get("/api/health")
-async def health_check():
+async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok", "version": __version__}
 
 
 @app.websocket("/api/ws/scan")
-async def websocket_scan(websocket: WebSocket):
+async def websocket_scan(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time scanning."""
     await websocket.accept()
 
@@ -203,7 +207,7 @@ async def websocket_scan(websocket: WebSocket):
 
         last_update = 0.0
 
-        def progress_callback(current: int, total: int, filename: str):
+        def progress_callback(current: int, total: int, filename: str) -> None:
             nonlocal last_update
             now = time.time()
 
@@ -275,7 +279,7 @@ async def websocket_scan(websocket: WebSocket):
 
 
 @app.websocket("/api/ws/scan/tray")
-async def websocket_scan_tray(websocket: WebSocket):
+async def websocket_scan_tray(websocket: WebSocket) -> None:
     """WebSocket endpoint for real-time tray scanning."""
     await websocket.accept()
 
@@ -297,7 +301,7 @@ async def websocket_scan_tray(websocket: WebSocket):
 
         last_update = 0.0
 
-        def progress_callback(current: int, total: int, filename: str):
+        def progress_callback(current: int, total: int, filename: str) -> None:
             nonlocal last_update
             now = time.time()
 
@@ -332,7 +336,7 @@ async def websocket_scan_tray(websocket: WebSocket):
 
 
 @app.websocket("/api/ws/analyze/save")
-async def websocket_analyze_save(websocket: WebSocket):
+async def websocket_analyze_save(websocket: WebSocket) -> None:
     """WebSocket endpoint for save file analysis."""
     await websocket.accept()
     print("WebSocket accepted for save analysis")
@@ -357,7 +361,7 @@ async def websocket_analyze_save(websocket: WebSocket):
         analyzer = SaveAnalyzer()
         loop = asyncio.get_event_loop()
 
-        def progress_callback(stage: str, current: int, total: int):
+        def progress_callback(stage: str, current: int, total: int) -> None:
             asyncio.run_coroutine_threadsafe(
                 websocket.send_json(
                     {
@@ -415,7 +419,7 @@ async def websocket_analyze_save(websocket: WebSocket):
 
 
 @app.post("/api/scan", response_model=ScanResponse)
-async def scan_directory(request: ScanRequest):
+async def scan_directory(request: ScanRequest) -> dict[str, object]:
     """Scan a directory for mods."""
     path = Path(request.path).expanduser().resolve()
 
@@ -470,7 +474,7 @@ async def scan_directory(request: ScanRequest):
 
 
 @app.get("/api/system/browse")
-async def browse_system(path: str = Query(None, description="Path to browse")):
+async def browse_system(path: str = Query(None, description="Path to browse")) -> dict[str, object]:
     """Browse system files and directories."""
     try:
         current_path = Path.home() if not path else Path(path).expanduser().resolve()
@@ -481,7 +485,7 @@ async def browse_system(path: str = Query(None, description="Path to browse")):
         # Handle parent directory
         parent_path = current_path.parent
 
-        items = []
+        items: list[dict[str, object]] = []
 
         # Add parent directory entry if not at root
         if current_path != current_path.parent:
@@ -514,7 +518,7 @@ async def browse_system(path: str = Query(None, description="Path to browse")):
                 raise HTTPException(status_code=403, detail="Permission denied") from exc
 
         # Sort: Directories first, then files, alphabetically
-        items.sort(key=lambda x: (x["type"] != "directory", x["name"].lower()))
+        items.sort(key=lambda x: (x["type"] != "directory", str(x["name"]).lower()))
 
         return {"current_path": str(current_path), "items": items}
 
@@ -525,12 +529,12 @@ async def browse_system(path: str = Query(None, description="Path to browse")):
 # Mount static files (must be last)
 
 
-def get_web_dist_path():
+def get_web_dist_path() -> Path:
     """Get the path to the web distribution directory."""
     if getattr(sys, "frozen", False):
         # Running in a bundle (PyInstaller)
-        # We will bundle web/dist into the root of the app or a specific folder
-        base_path = sys._MEIPASS
+        # sys._MEIPASS is set by PyInstaller but not in the stdlib type stubs.
+        base_path: str = sys._MEIPASS  # type: ignore[attr-defined]  # PyInstaller runtime attr
         # Check potential locations
         possible_paths = [
             Path(base_path) / "web" / "dist",
@@ -555,11 +559,11 @@ if WEB_DIST.exists():
     app.mount("/assets", StaticFiles(directory=WEB_DIST / "assets"), name="assets")
 
     @app.get("/")
-    async def serve_spa():
+    async def serve_spa() -> "FileResponse":
         return FileResponse(WEB_DIST / "index.html")
 
     @app.get("/{full_path:path}")
-    async def catch_all(full_path: str):
+    async def catch_all(full_path: str) -> "FileResponse":
         # Return index.html for any other non-api route (for client-side routing)
         if full_path.startswith("api"):
             raise HTTPException(status_code=404)
@@ -567,7 +571,7 @@ if WEB_DIST.exists():
 else:
     # Fallback for when dist is missing (e.g. dev mode without build)
     @app.get("/")
-    async def root():
+    async def root() -> dict[str, str]:
         return {
             "status": "ok",
             "version": __version__,

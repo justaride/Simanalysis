@@ -157,8 +157,7 @@ strict_equality = true
 
 [[tool.mypy.overrides]]
 module = [
-    "networkx.*",
-    "tqdm.*",
+    "lxml.*",
 ]
 ignore_missing_imports = true
 
