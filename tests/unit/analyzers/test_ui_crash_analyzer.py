@@ -5,6 +5,7 @@ from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_di
 from simanalysis.models import UIExceptionReport
 
 TARGET_KEY = 15023068382072182982
+UNRELATED_KEY = 15023068382072182983
 
 
 def _write_dbpf_package(path: Path, key: int, resource_type: int = 0x03E9D964) -> None:
@@ -64,6 +65,18 @@ def test_build_resource_index_records_active_hit(tmp_path: Path) -> None:
     assert hit.status == "active"
     assert hit.resource_type == 0x03E9D964
     assert analyzer.index_errors == []
+
+
+def test_build_resource_index_filters_to_target_keys(tmp_path: Path) -> None:
+    mods = tmp_path / "Mods"
+    _write_dbpf_package(mods / "Matching.package", TARGET_KEY)
+    _write_dbpf_package(mods / "Unrelated.package", UNRELATED_KEY)
+
+    analyzer = UICrashAnalyzer()
+    index = analyzer.build_resource_index(mods, target_keys={TARGET_KEY})
+
+    assert set(index) == {TARGET_KEY}
+    assert index[TARGET_KEY][0].package_name == "Matching.package"
 
 
 def test_disabled_only_hit_classifies_disabled(tmp_path: Path) -> None:
@@ -164,3 +177,7 @@ def test_corrupt_package_is_recorded_not_raised(tmp_path: Path) -> None:
     assert index == {}
     assert len(analyzer.index_errors) == 1
     assert "Bad.package" in analyzer.index_errors[0]
+
+    result = analyzer.analyze([_report()], index)
+
+    assert result.index_errors == analyzer.index_errors

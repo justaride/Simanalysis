@@ -46,7 +46,11 @@ def discover_disabled_roots(base: str | Path) -> list[Path]:
     )
 
 
-def _read_package_hits(path: Path, status: str) -> list[UIResourceHit]:
+def _read_package_hits(
+    path: Path,
+    status: str,
+    target_keys: set[int] | None = None,
+) -> list[UIResourceHit]:
     """Read DBPF resources from one package and convert them to index hits."""
     reader = DBPFReader(path)
     resources = reader.read_index()
@@ -60,6 +64,7 @@ def _read_package_hits(path: Path, status: str) -> list[UIResourceHit]:
             status=status,
         )
         for resource in resources
+        if target_keys is None or resource.instance in target_keys
     ]
 
 
@@ -73,6 +78,8 @@ class UICrashAnalyzer:
         self,
         mods_dir: str | Path,
         extra_roots: Iterable[str | Path] = (),
+        *,
+        target_keys: set[int] | None = None,
     ) -> dict[int, list[UIResourceHit]]:
         """Build instance-key -> package-resource hits from active and disabled roots."""
         self.index_errors = []
@@ -90,7 +97,11 @@ class UICrashAnalyzer:
                     continue
                 seen_paths.add(resolved)
                 try:
-                    hits = _read_package_hits(package, _status_for_package(package))
+                    hits = _read_package_hits(
+                        package,
+                        _status_for_package(package),
+                        target_keys,
+                    )
                 except (DBPFError, FileNotFoundError, OSError) as exc:
                     self.index_errors.append(f"{package}: {exc}")
                     continue
@@ -122,7 +133,9 @@ class UICrashAnalyzer:
                 copied = copy(report)
                 copied.keys = list(report.keys)
                 copied.stack = list(report.stack)
-                copied.source_files = list(dict.fromkeys(report.source_files or [report.source_file]))
+                copied.source_files = list(
+                    dict.fromkeys(report.source_files or [report.source_file])
+                )
                 copied.occurrences = report.occurrences
                 collapsed[signature] = copied
                 order.append(signature)
@@ -160,9 +173,7 @@ class UICrashAnalyzer:
             )
 
         status = (
-            STATUS_ACTIVE
-            if any(hit.status == STATUS_ACTIVE for hit in hits)
-            else STATUS_DISABLED
+            STATUS_ACTIVE if any(hit.status == STATUS_ACTIVE for hit in hits) else STATUS_DISABLED
         )
         return UIFinding(
             report=report,
