@@ -29,15 +29,24 @@ FRAMEWORK_DEEPEST_FRACTION = 0.3
 STATUS_ACTIVE = "active"
 STATUS_DISABLED = "disabled"
 STATUS_NOT_INSTALLED = "not_installed"
-# Path segments (case-insensitive prefixes) that mark a deliberately set-aside mod copy.
+# Folder-name prefixes that mark a deliberately set-aside mod copy.
 _DISABLED_MARKERS = ("_disabled", "_quarantine")
+
+
+def _is_disabled_name(name: str) -> bool:
+    """True if a path segment marks a deliberately set-aside mod copy.
+
+    Matches a marker only as a whole segment or when followed by '_' (e.g. '_Disabled',
+    '_Quarantine_UI'), so an unrelated folder like '_DisabledFeatures' stays active.
+    """
+    nl = name.lower()
+    return any(nl == m or nl.startswith(m + "_") for m in _DISABLED_MARKERS)
 
 
 def _status_for(path: Path) -> str:
     """active, unless any path segment marks a disabled/quarantine folder."""
     for part in Path(path).parts:
-        pl = part.lower()
-        if any(pl.startswith(m) for m in _DISABLED_MARKERS):
+        if _is_disabled_name(part):
             return STATUS_DISABLED
     return STATUS_ACTIVE
 

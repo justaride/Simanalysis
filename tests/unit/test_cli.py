@@ -489,3 +489,57 @@ def test_crash_command_names_disabled_culprit(tmp_path):
     assert top["mod"] == "adeepindigo_core.ts4script"
     assert top["status"] == "disabled"
     assert data["summary"]["disabled_culprits"] == 1
+
+
+def test_crash_command_txt_groups_by_status(tmp_path):
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    sims4 = tmp_path
+    mods = sims4 / "Mods"
+    mods.mkdir()
+    with zipfile.ZipFile(mods / "ActiveMod.ts4script", "w") as zf:
+        zf.writestr("activemod/a.pyc", b"\x00")
+    disabled = sims4 / "_Disabled_Old"
+    disabled.mkdir()
+    with zipfile.ZipFile(disabled / "DisabledMod.ts4script", "w") as zf:
+        zf.writestr("disabledmod/d.pyc", b"\x00")
+
+    def _log(name, exc, culprit_frame):
+        (sims4 / name).write_text(
+            "<root><report><type>desync</type><desyncdata>" + exc + "&#13;&#10;"
+            "Traceback (most recent call last):&#13;&#10;"
+            'File "Core\\sims4\\u.py", line 1, in w&#13;&#10;'
+            + culprit_frame
+            + "&#13;&#10;</desyncdata></report></root>",
+            encoding="utf-8",
+        )
+
+    _log(
+        "lastException_1.txt", "boom (ValueError)", 'File "E:\\p\\activemod\\a.py", line 7, in run'
+    )
+    _log("lastException_2.txt", "bang (KeyError)", 'File "E:\\p\\disabledmod\\d.py", line 9, in go')
+    _log(
+        "lastException_3.txt",
+        "kaboom (TypeError)",
+        'File "Z:\\gone\\removedmod\\x.py", line 3, in z',
+    )
+
+    result = CliRunner().invoke(cli, ["crash", str(sims4)])  # default txt format
+    assert result.exit_code == 0, result.output
+    out = result.output
+    assert "[ACTIVE]" in out
+    assert "[DISABLED]" in out
+    assert "[NOT INSTALLED]" in out
+    # actionable-first grouping
+    assert out.index("[ACTIVE]") < out.index("[DISABLED]") < out.index("[NOT INSTALLED]")
+    # each culprit appears under its own status group
+    assert out.index("[ACTIVE]") < out.index("ActiveMod.ts4script") < out.index("[DISABLED]")
+    assert (
+        out.index("[DISABLED]") < out.index("DisabledMod.ts4script") < out.index("[NOT INSTALLED]")
+    )
+    # not_installed culprits omit the 'seen in N' clause (no on-disk count)
+    assert "seen in 0" not in out
