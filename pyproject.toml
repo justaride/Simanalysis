@@ -58,14 +58,20 @@ dependencies = [
 ai = [
     "anthropic>=0.18.0",
 ]
-dev = [
+test = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
     "pytest-xdist>=3.3.0",
-    "ruff>=0.1.0",
-    "mypy>=1.5.0",
+    "httpx>=0.27",
+]
+lint = [
+    "ruff>=0.15.15,<0.16",
+    "mypy>=2.1,<2.2",
     "types-PyYAML>=6.0",
     "types-tqdm>=4.65",
+]
+dev = [
+    "simanalysis[test,lint]",
     "pre-commit>=3.5.0",
 ]
 docs = [
@@ -86,6 +92,7 @@ Changelog = "https://github.com/justaride/Simanalysis/CHANGELOG.md"
 
 [project.scripts]
 simanalysis = "simanalysis.cli:main"
+simanalysis-bridge = "simanalysis.bridge:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -156,8 +163,7 @@ strict_equality = true
 
 [[tool.mypy.overrides]]
 module = [
-    "networkx.*",
-    "tqdm.*",
+    "lxml.*",
 ]
 ignore_missing_imports = true
 

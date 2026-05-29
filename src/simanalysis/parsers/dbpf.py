@@ -6,10 +6,11 @@ This module provides tools to read and extract resources from these files.
 Format specification: https://simswiki.info/DatabasePackedFile
 """
 
+from __future__ import annotations
+
 import struct
 import zlib
 from pathlib import Path
-from typing import BinaryIO, List, Optional
 
 from simanalysis.exceptions import DBPFError
 from simanalysis.models import DBPFHeader, DBPFResource
@@ -56,8 +57,8 @@ class DBPFReader:
         if not self.path.is_file():
             raise DBPFError(f"Path is not a file: {self.path}")
 
-        self._header: Optional[DBPFHeader] = None
-        self._resources: Optional[List[DBPFResource]] = None
+        self._header: DBPFHeader | None = None
+        self._resources: list[DBPFResource] | None = None
 
     def read_header(self) -> DBPFHeader:
         """
@@ -104,10 +105,10 @@ class DBPFReader:
                 # 40: Unused? (0)
                 # 44: Index Size
                 # 64: Index Offset
-                
+
                 index_count = struct.unpack("<I", header_data[36:40])[0]
                 index_size = struct.unpack("<I", header_data[44:48])[0]
-                
+
                 # Try standard offset first, if 0 check extended offset
                 index_offset = struct.unpack("<I", header_data[40:44])[0]
                 if index_offset == 0:
@@ -136,7 +137,7 @@ class DBPFReader:
                 # Raised by DBPFHeader validation
                 raise DBPFError(f"Invalid DBPF header: {e}") from e
 
-    def read_index(self) -> List[DBPFResource]:
+    def read_index(self) -> list[DBPFResource]:
         """
         Read and parse the resource index table.
 
@@ -229,17 +230,14 @@ class DBPFReader:
             f.seek(resource.offset)
 
             # Determine how much to read
-            read_size = (
-                resource.compressed_size if resource.is_compressed else resource.size
-            )
+            read_size = resource.compressed_size if resource.is_compressed else resource.size
 
             # Read resource data
             data = f.read(read_size)
 
             if len(data) < read_size:
                 raise DBPFError(
-                    f"Could not read complete resource: "
-                    f"expected {read_size} bytes, got {len(data)}"
+                    f"Could not read complete resource: expected {read_size} bytes, got {len(data)}"
                 )
 
             # Decompress if necessary
@@ -250,8 +248,7 @@ class DBPFReader:
 
                     if len(data) != resource.size:
                         raise DBPFError(
-                            f"Decompressed size mismatch: "
-                            f"expected {resource.size}, got {len(data)}"
+                            f"Decompressed size mismatch: expected {resource.size}, got {len(data)}"
                         )
 
                 except zlib.error as e:
@@ -259,7 +256,7 @@ class DBPFReader:
 
             return data
 
-    def get_resources_by_type(self, type_id: int) -> List[DBPFResource]:
+    def get_resources_by_type(self, type_id: int) -> list[DBPFResource]:
         """
         Get all resources of a specific type.
 
@@ -287,7 +284,7 @@ class DBPFReader:
         return self._header.index_count
 
     @property
-    def resources(self) -> List[DBPFResource]:
+    def resources(self) -> list[DBPFResource]:
         """
         Get all resources (lazy loaded).
 

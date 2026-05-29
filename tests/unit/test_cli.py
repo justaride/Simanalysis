@@ -99,13 +99,11 @@ class TestCLI:
     ) -> None:
         """Test analyze with text output."""
         output_file = tmp_path / "report.txt"
-        result = runner.invoke(
-            cli, ["analyze", str(test_mods_dir), "--output", str(output_file)]
-        )
+        result = runner.invoke(cli, ["analyze", str(test_mods_dir), "--output", str(output_file)])
         assert result.exit_code in [0, 1]
         assert output_file.exists()
 
-        content = output_file.read_text()
+        content = output_file.read_text(encoding="utf-8")
         assert "MOD ANALYSIS REPORT" in content
         assert "SUMMARY" in content
 
@@ -129,7 +127,7 @@ class TestCLI:
         assert output_file.exists()
 
         # Verify JSON structure
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
         assert "summary" in data
         assert "mods" in data
@@ -160,18 +158,14 @@ class TestCLI:
         assert "Starting analysis" in result.output
         assert "Parse tunings" in result.output
 
-    def test_analyze_non_recursive(
-        self, runner: CliRunner, test_mods_dir: Path
-    ) -> None:
+    def test_analyze_non_recursive(self, runner: CliRunner, test_mods_dir: Path) -> None:
         """Test analyze with --no-recursive flag."""
         # Create subfolder with mod
         subfolder = test_mods_dir / "Subfolder"
         subfolder.mkdir()
         self._create_test_package(subfolder / "nested.package")
 
-        result = runner.invoke(
-            cli, ["analyze", str(test_mods_dir), "--no-recursive"]
-        )
+        result = runner.invoke(cli, ["analyze", str(test_mods_dir), "--no-recursive"])
         assert result.exit_code in [0, 1]
         assert "Analyzing" in result.output
 
@@ -202,9 +196,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Scanning" in result.output
 
-    def test_view_json_report(
-        self, runner: CliRunner, test_mods_dir: Path, tmp_path: Path
-    ) -> None:
+    def test_view_json_report(self, runner: CliRunner, test_mods_dir: Path, tmp_path: Path) -> None:
         """Test view command with JSON report."""
         # First create a report
         output_file = tmp_path / "report.json"
@@ -227,12 +219,10 @@ class TestCLI:
         assert "REPORT SUMMARY" in result.output
         assert "Total Mods" in result.output
 
-    def test_view_txt_report_fails(
-        self, runner: CliRunner, tmp_path: Path
-    ) -> None:
+    def test_view_txt_report_fails(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test view command fails with TXT report."""
         txt_file = tmp_path / "report.txt"
-        txt_file.write_text("Test report")
+        txt_file.write_text("Test report", encoding="utf-8")
 
         result = runner.invoke(cli, ["view", str(txt_file)])
         assert result.exit_code != 0
@@ -268,17 +258,13 @@ class TestCLI:
         assert "Est. Load Time" in result.output
         assert "Complexity Score" in result.output
 
-    def test_analyze_shows_recommendations(
-        self, runner: CliRunner, test_mods_dir: Path
-    ) -> None:
+    def test_analyze_shows_recommendations(self, runner: CliRunner, test_mods_dir: Path) -> None:
         """Test that analyze shows recommendations."""
         result = runner.invoke(cli, ["analyze", str(test_mods_dir)])
         assert result.exit_code in [0, 1]
         assert "RECOMMENDATIONS" in result.output
 
-    def test_analyze_verbose_shows_conflicts(
-        self, runner: CliRunner, test_mods_dir: Path
-    ) -> None:
+    def test_analyze_verbose_shows_conflicts(self, runner: CliRunner, test_mods_dir: Path) -> None:
         """Test that verbose mode shows conflict details."""
         result = runner.invoke(cli, ["analyze", str(test_mods_dir), "--verbose"])
         assert result.exit_code in [0, 1]
@@ -286,18 +272,14 @@ class TestCLI:
         if "Total Conflicts: 0" not in result.output:
             assert "TOP CONFLICTS" in result.output or "Total Conflicts: 0" in result.output
 
-    def test_scan_shows_file_counts(
-        self, runner: CliRunner, test_mods_dir: Path
-    ) -> None:
+    def test_scan_shows_file_counts(self, runner: CliRunner, test_mods_dir: Path) -> None:
         """Test that scan shows file type counts."""
         result = runner.invoke(cli, ["scan", str(test_mods_dir)])
         assert result.exit_code == 0
         assert "Package files" in result.output or ".package" in result.output
         assert "Total size" in result.output
 
-    def test_analyze_empty_directory(
-        self, runner: CliRunner, tmp_path: Path
-    ) -> None:
+    def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""
         empty_dir = tmp_path / "empty"
         empty_dir.mkdir()
@@ -315,9 +297,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Found 0 mod files" in result.output
 
-    def test_analyze_with_multiple_flags(
-        self, runner: CliRunner, test_mods_dir: Path
-    ) -> None:
+    def test_analyze_with_multiple_flags(self, runner: CliRunner, test_mods_dir: Path) -> None:
         """Test analyze with multiple flags combined."""
         result = runner.invoke(
             cli,
@@ -347,7 +327,11 @@ class TestCLI:
         # Click runner may not preserve exit code 130, but should catch interrupt
         assert result.exit_code != 0
         # Click shows "Aborted!" for keyboard interrupts
-        assert "aborted" in result.output.lower() or "interrupted" in result.output.lower() or "Error" in result.output
+        assert (
+            "aborted" in result.output.lower()
+            or "interrupted" in result.output.lower()
+            or "Error" in result.output
+        )
 
     def test_analyze_creates_valid_json_report(
         self, runner: CliRunner, test_mods_dir: Path, tmp_path: Path
@@ -368,7 +352,7 @@ class TestCLI:
         assert result.exit_code in [0, 1]
 
         # Verify JSON structure
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             data = json.load(f)
 
         # Check required fields

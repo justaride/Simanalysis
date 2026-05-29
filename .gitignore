@@ -59,3 +59,7 @@ reports/
 *.package
 *.ts4script
 test_mods/
+
+# Tauri build artifacts
+/src-tauri/binaries/
+/src-tauri/target/

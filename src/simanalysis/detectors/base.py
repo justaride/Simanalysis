@@ -1,10 +1,12 @@
 """Base classes and utilities for conflict detection."""
 
-from abc import ABC, abstractmethod
-from typing import List
-from datetime import datetime
+from __future__ import annotations
 
-from simanalysis.models import Mod, ModConflict, Severity, ConflictType
+from abc import ABC, abstractmethod
+from datetime import datetime, timezone
+from typing import ClassVar
+
+from simanalysis.models import ConflictType, Mod, ModConflict, Severity
 
 
 class ConflictDetector(ABC):
@@ -27,7 +29,7 @@ class ConflictDetector(ABC):
         self.last_run: datetime | None = None
 
     @abstractmethod
-    def detect(self, mods: List[Mod]) -> List[ModConflict]:
+    def detect(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Detect conflicts in a collection of mods.
 
@@ -37,7 +39,6 @@ class ConflictDetector(ABC):
         Returns:
             List of detected conflicts
         """
-        pass
 
     def calculate_severity(
         self,
@@ -103,9 +104,7 @@ class ConflictDetector(ABC):
         # Default to medium
         return Severity.MEDIUM
 
-    def generate_conflict_id(
-        self, conflict_type: ConflictType, identifier: str
-    ) -> str:
+    def generate_conflict_id(self, conflict_type: ConflictType, identifier: str) -> str:
         """
         Generate unique conflict ID.
 
@@ -122,7 +121,7 @@ class ConflictDetector(ABC):
     def create_conflict(
         self,
         conflict_type: ConflictType,
-        affected_mods: List[str],
+        affected_mods: list[str],
         description: str,
         identifier: str,
         resolution: str | None = None,
@@ -144,9 +143,7 @@ class ConflictDetector(ABC):
         Returns:
             ModConflict object
         """
-        severity = self.calculate_severity(
-            conflict_type, len(affected_mods), is_core_resource
-        )
+        severity = self.calculate_severity(conflict_type, len(affected_mods), is_core_resource)
 
         conflict_id = self.generate_conflict_id(conflict_type, identifier)
 
@@ -160,7 +157,7 @@ class ConflictDetector(ABC):
             details=details or {},
         )
 
-    def run(self, mods: List[Mod]) -> List[ModConflict]:
+    def run(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Run conflict detection and track metadata.
 
@@ -170,7 +167,7 @@ class ConflictDetector(ABC):
         Returns:
             List of detected conflicts
         """
-        self.last_run = datetime.now()
+        self.last_run = datetime.now(timezone.utc)
         conflicts = self.detect(mods)
         self.conflicts_found = len(conflicts)
         return conflicts
@@ -189,7 +186,7 @@ class SeverityRules:
     MEDIUM_THRESHOLD = 1  # 1+ mods = medium
 
     # Core resource types (always critical if conflicted)
-    CORE_TUNING_TYPES = {
+    CORE_TUNING_TYPES: ClassVar[set[str]] = {
         "Buff",
         "Trait",
         "Skill",
@@ -199,7 +196,7 @@ class SeverityRules:
     }
 
     # High-risk script patterns
-    HIGH_RISK_HOOKS = {
+    HIGH_RISK_HOOKS: ClassVar[set[str]] = {
         "inject_to",
         "wrap_function",
         "override",
@@ -230,8 +227,7 @@ class SeverityRules:
             True if high-risk
         """
         return any(
-            risk_pattern in hook_name.lower()
-            for risk_pattern in SeverityRules.HIGH_RISK_HOOKS
+            risk_pattern in hook_name.lower() for risk_pattern in SeverityRules.HIGH_RISK_HOOKS
         )
 
 
@@ -263,8 +259,7 @@ class ConflictResolutions:
     )
 
     VERSION_CONFLICT = (
-        "Update mods to compatible versions. Check mod pages for version "
-        "compatibility information."
+        "Update mods to compatible versions. Check mod pages for version compatibility information."
     )
 
     NAMESPACE_COLLISION = (

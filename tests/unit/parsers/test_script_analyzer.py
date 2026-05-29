@@ -118,7 +118,7 @@ somepackage>=1.0
     def invalid_script(self, tmp_path: Path) -> Path:
         """Create an invalid (non-ZIP) file."""
         script_file = tmp_path / "invalid.ts4script"
-        script_file.write_text("This is not a ZIP file")
+        script_file.write_text("This is not a ZIP file", encoding="utf-8")
         return script_file
 
     @pytest.fixture

@@ -3,9 +3,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class ConfigService:
     """
@@ -13,10 +14,10 @@ class ConfigService:
     Stores config in ~/.simanalysis/config.json
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_dir = Path.home() / ".simanalysis"
         self.config_file = self.config_dir / "config.json"
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self._load_config()
 
     def _load_config(self) -> None:
@@ -26,12 +27,12 @@ class ConfigService:
                 self.config_dir.mkdir(parents=True, exist_ok=True)
 
             if self.config_file.exists():
-                with open(self.config_file, "r") as f:
+                with open(self.config_file, encoding="utf-8") as f:
                     self._config = json.load(f)
             else:
                 self._config = {}
                 self._save_config()
-                
+
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
             self._config = {}
@@ -39,7 +40,7 @@ class ConfigService:
     def _save_config(self) -> None:
         """Save configuration to file."""
         try:
-            with open(self.config_file, "w") as f:
+            with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(self._config, f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save config: {e}")
@@ -56,7 +57,10 @@ class ConfigService:
     @property
     def last_scan_path(self) -> Optional[str]:
         """Get the last scanned directory path."""
-        return self.get("last_scan_path")
+        value = self.get("last_scan_path")
+        if value is None or isinstance(value, str):
+            return value
+        return str(value)
 
     @last_scan_path.setter
     def last_scan_path(self, path: str) -> None:

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from simanalysis.exceptions import DBPFError
-from simanalysis.models import DBPFHeader, DBPFResource
+from simanalysis.models import DBPFHeader
 from simanalysis.parsers.dbpf import DBPFReader
 
 

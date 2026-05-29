@@ -5,12 +5,11 @@ such as textures, meshes, audio files, or string tables.
 """
 
 from collections import defaultdict
-from typing import Dict, List, Set
+from typing import Any, ClassVar
 
 from simanalysis.detectors.base import (
     ConflictDetector,
     ConflictResolutions,
-    SeverityRules,
 )
 from simanalysis.models import ConflictType, Mod, ModConflict
 
@@ -32,14 +31,14 @@ class ResourceConflictDetector(ConflictDetector):
     """
 
     # Critical resource types that affect gameplay
-    CRITICAL_RESOURCE_TYPES = {
+    CRITICAL_RESOURCE_TYPES: ClassVar[set[int]] = {
         0x545503B2,  # SimData (core game data)
         0x0333406C,  # OBJD (object definitions)
         0x034AEECB,  # OBJK (object keys)
         0x00B2D882,  # CAS Part (Create-A-Sim)
     }
 
-    def detect(self, mods: List[Mod]) -> List[ModConflict]:
+    def detect(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Detect resource conflicts across mods.
 
@@ -49,7 +48,7 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             List of detected conflicts
         """
-        conflicts: List[ModConflict] = []
+        conflicts: list[ModConflict] = []
 
         # Build index: resource_key -> list of mods
         resource_index = self._build_resource_index(mods)
@@ -66,9 +65,7 @@ class ResourceConflictDetector(ConflictDetector):
 
         return conflicts
 
-    def _build_resource_index(
-        self, mods: List[Mod]
-    ) -> Dict[tuple[int, int, int], List[Mod]]:
+    def _build_resource_index(self, mods: list[Mod]) -> dict[tuple[int, int, int], list[Mod]]:
         """
         Build index of resource keys to mods that contain them.
 
@@ -78,7 +75,7 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             Dictionary mapping resource_key -> [mods]
         """
-        resource_index: Dict[tuple[int, int, int], List[Mod]] = defaultdict(list)
+        resource_index: dict[tuple[int, int, int], list[Mod]] = defaultdict(list)
 
         for mod in mods:
             for resource_key in mod.resource_keys:
@@ -87,7 +84,7 @@ class ResourceConflictDetector(ConflictDetector):
         return resource_index
 
     def _create_resource_conflict(
-        self, resource_key: tuple[int, int, int], mod_list: List[Mod]
+        self, resource_key: tuple[int, int, int], mod_list: list[Mod]
     ) -> ModConflict:
         """
         Create conflict object for resource key conflict.
@@ -140,7 +137,7 @@ class ResourceConflictDetector(ConflictDetector):
             is_core_resource=is_critical,
         )
 
-    def _detect_hash_collisions(self, mods: List[Mod]) -> List[ModConflict]:
+    def _detect_hash_collisions(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Detect hash collisions (different mods with same file hash).
 
@@ -155,10 +152,10 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             List of hash collision conflicts
         """
-        conflicts: List[ModConflict] = []
+        conflicts: list[ModConflict] = []
 
         # Build hash index: hash -> list of mods
-        hash_index: Dict[str, List[Mod]] = defaultdict(list)
+        hash_index: dict[str, list[Mod]] = defaultdict(list)
         for mod in mods:
             if mod.hash:  # Only process mods with hashes
                 hash_index[mod.hash].append(mod)
@@ -221,7 +218,7 @@ class ResourceConflictDetector(ConflictDetector):
         }
         return type_names.get(resource_type, "Unknown")
 
-    def get_critical_conflicts(self, conflicts: List[ModConflict]) -> List[ModConflict]:
+    def get_critical_conflicts(self, conflicts: list[ModConflict]) -> list[ModConflict]:
         """
         Get only conflicts affecting critical resources.
 
@@ -231,13 +228,11 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             List of critical resource conflicts
         """
-        return [
-            c for c in conflicts if c.details.get("is_critical_resource", False)
-        ]
+        return [c for c in conflicts if c.details.get("is_critical_resource", False)]
 
     def get_conflicts_by_type(
-        self, conflicts: List[ModConflict], resource_type_name: str
-    ) -> List[ModConflict]:
+        self, conflicts: list[ModConflict], resource_type_name: str
+    ) -> list[ModConflict]:
         """
         Filter conflicts by resource type name.
 
@@ -248,15 +243,9 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             Filtered list of conflicts
         """
-        return [
-            c
-            for c in conflicts
-            if c.details.get("resource_type_name") == resource_type_name
-        ]
+        return [c for c in conflicts if c.details.get("resource_type_name") == resource_type_name]
 
-    def get_hash_collision_conflicts(
-        self, conflicts: List[ModConflict]
-    ) -> List[ModConflict]:
+    def get_hash_collision_conflicts(self, conflicts: list[ModConflict]) -> list[ModConflict]:
         """
         Get only hash collision conflicts.
 
@@ -268,7 +257,7 @@ class ResourceConflictDetector(ConflictDetector):
         """
         return [c for c in conflicts if "file_hash" in c.details]
 
-    def get_conflict_summary(self, conflicts: List[ModConflict]) -> Dict[str, int]:
+    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, Any]:
         """
         Get summary statistics about resource conflicts.
 
@@ -278,21 +267,17 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             Dictionary with summary statistics
         """
-        summary = {
+        summary: dict[str, Any] = {
             "total_conflicts": len(conflicts),
             "critical_resource_conflicts": sum(
                 1 for c in conflicts if c.details.get("is_critical_resource", False)
             ),
-            "hash_collision_conflicts": sum(
-                1 for c in conflicts if "file_hash" in c.details
-            ),
-            "resource_key_conflicts": sum(
-                1 for c in conflicts if "resource_key" in c.details
-            ),
+            "hash_collision_conflicts": sum(1 for c in conflicts if "file_hash" in c.details),
+            "resource_key_conflicts": sum(1 for c in conflicts if "resource_key" in c.details),
         }
 
         # Count by resource type
-        type_counts: Dict[str, int] = defaultdict(int)
+        type_counts: dict[str, int] = defaultdict(int)
         for conflict in conflicts:
             type_name = conflict.details.get("resource_type_name", "Unknown")
             if type_name != "Unknown":  # Don't count hash collisions

@@ -10,8 +10,8 @@ from simanalysis.detectors.tuning_conflicts import TuningConflictDetector
 
 __all__ = [
     "ConflictDetector",
-    "SeverityRules",
     "ConflictResolutions",
-    "TuningConflictDetector",
     "ResourceConflictDetector",
+    "SeverityRules",
+    "TuningConflictDetector",
 ]

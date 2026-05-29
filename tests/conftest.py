@@ -1,8 +1,8 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
 from pathlib import Path
-from typing import Generator
+
+import pytest
 
 
 @pytest.fixture
@@ -24,6 +24,6 @@ def mock_data_dir(fixtures_dir: Path) -> Path:
 
 
 @pytest.fixture
-def temp_dir(tmp_path: Path) -> Generator[Path, None, None]:
+def temp_dir(tmp_path: Path) -> Path:
     """Create a temporary directory for tests."""
-    yield tmp_path
+    return tmp_path

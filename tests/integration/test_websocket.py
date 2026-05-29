@@ -1,9 +1,12 @@
 """Integration tests for WebSocket API."""
 
 from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
+
 from simanalysis.web.api import app
+
 
 class TestWebSocket:
     """Test WebSocket endpoints."""
@@ -22,34 +25,30 @@ class TestWebSocket:
         """Test scanning via WebSocket."""
         with client.websocket_connect("/api/ws/scan") as websocket:
             # Send configuration
-            websocket.send_json({
-                "path": str(sample_mods_path),
-                "recursive": True,
-                "quick": True
-            })
-            
+            websocket.send_json({"path": str(sample_mods_path), "recursive": True, "quick": True})
+
             # Receive messages
             messages = []
             while True:
                 data = websocket.receive_json()
                 messages.append(data)
-                
+
                 if data["status"] in ("complete", "error"):
                     break
-            
+
             # Verify sequence
             assert len(messages) > 0
-            
+
             # Check for progress updates
             progress_updates = [m for m in messages if m["status"] == "scanning"]
             assert len(progress_updates) > 0
-            
+
             # Check first update structure
             first = progress_updates[0]
             assert "current" in first
             assert "total" in first
             assert "file" in first
-            
+
             # Check completion
             last = messages[-1]
             assert last["status"] == "complete"

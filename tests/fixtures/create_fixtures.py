@@ -7,6 +7,7 @@ and as examples for users.
 import struct
 import zlib
 from pathlib import Path
+from typing import Optional
 
 
 def create_package_file(
@@ -38,7 +39,7 @@ def create_package_file(
     current_offset = 96 + (32 * resource_count)
 
     for i in range(resource_count):
-        resource_data = f"{name} {i}".encode('utf-8')
+        resource_data = f"{name} {i}".encode()
         compressed_data = zlib.compress(resource_data)
 
         # Index entry (32 bytes each)
@@ -71,7 +72,7 @@ def create_package_file(
     print(f"Created: {output_path.name} (tuning ID: 0x{tuning_id:08X})")
 
 
-def create_ts4script_file(output_path: Path, content: str = None) -> None:
+def create_ts4script_file(output_path: Path, content: Optional[str] = None) -> None:
     """
     Create a simple .ts4script file (Python code).
 
@@ -109,7 +110,7 @@ def main():
         fixtures_dir / "simple_mod.package",
         tuning_id=0x11111111,
         resource_count=1,
-        name="Simple Buff"
+        name="Simple Buff",
     )
 
     # 2. Conflicting mod A
@@ -117,7 +118,7 @@ def main():
         fixtures_dir / "conflicting_mod_a.package",
         tuning_id=0xAAAAAAAA,
         resource_count=2,
-        name="Overlapping Buff A"
+        name="Overlapping Buff A",
     )
 
     # 3. Conflicting mod B (same tuning ID as A)
@@ -125,7 +126,7 @@ def main():
         fixtures_dir / "conflicting_mod_b.package",
         tuning_id=0xAAAAAAAA,  # Same as mod A!
         resource_count=2,
-        name="Overlapping Buff B"
+        name="Overlapping Buff B",
     )
 
     # 4. Large mod with many resources
@@ -133,13 +134,11 @@ def main():
         fixtures_dir / "large_mod.package",
         tuning_id=0x22222222,
         resource_count=10,
-        name="Complex Mod Resource"
+        name="Complex Mod Resource",
     )
 
     # 5. Script mod
-    create_ts4script_file(
-        fixtures_dir / "script_mod.ts4script"
-    )
+    create_ts4script_file(fixtures_dir / "script_mod.ts4script")
 
     print(f"\n✅ Created {len(list(fixtures_dir.glob('*')))} fixture files in {fixtures_dir}")
     print("\nThese files can be used for:")

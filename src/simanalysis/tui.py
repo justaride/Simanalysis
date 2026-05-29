@@ -1,17 +1,15 @@
 """Rich Terminal User Interface for Simanalysis."""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import List, Optional
 
 from rich.console import Console, Group
-from rich.layout import Layout
-from rich.live import Live
 from rich.panel import Panel
 from rich.progress import (
     BarColumn,
     Progress,
     SpinnerColumn,
-    TaskID,
     TextColumn,
     TimeElapsedColumn,
 )
@@ -32,7 +30,7 @@ class SimanalysisTUI:
     Provides beautiful, interactive displays for mod analysis results.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize TUI."""
         self.console = console
 
@@ -107,7 +105,7 @@ class SimanalysisTUI:
 
         table.add_row(
             "Complexity:",
-            f"[{complexity_style}]{perf.complexity_score:.1f}/100[/{complexity_style}]"
+            f"[{complexity_style}]{perf.complexity_score:.1f}/100[/{complexity_style}]",
         )
 
         return Panel(
@@ -116,9 +114,7 @@ class SimanalysisTUI:
             border_style="cyan",
         )
 
-    def create_conflicts_table(
-        self, conflicts: List[ModConflict], limit: int = 20
-    ) -> Table:
+    def create_conflicts_table(self, conflicts: list[ModConflict], limit: int = 20) -> Table:
         """Create detailed conflicts table."""
         table = Table(
             title=f"[bold]Conflicts[/bold] (showing {min(len(conflicts), limit)} of {len(conflicts)})",
@@ -140,9 +136,7 @@ class SimanalysisTUI:
             Severity.MEDIUM: 2,
             Severity.LOW: 3,
         }
-        sorted_conflicts = sorted(
-            conflicts, key=lambda c: severity_order[c.severity]
-        )
+        sorted_conflicts = sorted(conflicts, key=lambda c: severity_order[c.severity])
 
         for conflict in sorted_conflicts[:limit]:
             # Color code severity
@@ -172,7 +166,7 @@ class SimanalysisTUI:
 
         return table
 
-    def create_conflicts_tree(self, conflicts: List[ModConflict]) -> Tree:
+    def create_conflicts_tree(self, conflicts: list[ModConflict]) -> Tree:
         """Create hierarchical conflicts tree view."""
         tree = Tree("📊 [bold cyan]Conflicts by Severity[/bold cyan]")
 
@@ -219,8 +213,9 @@ class SimanalysisTUI:
 
         return tree
 
-    def create_recommendations_panel(self, recommendations: List[str]) -> Panel:
+    def create_recommendations_panel(self, recommendations: list[str]) -> Panel:
         """Create recommendations panel."""
+        content: Text | Group
         if not recommendations:
             content = Text("✅ No recommendations - everything looks good!", style="green")
         else:
@@ -272,10 +267,7 @@ class SimanalysisTUI:
 
             # Format size
             size_mb = mod.size / 1024 / 1024
-            if size_mb >= 100:
-                size_str = f"[bold]{size_mb:.1f} MB[/bold]"
-            else:
-                size_str = f"{size_mb:.1f} MB"
+            size_str = f"[bold]{size_mb:.1f} MB[/bold]" if size_mb >= 100 else f"{size_mb:.1f} MB"
 
             table.add_row(
                 icon,
@@ -287,9 +279,7 @@ class SimanalysisTUI:
 
         return table
 
-    def display_analysis_result(
-        self, result: AnalysisResult, show_mods: bool = False
-    ) -> None:
+    def display_analysis_result(self, result: AnalysisResult, show_mods: bool = False) -> None:
         """
         Display complete analysis result with rich formatting.
 
@@ -336,7 +326,10 @@ class SimanalysisTUI:
 
         # Display analysis metadata
         meta_text = Text()
-        meta_text.append(f"⏱️  Analysis completed in {result.metadata.analysis_duration_seconds:.2f}s", style="dim")
+        meta_text.append(
+            f"⏱️  Analysis completed in {result.metadata.analysis_duration_seconds:.2f}s",
+            style="dim",
+        )
         meta_text.append(" | ", style="dim")
         meta_text.append(f"Analyzed: {result.metadata.mod_directory}", style="dim")
         self.console.print(Panel(meta_text, border_style="dim"))
@@ -460,23 +453,26 @@ class SimanalysisTUI:
 
         # Show detailed list if verbose
         if verbose and mods:
-            from simanalysis.models import AnalysisResult, AnalysisMetadata, PerformanceMetrics
-            from datetime import datetime
+            from simanalysis.models import PerformanceMetrics
 
             # Create minimal result for display
-            result = type('obj', (), {
-                'mods': mods,
-                'performance': PerformanceMetrics(
-                    total_mods=len(mods),
-                    total_size_mb=total_size / 1024 / 1024,
-                    total_resources=0,
-                    total_tunings=0,
-                    total_scripts=0,
-                    estimated_load_time_seconds=0,
-                    estimated_memory_mb=0,
-                    complexity_score=0,
-                ),
-            })()
+            result = type(
+                "obj",
+                (),
+                {
+                    "mods": mods,
+                    "performance": PerformanceMetrics(
+                        total_mods=len(mods),
+                        total_size_mb=total_size / 1024 / 1024,
+                        total_resources=0,
+                        total_tunings=0,
+                        total_scripts=0,
+                        estimated_load_time_seconds=0,
+                        estimated_memory_mb=0,
+                        complexity_score=0,
+                    ),
+                },
+            )()
 
             self.console.print(self.create_mods_table(result, limit=50))
 

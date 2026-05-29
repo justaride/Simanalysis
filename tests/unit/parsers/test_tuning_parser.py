@@ -92,9 +92,7 @@ class TestTuningParser:
         </I>
         """
 
-    def test_parse_simple_tuning(
-        self, parser: TuningParser, simple_tuning_xml: bytes
-    ) -> None:
+    def test_parse_simple_tuning(self, parser: TuningParser, simple_tuning_xml: bytes) -> None:
         """Test parsing simple tuning XML."""
         tuning = parser.parse(simple_tuning_xml)
 
@@ -104,9 +102,7 @@ class TestTuningParser:
         assert tuning.tuning_class == "Buff"
         assert tuning.module == "buffs.buff"
 
-    def test_parse_complex_tuning(
-        self, parser: TuningParser, complex_tuning_xml: bytes
-    ) -> None:
+    def test_parse_complex_tuning(self, parser: TuningParser, complex_tuning_xml: bytes) -> None:
         """Test parsing complex tuning XML."""
         tuning = parser.parse(complex_tuning_xml)
 
@@ -119,9 +115,7 @@ class TestTuningParser:
         assert len(tuning.modified_attributes) > 0
         assert "display_name" in tuning.modified_attributes
 
-    def test_parse_hex_instance_id(
-        self, parser: TuningParser, hex_instance_xml: bytes
-    ) -> None:
+    def test_parse_hex_instance_id(self, parser: TuningParser, hex_instance_xml: bytes) -> None:
         """Test parsing hex instance ID."""
         tuning = parser.parse(hex_instance_xml)
 
@@ -135,9 +129,7 @@ class TestTuningParser:
 
         assert tuning.instance_id == 98765
 
-    def test_extract_modifications(
-        self, parser: TuningParser, simple_tuning_xml: bytes
-    ) -> None:
+    def test_extract_modifications(self, parser: TuningParser, simple_tuning_xml: bytes) -> None:
         """Test extracting modified attributes."""
         tuning = parser.parse(simple_tuning_xml)
 
@@ -146,9 +138,7 @@ class TestTuningParser:
         assert "mood_weight" in tuning.modified_attributes
         assert tuning.modified_attributes["mood_weight"] == "10"
 
-    def test_find_references(
-        self, parser: TuningParser, complex_tuning_xml: bytes
-    ) -> None:
+    def test_find_references(self, parser: TuningParser, complex_tuning_xml: bytes) -> None:
         """Test finding references to other tunings."""
         tuning = parser.parse(complex_tuning_xml)
 
@@ -179,9 +169,7 @@ class TestTuningParser:
         # Module is "EP04.buffs.vampire_buffs"
         assert "EP04" in tuning.pack_requirements
 
-    def test_invalid_xml_raises_error(
-        self, parser: TuningParser, invalid_xml: bytes
-    ) -> None:
+    def test_invalid_xml_raises_error(self, parser: TuningParser, invalid_xml: bytes) -> None:
         """Test that invalid XML raises TuningError."""
         with pytest.raises(TuningError, match="Invalid XML syntax"):
             parser.parse(invalid_xml)
@@ -208,9 +196,7 @@ class TestTuningParser:
         tuning = parser.parse(xml)
         assert tuning.module == "unknown"
 
-    def test_parse_tuning_file_alias(
-        self, parser: TuningParser, simple_tuning_xml: bytes
-    ) -> None:
+    def test_parse_tuning_file_alias(self, parser: TuningParser, simple_tuning_xml: bytes) -> None:
         """Test parse_tuning_file is an alias for parse."""
         tuning1 = parser.parse(simple_tuning_xml)
         tuning2 = parser.parse_tuning_file(simple_tuning_xml)
@@ -232,9 +218,7 @@ class TestTuningParser:
         tuning = parser.parse(xml)
         assert len(tuning.references) == 0
 
-    def test_no_pack_requirements(
-        self, parser: TuningParser, simple_tuning_xml: bytes
-    ) -> None:
+    def test_no_pack_requirements(self, parser: TuningParser, simple_tuning_xml: bytes) -> None:
         """Test tuning with no pack requirements."""
         tuning = parser.parse(simple_tuning_xml)
 
@@ -273,9 +257,7 @@ class TestTuningParser:
         tuning_id = parser._extract_tuning_id("0x123")
         assert tuning_id is None
 
-    def test_modified_attributes_with_various_types(
-        self, parser: TuningParser
-    ) -> None:
+    def test_modified_attributes_with_various_types(self, parser: TuningParser) -> None:
         """Test extracting modifications with various attribute types."""
         xml = b"""<I c="Buff" i="test" s="123" m="buffs">
             <T n="text_value">some text</T>

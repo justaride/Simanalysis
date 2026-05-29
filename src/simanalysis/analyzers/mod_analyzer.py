@@ -1,15 +1,15 @@
 """Complete mod analysis pipeline integrating scanning and conflict detection."""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Optional
 
 from simanalysis import __version__
+from simanalysis.analyzers.mesh_analyzer import MeshAnalyzer
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
 from simanalysis.detectors.tuning_conflicts import TuningConflictDetector
-from simanalysis.analyzers.mesh_analyzer import MeshAnalyzer
 from simanalysis.models import (
     AnalysisMetadata,
     AnalysisResult,
@@ -41,7 +41,7 @@ class ModAnalyzer:
         parse_tunings: bool = True,
         parse_scripts: bool = True,
         calculate_hashes: bool = True,
-        detectors: Optional[List[ConflictDetector]] = None,
+        detectors: Optional[list[ConflictDetector]] = None,
     ) -> None:
         """
         Initialize mod analyzer.
@@ -59,6 +59,7 @@ class ModAnalyzer:
         )
 
         # Use default detectors if none provided
+        self.mesh_analyzer: Optional[MeshAnalyzer]
         if detectors is None:
             self.detectors = [
                 TuningConflictDetector(),
@@ -67,13 +68,13 @@ class ModAnalyzer:
             self.mesh_analyzer = MeshAnalyzer()
         else:
             self.detectors = detectors
-            self.mesh_analyzer = None # Custom detectors might not want mesh analysis
+            self.mesh_analyzer = None  # Custom detectors might not want mesh analysis
 
     def analyze_directory(
         self,
         directory: Path,
         recursive: bool = True,
-        extensions: Optional[Set[str]] = None,
+        extensions: Optional[set[str]] = None,
         progress_callback: Optional["Callable[[int, int, str], None]"] = None,
     ) -> AnalysisResult:
         """
@@ -92,10 +93,7 @@ class ModAnalyzer:
 
         # Scan directory for mods
         mods = self.scanner.scan_directory(
-            directory, 
-            recursive, 
-            extensions,
-            progress_callback=progress_callback
+            directory, recursive, extensions, progress_callback=progress_callback
         )
 
         # Run conflict detection
@@ -112,7 +110,7 @@ class ModAnalyzer:
 
         # Create metadata
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version=__version__,
             mod_directory=str(directory),
             analysis_duration_seconds=time.time() - start_time,
@@ -131,7 +129,7 @@ class ModAnalyzer:
 
         return result
 
-    def analyze_mods(self, mods: List[Mod]) -> AnalysisResult:
+    def analyze_mods(self, mods: list[Mod]) -> AnalysisResult:
         """
         Analyze a pre-scanned list of mods.
 
@@ -149,7 +147,7 @@ class ModAnalyzer:
         recommendations = self.get_recommendations_list(mods, conflicts)
 
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version=__version__,
             mod_directory="pre-scanned",
             analysis_duration_seconds=time.time() - start_time,
@@ -165,7 +163,7 @@ class ModAnalyzer:
             recommendations=recommendations,
         )
 
-    def detect_conflicts(self, mods: List[Mod]) -> List[ModConflict]:
+    def detect_conflicts(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Run all conflict detectors on mods.
 
@@ -175,7 +173,7 @@ class ModAnalyzer:
         Returns:
             Combined list of all detected conflicts
         """
-        all_conflicts: List[ModConflict] = []
+        all_conflicts: list[ModConflict] = []
 
         for detector in self.detectors:
             conflicts = detector.run(mods)
@@ -200,7 +198,9 @@ class ModAnalyzer:
         summary = {
             "total_mods": len(result.mods),
             "total_conflicts": len(result.conflicts),
-            "critical_conflicts": len([c for c in result.conflicts if c.severity == Severity.CRITICAL]),
+            "critical_conflicts": len(
+                [c for c in result.conflicts if c.severity == Severity.CRITICAL]
+            ),
             "high_conflicts": len([c for c in result.conflicts if c.severity == Severity.HIGH]),
             "medium_conflicts": len([c for c in result.conflicts if c.severity == Severity.MEDIUM]),
             "low_conflicts": len([c for c in result.conflicts if c.severity == Severity.LOW]),
@@ -214,7 +214,7 @@ class ModAnalyzer:
 
         return summary
 
-    def _calculate_performance(self, mods: List[Mod]) -> PerformanceMetrics:
+    def _calculate_performance(self, mods: list[Mod]) -> PerformanceMetrics:
         """Calculate performance metrics for mods."""
         total_size = sum(mod.size for mod in mods)
         total_resources = sum(len(mod.resources) for mod in mods)
@@ -237,9 +237,9 @@ class ModAnalyzer:
             complexity_score=complexity,
         )
 
-    def _build_dependencies(self, mods: List[Mod]) -> Dict[str, List[str]]:
+    def _build_dependencies(self, mods: list[Mod]) -> dict[str, list[str]]:
         """Build dependency map from mods."""
-        dependencies: Dict[str, List[str]] = {}
+        dependencies: dict[str, list[str]] = {}
 
         for mod in mods:
             if mod.requires:
@@ -247,21 +247,11 @@ class ModAnalyzer:
 
         return dependencies
 
-    def get_recommendations_list(self, mods: List[Mod], conflicts: List[ModConflict]) -> List[str]:
+    def get_recommendations_list(self, mods: list[Mod], conflicts: list[ModConflict]) -> list[str]:
         """Generate recommendations for a list of mods and conflicts."""
-        # Create a minimal AnalysisResult-like object for compatibility
-        class TempResult:
-            def __init__(self):
-                self.mods = mods
-                self.conflicts = conflicts
-                self.critical_conflicts = [c for c in conflicts if c.severity == Severity.CRITICAL]
+        return self._build_recommendations(mods=mods, conflicts=conflicts)
 
-            def get_conflicts_by_severity(self, severity):
-                return [c for c in conflicts if c.severity == severity]
-
-        return self.get_recommendations(TempResult())
-
-    def get_recommendations(self, result: AnalysisResult) -> List[str]:
+    def get_recommendations(self, result: AnalysisResult) -> list[str]:
         """
         Generate recommendations based on analysis result.
 
@@ -271,10 +261,14 @@ class ModAnalyzer:
         Returns:
             List of recommendation strings
         """
-        recommendations: List[str] = []
+        return self._build_recommendations(mods=result.mods, conflicts=result.conflicts)
+
+    def _build_recommendations(self, mods: list[Mod], conflicts: list[ModConflict]) -> list[str]:
+        """Core recommendation logic operating on plain lists."""
+        recommendations: list[str] = []
 
         # Critical conflicts
-        critical = result.critical_conflicts
+        critical = [c for c in conflicts if c.severity == Severity.CRITICAL]
         if len(critical) > 0:
             recommendations.append(
                 f"⚠️  CRITICAL: {len(critical)} critical conflicts detected. "
@@ -289,7 +283,7 @@ class ModAnalyzer:
                 recommendations.append(f"  ... and {len(critical) - 5} more")
 
         # High severity
-        high = [c for c in result.conflicts if c.severity == Severity.HIGH]
+        high = [c for c in conflicts if c.severity == Severity.HIGH]
         if len(high) > 0:
             recommendations.append(
                 f"⚠️  HIGH: {len(high)} high-severity conflicts detected. "
@@ -297,9 +291,7 @@ class ModAnalyzer:
             )
 
         # Duplicate files (hash collisions)
-        hash_conflicts = [
-            c for c in result.conflicts if "file_hash" in c.details
-        ]
+        hash_conflicts = [c for c in conflicts if "file_hash" in c.details]
         if len(hash_conflicts) > 0:
             recommendations.append(
                 f"💡 TIP: {len(hash_conflicts)} duplicate mods found. "
@@ -307,23 +299,19 @@ class ModAnalyzer:
             )
 
         # No conflicts
-        if len(result.conflicts) == 0:
-            recommendations.append(
-                "✅ No conflicts detected! Your mod setup looks good."
-            )
+        if len(conflicts) == 0:
+            recommendations.append("✅ No conflicts detected! Your mod setup looks good.")
 
         # General recommendations
-        if len(result.mods) > 100:
+        if len(mods) > 100:
             recommendations.append(
-                f"💡 TIP: You have {len(result.mods)} mods installed. "
+                f"💡 TIP: You have {len(mods)} mods installed. "
                 f"Consider organizing them into subfolders for easier management."
             )
 
         return recommendations
 
-    def export_report(
-        self, result: AnalysisResult, output_path: Path, format: str = "txt"
-    ) -> None:
+    def export_report(self, result: AnalysisResult, output_path: Path, format: str = "txt") -> None:
         """
         Export analysis report to file.
 
@@ -341,7 +329,7 @@ class ModAnalyzer:
 
     def _export_text_report(self, result: AnalysisResult, output_path: Path) -> None:
         """Export plain text report."""
-        lines: List[str] = []
+        lines: list[str] = []
 
         # Header
         lines.append("=" * 80)
@@ -391,7 +379,7 @@ class ModAnalyzer:
                             lines.append(f"  Resolution: {conflict.resolution}")
 
         # Write file
-        output_path.write_text("\n".join(lines))
+        output_path.write_text("\n".join(lines), encoding="utf-8")
 
     def _export_json_report(self, result: AnalysisResult, output_path: Path) -> None:
         """Export JSON report."""
@@ -438,5 +426,5 @@ class ModAnalyzer:
         }
 
         # Write file
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)

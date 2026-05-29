@@ -5,7 +5,7 @@ which can cause unexpected game behavior or crashes.
 """
 
 from collections import defaultdict
-from typing import Dict, List, Set
+from typing import Any
 
 from simanalysis.detectors.base import (
     ConflictDetector,
@@ -31,7 +31,7 @@ class TuningConflictDetector(ConflictDetector):
         >>> print(f"Found {len(conflicts)} tuning conflicts")
     """
 
-    def detect(self, mods: List[Mod]) -> List[ModConflict]:
+    def detect(self, mods: list[Mod]) -> list[ModConflict]:
         """
         Detect tuning conflicts across mods.
 
@@ -41,7 +41,7 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             List of detected conflicts
         """
-        conflicts: List[ModConflict] = []
+        conflicts: list[ModConflict] = []
 
         # Build index: tuning_id -> list of (mod, tuning_data)
         tuning_index = self._build_tuning_index(mods)
@@ -54,9 +54,7 @@ class TuningConflictDetector(ConflictDetector):
 
         return conflicts
 
-    def _build_tuning_index(
-        self, mods: List[Mod]
-    ) -> Dict[int, List[tuple[Mod, object]]]:
+    def _build_tuning_index(self, mods: list[Mod]) -> dict[int, list[tuple[Mod, object]]]:
         """
         Build index of tuning ID to mods that modify it.
 
@@ -66,7 +64,7 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             Dictionary mapping tuning_id -> [(mod, tuning_data), ...]
         """
-        tuning_index: Dict[int, List[tuple[Mod, object]]] = defaultdict(list)
+        tuning_index: dict[int, list[tuple[Mod, object]]] = defaultdict(list)
 
         for mod in mods:
             for tuning in mod.tunings:
@@ -75,7 +73,7 @@ class TuningConflictDetector(ConflictDetector):
         return tuning_index
 
     def _create_tuning_conflict(
-        self, tuning_id: int, tuning_entries: List[tuple[Mod, object]]
+        self, tuning_id: int, tuning_entries: list[tuple[Mod, object]]
     ) -> ModConflict:
         """
         Create conflict object for tuning ID conflict.
@@ -128,8 +126,8 @@ class TuningConflictDetector(ConflictDetector):
         )
 
     def _get_modification_details(
-        self, tuning_entries: List[tuple[Mod, object]]
-    ) -> List[Dict[str, str]]:
+        self, tuning_entries: list[tuple[Mod, object]]
+    ) -> list[dict[str, str]]:
         """
         Extract modification details from tuning entries.
 
@@ -156,8 +154,8 @@ class TuningConflictDetector(ConflictDetector):
         return modifications
 
     def get_conflicts_by_class(
-        self, conflicts: List[ModConflict], tuning_class: str
-    ) -> List[ModConflict]:
+        self, conflicts: list[ModConflict], tuning_class: str
+    ) -> list[ModConflict]:
         """
         Filter conflicts by tuning class.
 
@@ -168,13 +166,9 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             Filtered list of conflicts
         """
-        return [
-            c
-            for c in conflicts
-            if c.details.get("tuning_class") == tuning_class
-        ]
+        return [c for c in conflicts if c.details.get("tuning_class") == tuning_class]
 
-    def get_core_conflicts(self, conflicts: List[ModConflict]) -> List[ModConflict]:
+    def get_core_conflicts(self, conflicts: list[ModConflict]) -> list[ModConflict]:
         """
         Get only conflicts affecting core tunings.
 
@@ -184,11 +178,9 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             List of core tuning conflicts
         """
-        return [
-            c for c in conflicts if c.details.get("is_core_tuning", False)
-        ]
+        return [c for c in conflicts if c.details.get("is_core_tuning", False)]
 
-    def get_conflict_summary(self, conflicts: List[ModConflict]) -> Dict[str, int]:
+    def get_conflict_summary(self, conflicts: list[ModConflict]) -> dict[str, Any]:
         """
         Get summary statistics about conflicts.
 
@@ -198,27 +190,19 @@ class TuningConflictDetector(ConflictDetector):
         Returns:
             Dictionary with summary statistics
         """
-        summary = {
+        summary: dict[str, Any] = {
             "total_conflicts": len(conflicts),
-            "critical_conflicts": sum(
-                1 for c in conflicts if c.severity.value == "CRITICAL"
-            ),
-            "high_conflicts": sum(
-                1 for c in conflicts if c.severity.value == "HIGH"
-            ),
-            "medium_conflicts": sum(
-                1 for c in conflicts if c.severity.value == "MEDIUM"
-            ),
-            "low_conflicts": sum(
-                1 for c in conflicts if c.severity.value == "LOW"
-            ),
+            "critical_conflicts": sum(1 for c in conflicts if c.severity.value == "CRITICAL"),
+            "high_conflicts": sum(1 for c in conflicts if c.severity.value == "HIGH"),
+            "medium_conflicts": sum(1 for c in conflicts if c.severity.value == "MEDIUM"),
+            "low_conflicts": sum(1 for c in conflicts if c.severity.value == "LOW"),
             "core_tuning_conflicts": sum(
                 1 for c in conflicts if c.details.get("is_core_tuning", False)
             ),
         }
 
         # Count by tuning class
-        class_counts: Dict[str, int] = defaultdict(int)
+        class_counts: dict[str, int] = defaultdict(int)
         for conflict in conflicts:
             tuning_class = conflict.details.get("tuning_class", "unknown")
             class_counts[tuning_class] += 1

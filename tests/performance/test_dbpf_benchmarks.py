@@ -174,9 +174,9 @@ class TestDBPFPerformance:
         max_time = max(times)
 
         print(f"\n1MB Header Parsing ({iterations} iterations):")
-        print(f"  Average: {avg_time*1000:.3f}ms")
-        print(f"  Min:     {min_time*1000:.3f}ms")
-        print(f"  Max:     {max_time*1000:.3f}ms")
+        print(f"  Average: {avg_time * 1000:.3f}ms")
+        print(f"  Min:     {min_time * 1000:.3f}ms")
+        print(f"  Max:     {max_time * 1000:.3f}ms")
 
         assert avg_time < 0.001  # Should be < 1ms
 
@@ -189,10 +189,10 @@ class TestDBPFPerformance:
         resources = reader.read_index()
         elapsed = time.perf_counter() - start
 
-        print(f"\n1MB Index Parsing:")
-        print(f"  Time:      {elapsed*1000:.3f}ms")
+        print("\n1MB Index Parsing:")
+        print(f"  Time:      {elapsed * 1000:.3f}ms")
         print(f"  Resources: {len(resources)}")
-        print(f"  Per-resource: {(elapsed/len(resources))*1000:.3f}ms")
+        print(f"  Per-resource: {(elapsed / len(resources)) * 1000:.3f}ms")
 
         assert len(resources) == 50
         assert elapsed < 0.01  # Should be < 10ms
@@ -206,10 +206,10 @@ class TestDBPFPerformance:
         resources = reader.read_index()
         elapsed = time.perf_counter() - start
 
-        print(f"\n10MB Index Parsing:")
-        print(f"  Time:      {elapsed*1000:.3f}ms")
+        print("\n10MB Index Parsing:")
+        print(f"  Time:      {elapsed * 1000:.3f}ms")
         print(f"  Resources: {len(resources)}")
-        print(f"  Per-resource: {(elapsed/len(resources))*1000:.3f}ms")
+        print(f"  Per-resource: {(elapsed / len(resources)) * 1000:.3f}ms")
 
         assert len(resources) == 500
         assert elapsed < 0.1  # Should be < 100ms
@@ -223,24 +223,22 @@ class TestDBPFPerformance:
         resources = reader.read_index()
         elapsed = time.perf_counter() - start
 
-        print(f"\n100MB Index Parsing:")
-        print(f"  Time:      {elapsed*1000:.3f}ms")
+        print("\n100MB Index Parsing:")
+        print(f"  Time:      {elapsed * 1000:.3f}ms")
         print(f"  Resources: {len(resources)}")
-        print(f"  Per-resource: {(elapsed/len(resources))*1000:.3f}ms")
+        print(f"  Per-resource: {(elapsed / len(resources)) * 1000:.3f}ms")
 
         assert len(resources) == 1000
         assert elapsed < 0.5  # Should be < 500ms
 
     @pytest.mark.benchmark
-    def test_extract_uncompressed_resource(
-        self, benchmark_1mb_package: Path
-    ) -> None:
+    def test_extract_uncompressed_resource(self, benchmark_1mb_package: Path) -> None:
         """Benchmark: Extract uncompressed resource."""
         reader = DBPFReader(benchmark_1mb_package)
         resources = reader.read_index()
 
         # Find uncompressed resource
-        uncompressed = [r for r in resources if not r.is_compressed][0]
+        uncompressed = next(r for r in resources if not r.is_compressed)
 
         iterations = 50
         times = []
@@ -257,21 +255,19 @@ class TestDBPFPerformance:
 
         print(f"\nUncompressed Resource Extraction ({iterations} iterations):")
         print(f"  Size:    {uncompressed.size} bytes")
-        print(f"  Average: {avg_time*1000:.3f}ms")
+        print(f"  Average: {avg_time * 1000:.3f}ms")
         print(f"  Throughput: {(uncompressed.size / avg_time / 1024 / 1024):.1f} MB/s")
 
         assert avg_time < 0.01  # Should be < 10ms
 
     @pytest.mark.benchmark
-    def test_extract_compressed_resource(
-        self, package_with_compressed: Path
-    ) -> None:
+    def test_extract_compressed_resource(self, package_with_compressed: Path) -> None:
         """Benchmark: Extract and decompress compressed resource."""
         reader = DBPFReader(package_with_compressed)
         resources = reader.read_index()
 
         # Find compressed resource
-        compressed = [r for r in resources if r.is_compressed][0]
+        compressed = next(r for r in resources if r.is_compressed)
 
         iterations = 50
         times = []
@@ -291,10 +287,8 @@ class TestDBPFPerformance:
         print(f"  Compressed size:   {compressed.compressed_size} bytes")
         print(f"  Uncompressed size: {compressed.size} bytes")
         print(f"  Compression ratio: {compression_ratio:.2%}")
-        print(f"  Average time:      {avg_time*1000:.3f}ms")
-        print(
-            f"  Throughput: {(compressed.size / avg_time / 1024 / 1024):.1f} MB/s (decompressed)"
-        )
+        print(f"  Average time:      {avg_time * 1000:.3f}ms")
+        print(f"  Throughput: {(compressed.size / avg_time / 1024 / 1024):.1f} MB/s (decompressed)")
 
         assert avg_time < 0.05  # Should be < 50ms
 
@@ -321,7 +315,7 @@ class TestDBPFPerformance:
         print(f"\nType Filtering ({iterations} iterations):")
         print(f"  Total resources: {len(resources)}")
         print(f"  Matching:        {len(xml_resources)}")
-        print(f"  Average time:    {avg_time*1000:.3f}ms")
+        print(f"  Average time:    {avg_time * 1000:.3f}ms")
 
         assert avg_time < 0.01  # Should be < 10ms
 
@@ -336,7 +330,6 @@ class TestDBPFPerformance:
             start = time.perf_counter()
             reader = DBPFReader(benchmark_1mb_package)
             # Access header property (triggers lazy load)
-            header = reader.header
             elapsed = time.perf_counter() - start
             times_lazy.append(elapsed)
 
@@ -345,7 +338,7 @@ class TestDBPFPerformance:
         for _ in range(iterations):
             start = time.perf_counter()
             reader = DBPFReader(benchmark_1mb_package)
-            header = reader.read_header()
+            reader.read_header()
             elapsed = time.perf_counter() - start
             times_direct.append(elapsed)
 
@@ -354,9 +347,9 @@ class TestDBPFPerformance:
         overhead = avg_lazy - avg_direct
 
         print(f"\nLazy Loading Overhead ({iterations} iterations):")
-        print(f"  Lazy loading:   {avg_lazy*1000:.3f}ms")
-        print(f"  Direct call:    {avg_direct*1000:.3f}ms")
-        print(f"  Overhead:       {overhead*1000:.3f}ms ({overhead/avg_direct:.1%})")
+        print(f"  Lazy loading:   {avg_lazy * 1000:.3f}ms")
+        print(f"  Direct call:    {avg_direct * 1000:.3f}ms")
+        print(f"  Overhead:       {overhead * 1000:.3f}ms ({overhead / avg_direct:.1%})")
 
         # Overhead should be minimal (< 10% of direct time)
         assert overhead < avg_direct * 0.1
@@ -372,7 +365,7 @@ class TestDBPFPerformance:
 
         # Step 2: Read header
         start = time.perf_counter()
-        header = reader.read_header()
+        reader.read_header()
         header_time = time.perf_counter() - start
 
         # Step 3: Read index
@@ -383,17 +376,17 @@ class TestDBPFPerformance:
         # Step 4: Extract first 10 resources
         start = time.perf_counter()
         for res in resources[:10]:
-            data = reader.get_resource(res)
+            reader.get_resource(res)
         extract_time = time.perf_counter() - start
 
         total_time = init_time + header_time + index_time + extract_time
 
-        print(f"\nFull Pipeline Performance:")
-        print(f"  1. Initialize: {init_time*1000:.3f}ms")
-        print(f"  2. Header:     {header_time*1000:.3f}ms")
-        print(f"  3. Index:      {index_time*1000:.3f}ms ({len(resources)} resources)")
-        print(f"  4. Extract:    {extract_time*1000:.3f}ms (10 resources)")
-        print(f"  Total:         {total_time*1000:.3f}ms")
+        print("\nFull Pipeline Performance:")
+        print(f"  1. Initialize: {init_time * 1000:.3f}ms")
+        print(f"  2. Header:     {header_time * 1000:.3f}ms")
+        print(f"  3. Index:      {index_time * 1000:.3f}ms ({len(resources)} resources)")
+        print(f"  4. Extract:    {extract_time * 1000:.3f}ms (10 resources)")
+        print(f"  Total:         {total_time * 1000:.3f}ms")
 
         assert total_time < 1.0  # Complete pipeline < 1 second
 
@@ -422,11 +415,11 @@ class TestDBPFScalability:
         # Calculate time per resource
         times_per_resource = [t / c for t, c in zip(times, counts)]
 
-        print(f"\nScalability Analysis (Index Parsing):")
+        print("\nScalability Analysis (Index Parsing):")
         for count, total_time, per_res in zip(counts, times, times_per_resource):
             print(
-                f"  {count:4d} resources: {total_time*1000:6.3f}ms "
-                f"({per_res*1000:.4f}ms per resource)"
+                f"  {count:4d} resources: {total_time * 1000:6.3f}ms "
+                f"({per_res * 1000:.4f}ms per resource)"
             )
 
         # Verify linear scaling: time per resource should be relatively constant
@@ -436,9 +429,7 @@ class TestDBPFScalability:
             # Each should be within 4x of average (relaxed for CI/shared envs)
             assert per_res < avg_per_resource * 4
 
-    def _create_package_with_n_resources(
-        self, tmp_path: Path, count: int
-    ) -> Path:
+    def _create_package_with_n_resources(self, tmp_path: Path, count: int) -> Path:
         """Helper to create package with specific resource count."""
         package = tmp_path / f"package_{count}.package"
 
