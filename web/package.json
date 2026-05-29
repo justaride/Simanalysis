@@ -11,6 +11,8 @@
     },
     "dependencies": {
         "@headlessui/react": "^1.7.17",
+        "@tauri-apps/api": "^2.11.0",
+        "@tauri-apps/plugin-dialog": "^2.7.1",
         "axios": "^1.6.0",
         "clsx": "^2.0.0",
         "framer-motion": "^12.23.24",
@@ -28,7 +30,7 @@
         "@types/react-dom": "^18.2.15",
         "@vitejs/plugin-react": "^5.1.2",
         "autoprefixer": "^10.4.16",
-        "eslint": "^8.53.0",
+        "eslint": "^8.57.1",
         "eslint-plugin-react": "^7.33.2",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-react-refresh": "^0.4.4",
