@@ -138,6 +138,68 @@ class CrashAnalysisResult:
 
 
 @dataclass
+class UIStackFrame:
+    """One frame from an ActionScript/UI desync stack."""
+
+    raw: str
+    namespace: Optional[str] = None
+    function: Optional[str] = None
+
+
+@dataclass
+class UIExceptionReport:
+    """A single parsed UI exception/desync report."""
+
+    source_file: str
+    report_type: str
+    message: str
+    category_id: Optional[str] = None
+    keys: list[int] = field(default_factory=list)
+    stack: list[UIStackFrame] = field(default_factory=list)
+    created: Optional[str] = None
+    game_version: Optional[str] = None
+    session_id: Optional[str] = None
+    desync_id: Optional[str] = None
+    modded: Optional[bool] = None
+    signature: str = ""
+    occurrences: int = 1
+    source_files: list[str] = field(default_factory=list)
+
+
+@dataclass
+class UIResourceHit:
+    """A DBPF package resource whose instance matches a UI exception key."""
+
+    key: int
+    package_name: str
+    package_path: str
+    resource_type: int
+    resource_group: int
+    status: str
+
+
+@dataclass
+class UIFinding:
+    """One deduped UI exception finding and its resource-key matches."""
+
+    report: UIExceptionReport
+    status: str
+    keys: list[int] = field(default_factory=list)
+    hits: list[UIResourceHit] = field(default_factory=list)
+    reason: str = ""
+
+
+@dataclass
+class UIAnalysisResult:
+    """Whole-folder UI exception analysis output."""
+
+    summary: dict = field(default_factory=dict)
+    findings: list[UIFinding] = field(default_factory=list)
+    parse_errors: list[str] = field(default_factory=list)
+    index_errors: list[str] = field(default_factory=list)
+
+
+@dataclass
 class TuningData:
     """Parsed tuning file data."""
 
