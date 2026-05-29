@@ -49,3 +49,21 @@ def test_broken_pipe_exits_quietly():
     with pytest.raises(SystemExit) as exc:
         emit.start("scan-mods")
     assert exc.value.code == 0
+
+
+def test_setup_redirects_stdout_and_binds_emitter_to_real_stdout(monkeypatch):
+    import sys
+    from simanalysis.bridge.protocol import setup
+
+    sentinel = io.StringIO()
+    monkeypatch.setattr(sys, "stdout", sentinel)      # monkeypatch auto-restores after test
+    monkeypatch.setattr(sys, "stderr", io.StringIO())
+
+    emit = setup()
+
+    # stdout is redirected to stderr so stray prints can't corrupt the NDJSON stream
+    assert sys.stdout is sys.stderr
+    # the emitter writes to the captured *real* stdout (sentinel), not to stderr
+    emit.start("scan-mods")
+    assert '"type":"start"' in sentinel.getvalue()
+    assert sentinel.getvalue() != sys.stderr.getvalue()

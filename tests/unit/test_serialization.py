@@ -36,3 +36,36 @@ def test_mod_result_to_dict_shape():
     }
     assert out["conflicts"][0]["severity"] == "high"
     assert out["performance"]["complexity_score"] == 7
+
+
+def test_tray_result_to_dict_shape():
+    item = SimpleNamespace(to_dict=lambda: {"name": "Family.trayitem", "kind": "household"})
+    result = SimpleNamespace(items=[item])
+    analyzer = SimpleNamespace(get_summary=lambda r: {"count": 1})
+    out = serialization.tray_result_to_dict(analyzer, result)
+    assert out == {"summary": {"count": 1}, "items": [{"name": "Family.trayitem", "kind": "household"}]}
+
+
+def test_save_result_to_dict_shape_and_unused_cap():
+    used = SimpleNamespace(name="U.package", path="/m/U.package", size=10,
+                           resource_count=3, matching_resources=[1, 2])
+    unused = [
+        SimpleNamespace(name=f"X{i}.package", path=f"/m/X{i}.package", size=i, resource_count=i)
+        for i in range(150)
+    ]
+    save_data = SimpleNamespace(to_dict=lambda: {"slot": "Save_1"})
+    result = SimpleNamespace(save_data=save_data, used_mods=[used], unused_mods=unused)
+    analyzer = SimpleNamespace(get_summary=lambda r: {"ok": True})
+
+    out = serialization.save_result_to_dict(analyzer, result)
+
+    assert out["summary"] == {"ok": True}
+    assert out["save_info"] == {"slot": "Save_1"}
+    assert out["used_mods"][0] == {
+        "name": "U.package", "path": "/m/U.package", "size": 10,
+        "resource_count": 3, "matching_resources": 2,
+    }
+    assert len(out["unused_mods"]) == 100  # capped at 100
+    assert out["unused_mods"][0] == {
+        "name": "X0.package", "path": "/m/X0.package", "size": 0, "resource_count": 0,
+    }

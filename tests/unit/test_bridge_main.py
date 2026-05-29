@@ -56,3 +56,31 @@ def test_unknown_command_argparse_exits(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         main(["bogus-command"])
     assert exc.value.code == 2
+
+
+def test_broken_pipe_returns_zero(monkeypatch, tmp_path):
+    class FakeModAnalyzer:
+        def __init__(self, calculate_hashes=True):
+            pass
+
+        def analyze_directory(self, path, recursive=True, progress_callback=None):
+            raise BrokenPipeError()
+
+    monkeypatch.setattr(commands, "ModAnalyzer", FakeModAnalyzer)
+    code, _events = _run(monkeypatch, ["scan-mods", str(tmp_path)])
+    assert code == 0
+
+
+def test_internal_error_returns_one_with_error_event(monkeypatch, tmp_path):
+    class FakeModAnalyzer:
+        def __init__(self, calculate_hashes=True):
+            pass
+
+        def analyze_directory(self, path, recursive=True, progress_callback=None):
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(commands, "ModAnalyzer", FakeModAnalyzer)
+    code, events = _run(monkeypatch, ["scan-mods", str(tmp_path)])
+    assert code == 1
+    assert events[-1]["type"] == "error"
+    assert events[-1]["code"] == "INTERNAL"
