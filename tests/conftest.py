@@ -1,8 +1,15 @@
 """Pytest configuration and shared fixtures."""
 
+import sys
 from pathlib import Path
 
 import pytest
+
+# Ensure the worktree's src directory is first on sys.path so that editable
+# installs from other checkouts of the same package do not shadow our code.
+_WORKTREE_SRC = str(Path(__file__).parent.parent / "src")
+if _WORKTREE_SRC not in sys.path:
+    sys.path.insert(0, _WORKTREE_SRC)
 
 
 @pytest.fixture

@@ -8,6 +8,7 @@ import { Virtuoso, VirtuosoGrid } from 'react-virtuoso';
 import { motion, AnimatePresence } from 'framer-motion';
 import FilePicker from '../components/FilePicker';
 import AnimatedProgress from '../components/AnimatedProgress';
+import ModThumbnail from '../components/ModThumbnail';
 
 function ModManager() {
     const { modScanResult, isScanning, scanProgress, startModScan, updateModScanProgress, completeModScan } = useAppContext();
@@ -342,28 +343,17 @@ function ModManager() {
                                         >
                                             <div className="aspect-square bg-gradient-to-br from-gray-800 to-gray-900 relative overflow-hidden">
                                                 {mod.type === 'package' ? (
-                                                    <img
-                                                        src={`/api/mods/thumbnail?path=${encodeURIComponent(mod.path)}`}
-                                                        alt={mod.name}
-                                                        loading="lazy"
-                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                                        onError={(e) => {
-                                                            e.target.onerror = null;
-                                                            e.target.style.display = 'none';
-                                                            e.target.nextSibling.style.display = 'flex';
-                                                        }}
+                                                    <ModThumbnail
+                                                        path={mod.path}
+                                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900"
                                                     />
-                                                ) : null}
-
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900" style={{ display: mod.type === 'package' ? 'none' : 'flex' }}>
-                                                    {mod.type === 'package' ? (
-                                                        <Package size={48} className="text-gray-600" />
-                                                    ) : (
+                                                ) : (
+                                                    <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900">
                                                         <div className="p-4 bg-purple-500/20 rounded-2xl">
                                                             <FileCode size={40} className="text-purple-400" />
                                                         </div>
-                                                    )}
-                                                </div>
+                                                    </div>
+                                                )}
 
                                                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
 

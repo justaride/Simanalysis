@@ -15,6 +15,9 @@ use tauri_plugin_shell::ShellExt;
 #[derive(Default)]
 struct ChildRegistry(Mutex<HashMap<String, CommandChild>>);
 
+#[derive(Default)]
+struct ThumbnailCache(Mutex<HashMap<String, Option<String>>>);
+
 #[derive(Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct AnalysisOptions {
@@ -347,6 +350,96 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     (y, m, d)
 }
 
+// ── get_thumbnail ─────────────────────────────────────────────────────────────
+
+/// Fetch a thumbnail for the given .package path via the sidecar.
+/// Returns `Some("data:image/png;base64,...")` on success, `None` if no thumbnail,
+/// or `Err(...)` on spawn/parse failure. Results are cached per-path.
+#[tauri::command]
+async fn get_thumbnail(
+    app: AppHandle,
+    path: String,
+    cache: tauri::State<'_, ThumbnailCache>,
+) -> Result<Option<String>, String> {
+    // Check cache first — hold the lock only briefly, no await while locked.
+    {
+        let guard = cache.0.lock().unwrap();
+        if let Some(cached) = guard.get(&path) {
+            return Ok(cached.clone());
+        }
+    }
+
+    // Spawn the sidecar one-shot and collect all stdout.
+    let sidecar = app
+        .shell()
+        .sidecar("simanalysis-bridge")
+        .map_err(|e| format!("sidecar lookup failed: {e}"))?
+        .args(["thumbnail", &path]);
+
+    let (mut rx, _child) = sidecar
+        .spawn()
+        .map_err(|e| format!("failed to spawn sidecar: {e}"))?;
+
+    let mut stdout_buf: Vec<u8> = Vec::new();
+    let mut result_value: Option<Value> = None;
+
+    loop {
+        match rx.recv().await {
+            Some(CommandEvent::Stdout(bytes)) => {
+                stdout_buf.extend_from_slice(&bytes);
+            }
+            Some(CommandEvent::Stderr(bytes)) => {
+                if let Ok(text) = std::str::from_utf8(&bytes) {
+                    let t = text.trim_end();
+                    if !t.is_empty() {
+                        eprintln!("[thumbnail] {t}");
+                    }
+                }
+            }
+            Some(CommandEvent::Terminated(_)) | None => {
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    // Parse all complete NDJSON lines and find the "result" event.
+    for line in std::str::from_utf8(&stdout_buf)
+        .unwrap_or("")
+        .lines()
+        .filter(|l| !l.trim().is_empty())
+    {
+        if let Ok(v) = serde_json::from_str::<Value>(line) {
+            if v.get("type").and_then(|t| t.as_str()) == Some("result") {
+                result_value = Some(v);
+                break;
+            }
+        }
+    }
+
+    let url = match result_value {
+        Some(v) => {
+            let data = &v["data"];
+            if data["found"].as_bool().unwrap_or(false) {
+                data["b64"]
+                    .as_str()
+                    .map(|b| format!("data:image/png;base64,{b}"))
+            } else {
+                None
+            }
+        }
+        None => None,
+    };
+
+    // Store in cache (no await held, just a short lock).
+    {
+        let mut guard = cache.0.lock().unwrap();
+        guard.insert(path, url.clone());
+    }
+
+    Ok(url)
+}
+
 // ── check_updates ────────────────────────────────────────────────────────────
 
 /// Stub: always reports no update available.
@@ -362,6 +455,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ChildRegistry::default())
+        .manage(ThumbnailCache::default())
         .invoke_handler(tauri::generate_handler![
             start_analysis,
             cancel_analysis,
@@ -369,7 +463,8 @@ pub fn run() {
             get_config,
             set_config,
             delete_mod_file,
-            check_updates
+            check_updates,
+            get_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
