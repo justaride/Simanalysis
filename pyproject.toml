@@ -86,6 +86,7 @@ Changelog = "https://github.com/justaride/Simanalysis/CHANGELOG.md"
 
 [project.scripts]
 simanalysis = "simanalysis.cli:main"
+simanalysis-bridge = "simanalysis.bridge:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
