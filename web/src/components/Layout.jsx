@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import Sidebar from './Sidebar';
 import { Toaster, toast } from 'sonner';
 import { Download } from 'lucide-react';
@@ -6,8 +7,7 @@ import { Download } from 'lucide-react';
 function Layout({ children }) {
     useEffect(() => {
         // Check for updates
-        fetch('/api/updates')
-            .then(res => res.json())
+        invoke('check_updates')
             .then(update => {
                 if (update) {
                     toast('New Update Available!', {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Trash2, Calendar, HardDrive, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
 function DuplicateModal({ isOpen, onClose, conflict, onFilesDeleted }) {
@@ -58,15 +59,8 @@ function DuplicateModal({ isOpen, onClose, conflict, onFilesDeleted }) {
 
         for (const filepath of selectedFiles) {
             try {
-                const response = await fetch(`/api/mods/file?path=${encodeURIComponent(filepath)}`, {
-                    method: 'DELETE',
-                });
-
-                if (response.ok) {
-                    successCount++;
-                } else {
-                    failCount++;
-                }
+                await invoke('delete_mod_file', { path: filepath });
+                successCount++;
             } catch (error) {
                 console.error(`Failed to delete ${filepath}:`, error);
                 failCount++;

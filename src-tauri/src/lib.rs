@@ -187,13 +187,190 @@ fn health() -> Value {
     serde_json::json!({ "status": "ok", "version": env!("CARGO_PKG_VERSION") })
 }
 
+// ── Config dir helper ────────────────────────────────────────────────────────
+
+fn simanalysis_config_dir() -> Result<std::path::PathBuf, String> {
+    let home = dirs::home_dir().ok_or_else(|| "cannot determine home directory".to_string())?;
+    Ok(home.join(".simanalysis"))
+}
+
+fn config_file_path() -> Result<std::path::PathBuf, String> {
+    Ok(simanalysis_config_dir()?.join("config.json"))
+}
+
+// ── get_config ───────────────────────────────────────────────────────────────
+
+/// Read ~/.simanalysis/config.json and return it.
+/// If the file is absent, returns the default shape: {"last_scan_path": null}.
+#[tauri::command]
+fn get_config() -> Value {
+    match config_file_path() {
+        Err(_) => serde_json::json!({ "last_scan_path": null }),
+        Ok(path) => {
+            if !path.exists() {
+                return serde_json::json!({ "last_scan_path": null });
+            }
+            match std::fs::read_to_string(&path) {
+                Ok(contents) => serde_json::from_str::<Value>(&contents)
+                    .unwrap_or_else(|_| serde_json::json!({ "last_scan_path": null })),
+                Err(_) => serde_json::json!({ "last_scan_path": null }),
+            }
+        }
+    }
+}
+
+// ── set_config ───────────────────────────────────────────────────────────────
+
+/// Shallow-merge `patch` into ~/.simanalysis/config.json (creating it if absent).
+/// Returns {"status":"ok"}.
+#[tauri::command]
+fn set_config(patch: Value) -> Result<Value, String> {
+    let config_dir = simanalysis_config_dir()?;
+    let config_path = config_dir.join("config.json");
+
+    std::fs::create_dir_all(&config_dir)
+        .map_err(|e| format!("cannot create config dir: {e}"))?;
+
+    // Load existing config (or start with {})
+    let mut existing: serde_json::Map<String, Value> = if config_path.exists() {
+        match std::fs::read_to_string(&config_path) {
+            Ok(s) => serde_json::from_str::<Value>(&s)
+                .ok()
+                .and_then(|v| v.as_object().cloned())
+                .unwrap_or_default(),
+            Err(_) => Default::default(),
+        }
+    } else {
+        Default::default()
+    };
+
+    // Shallow-merge patch
+    if let Some(patch_obj) = patch.as_object() {
+        for (k, v) in patch_obj {
+            existing.insert(k.clone(), v.clone());
+        }
+    }
+
+    let serialized = serde_json::to_string_pretty(&Value::Object(existing))
+        .map_err(|e| format!("serialization error: {e}"))?;
+
+    std::fs::write(&config_path, serialized)
+        .map_err(|e| format!("cannot write config: {e}"))?;
+
+    Ok(serde_json::json!({ "status": "ok" }))
+}
+
+// ── delete_mod_file ──────────────────────────────────────────────────────────
+
+/// Move a mod file to the OS trash with safety checks and audit logging.
+/// Returns {"status":"ok","moved_to_trash":true,"message":"..."}.
+#[tauri::command]
+fn delete_mod_file(path: String) -> Result<Value, String> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let file_path = std::path::Path::new(&path)
+        .canonicalize()
+        .map_err(|e| format!("cannot resolve path '{path}': {e}"))?;
+
+    if !file_path.exists() {
+        return Err(format!("File not found: {path}"));
+    }
+    if !file_path.is_file() {
+        return Err(format!("Path is not a file: {path}"));
+    }
+    let suffix = file_path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    if suffix != "package" && suffix != "ts4script" {
+        return Err(format!("Not a valid mod file (suffix '.{suffix}' not allowed)"));
+    }
+
+    // Audit log
+    let config_dir = simanalysis_config_dir()?;
+    std::fs::create_dir_all(&config_dir)
+        .map_err(|e| format!("cannot create config dir: {e}"))?;
+    let log_path = config_dir.join("deletion_log.txt");
+
+    let unix_secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    // Format as a simple RFC-3339-ish UTC timestamp without chrono dependency
+    let timestamp = format_unix_timestamp(unix_secs);
+    let log_line = format!("{timestamp} | DELETED | {}\n", file_path.display());
+
+    // Append (best-effort; don't fail the delete if the log write fails)
+    let _ = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .and_then(|mut f| std::io::Write::write_all(&mut f, log_line.as_bytes()));
+
+    // Move to trash
+    trash::delete(&file_path).map_err(|e| format!("failed to move to trash: {e}"))?;
+
+    let msg = format!("File moved to trash: {}", file_path.display());
+    Ok(serde_json::json!({
+        "status": "ok",
+        "moved_to_trash": true,
+        "message": msg
+    }))
+}
+
+/// Format a Unix timestamp (seconds since epoch) as "YYYY-MM-DDTHH:MM:SSZ".
+fn format_unix_timestamp(secs: u64) -> String {
+    // Days since epoch
+    let s = secs % 60;
+    let m = (secs / 60) % 60;
+    let h = (secs / 3600) % 24;
+    let days = secs / 86400;
+
+    // Gregorian calendar calculation (simple but correct for modern dates)
+    let (year, month, day) = days_to_ymd(days);
+    format!("{year:04}-{month:02}-{day:02}T{h:02}:{m:02}:{s:02}Z")
+}
+
+fn days_to_ymd(days: u64) -> (u64, u64, u64) {
+    // Civil calendar conversion — Fliegel & Van Flandern algorithm adapted for epoch
+    let z = days + 719468;
+    let era = z / 146097;
+    let doe = z % 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+// ── check_updates ────────────────────────────────────────────────────────────
+
+/// Stub: always reports no update available.
+/// Returns null (JSON null) so Layout.jsx's `if (update)` guard suppresses the banner.
+#[tauri::command]
+fn check_updates() -> Value {
+    Value::Null
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .manage(ChildRegistry::default())
-        .invoke_handler(tauri::generate_handler![start_analysis, cancel_analysis, health])
+        .invoke_handler(tauri::generate_handler![
+            start_analysis,
+            cancel_analysis,
+            health,
+            get_config,
+            set_config,
+            delete_mod_file,
+            check_updates
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

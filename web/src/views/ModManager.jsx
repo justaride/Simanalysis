@@ -1,5 +1,6 @@
 import { useState, useEffect, forwardRef } from 'react';
 import { Search, Filter, Download, Loader2, LayoutGrid, List as ListIcon, Package, FileCode, FolderOpen, Sparkles } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 import { toast } from 'sonner';
@@ -19,8 +20,7 @@ function ModManager() {
 
     // Load config on mount
     useEffect(() => {
-        fetch('/api/config')
-            .then(res => res.json())
+        invoke('get_config')
             .then(data => {
                 if (data.last_scan_path) {
                     setScanPath(data.last_scan_path);
@@ -39,11 +39,8 @@ function ModManager() {
         startModScan(scanPath);
 
         // Save config
-        fetch('/api/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ last_scan_path: scanPath })
-        }).catch(err => console.error("Failed to save config:", err));
+        invoke('set_config', { patch: { last_scan_path: scanPath } })
+            .catch(err => console.error("Failed to save config:", err));
 
         const toastId = toast.loading('Starting scan...');
 
