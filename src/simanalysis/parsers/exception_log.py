@@ -1,4 +1,5 @@
 """Tolerant parser for Sims 4 lastException*.txt crash logs (Better-Exceptions or vanilla XML)."""
+
 from __future__ import annotations
 
 import hashlib
@@ -15,12 +16,12 @@ _EXC_RE = re.compile(r"\(([A-Za-z_][A-Za-z0-9_]*(?:Error|Exception))\)")
 _CREATOR_RE = re.compile(r"^\s*\[([^\]]+)\]")
 
 
-def _tag(block: str, name: str) -> "str | None":
+def _tag(block: str, name: str) -> str | None:
     m = re.search(rf"<{name}>(.*?)</{name}>", block, re.DOTALL)
     return html.unescape(m.group(1)).strip() if m else None
 
 
-def parse_exception_file(path: "str | Path") -> list[CrashReport]:
+def parse_exception_file(path: str | Path) -> list[CrashReport]:
     """Parse one lastException*.txt into deduped CrashReports (script exceptions only)."""
     text = Path(path).read_text(encoding="utf-8", errors="replace")
 
@@ -59,9 +60,7 @@ def parse_exception_file(path: "str | Path") -> list[CrashReport]:
         )
         report.signature = hashlib.sha1(
             (
-                str(report.exception_class)
-                + report.message
-                + "|".join(f.raw_path for f in frames)
+                str(report.exception_class) + report.message + "|".join(f.raw_path for f in frames)
             ).encode("utf-8", "replace")
         ).hexdigest()
 

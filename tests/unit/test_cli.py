@@ -387,3 +387,32 @@ class TestCLI:
         # Should exit with 1 if critical conflicts detected
         # (depends on detector logic, but at minimum should not crash)
         assert result.exit_code in [0, 1]
+
+
+def test_crash_command_sweeps_and_ranks(tmp_path):
+    import json
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    sims4 = tmp_path
+    mods = sims4 / "Mods"
+    mods.mkdir()
+    with zipfile.ZipFile(mods / "CoolMod.ts4script", "w") as zf:
+        zf.writestr("coolmod/thing.py", "x = 1\n")
+
+    (sims4 / "lastException_1.txt").write_text(
+        "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+        "Traceback (most recent call last):&#13;&#10;"
+        'File "Core\\sims4\\utils.py", line 1, in w&#13;&#10;'
+        'File "F:\\p\\coolmod\\thing.py", line 7, in run&#13;&#10;'
+        "</desyncdata></report></root>",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, ["crash", str(sims4), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["ranked_mods"][0]["mod"] == "CoolMod.ts4script"

@@ -470,6 +470,79 @@ def web(port: int, host: str) -> None:
     run_web_gui(host=host, port=port)
 
 
+@cli.command()
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--mods", type=click.Path(), default=None, help="Mods dir (default: <sims4_dir>/Mods)"
+)
+@click.option("--recursive", is_flag=True, help="Also scan subfolders for crash logs")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+@click.option("--limit", type=int, default=20, help="Top-N mods to show in txt summary")
+def crash(
+    sims4_dir: str,
+    mods: Optional[str],
+    recursive: bool,
+    fmt: str,
+    output: Optional[str],
+    limit: int,
+) -> None:
+    """Autopsy lastException crash logs: rank the mods most likely behind your crashes."""
+    import json
+    from pathlib import Path
+
+    from simanalysis import serialization
+    from simanalysis.analyzers.crash_analyzer import CrashAnalyzer
+    from simanalysis.parsers.exception_log import parse_exception_file
+
+    base = Path(sims4_dir)
+    mods_dir = Path(mods) if mods else base / "Mods"
+    pattern = "**/lastException*.txt" if recursive else "lastException*.txt"
+    log_files = sorted(base.glob(pattern))
+
+    reports = []
+    parse_errors = []
+    seen = set()
+    for lf in log_files:
+        try:
+            for rep in parse_exception_file(lf):
+                if rep.signature in seen:
+                    continue
+                seen.add(rep.signature)
+                reports.append(rep)
+        except Exception as exc:
+            parse_errors.append(f"{lf.name}: {exc}")
+
+    analyzer = CrashAnalyzer()
+    index = analyzer.build_module_index(mods_dir) if mods_dir.exists() else {}
+    result = analyzer.analyze(reports, index)
+    result.parse_errors = parse_errors
+
+    if fmt == "json":
+        text = json.dumps(serialization.crash_result_to_dict(result), indent=2)
+    else:
+        lines = [
+            f"🔬 Crash Autopsy — {len(log_files)} log file(s), {result.summary['reports']} crash(es)",
+            f"   attributable: {result.summary['attributable']}  |  base-game-only: {result.summary['base_game_only']}",
+            "",
+            f"Top suspect mods (of {len(result.ranked_mods)}):",
+        ]
+        for entry in result.ranked_mods[:limit]:
+            lines.append(
+                f"  • {entry['mod']}  — top suspect in {entry['top_suspect_count']} crash(es)"
+                f", seen in {entry['crash_count']}"
+            )
+        if not result.ranked_mods:
+            lines.append("  (no mod-attributable crashes found)")
+        text = "\n".join(lines)
+
+    if output:
+        Path(output).write_text(text, encoding="utf-8")
+        click.echo(f"Wrote report to {output}")
+    else:
+        click.echo(text)
+
+
 def main() -> None:
     """Entry point for CLI."""
     try:

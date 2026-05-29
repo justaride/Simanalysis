@@ -33,7 +33,8 @@ def test_classify_frame_game_mod_unknown():
     a.classify_frame(mod, index)
     a.classify_frame(unk, index)
     assert game.kind == "game"
-    assert mod.kind == "mod" and mod.mod_name == "CoolMod.ts4script"
+    assert mod.kind == "mod"
+    assert mod.mod_name == "CoolMod.ts4script"
     assert unk.kind == "unknown"
 
 

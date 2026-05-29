@@ -1,4 +1,5 @@
 """Attribute Sims 4 crashes to the most-likely culprit .ts4script and rank across a library."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,7 +29,7 @@ class CrashAnalyzer:
     def __init__(self, framework_fraction: float = FRAMEWORK_CRASH_FRACTION) -> None:
         self.framework_fraction = framework_fraction
 
-    def build_module_index(self, mods_dir: "str | Path") -> dict[str, str]:
+    def build_module_index(self, mods_dir: str | Path) -> dict[str, str]:
         """Map each installed .ts4script's internal module path -> the .ts4script filename."""
         index: dict[str, str] = {}
         for ts4 in Path(mods_dir).rglob("*.ts4script"):
@@ -49,11 +50,10 @@ class CrashAnalyzer:
             frame.module_path = norm
             frame.mod_name = norm.split(".ts4script/")[0].split("/")[-1] + ".ts4script"
             return
-        best: "str | None" = None
+        best: str | None = None
         for key in index:
-            if norm == key or norm.endswith("/" + key):
-                if best is None or len(key) > len(best):
-                    best = key
+            if (norm == key or norm.endswith("/" + key)) and (best is None or len(key) > len(best)):
+                best = key
         if best is not None:
             frame.kind = "mod"
             frame.module_path = best
@@ -61,9 +61,7 @@ class CrashAnalyzer:
             return
         frame.kind = "unknown"
 
-    def analyze(
-        self, reports: list[CrashReport], index: dict[str, str]
-    ) -> CrashAnalysisResult:
+    def analyze(self, reports: list[CrashReport], index: dict[str, str]) -> CrashAnalysisResult:
         for r in reports:
             for f in r.frames:
                 self.classify_frame(f, index)
@@ -81,7 +79,10 @@ class CrashAnalyzer:
         frameworks: set[str] = set()
         for m, count in mod_in_crash.items():
             ml = m.lower()
-            if any(cf in ml for cf in CURATED_FRAMEWORKS) or (count / total) > self.framework_fraction:
+            if (
+                any(cf in ml for cf in CURATED_FRAMEWORKS)
+                or (count / total) > self.framework_fraction
+            ):
                 frameworks.add(m)
 
         findings: list[CrashFinding] = []
@@ -101,10 +102,11 @@ class CrashAnalyzer:
             suspects: list[Suspect] = []
             seen: set[str] = set()
             for i, f in enumerate(picked):
-                if f.mod_name in seen:
+                mod_name: str = f.mod_name  # type: ignore[assignment]  # picked only has mod frames
+                if mod_name in seen:
                     continue
-                seen.add(f.mod_name)
-                if f.mod_name in frameworks:
+                seen.add(mod_name)
+                if mod_name in frameworks:
                     conf = "low"
                 elif i == 0 and f.module_path in index:
                     conf = "high"
@@ -112,7 +114,7 @@ class CrashAnalyzer:
                     conf = "medium"
                 suspects.append(
                     Suspect(
-                        mod_name=f.mod_name,
+                        mod_name=mod_name,
                         confidence=conf,
                         reason=f"implicated at: {f.raw_path}",
                         evidence=[f],
@@ -124,7 +126,11 @@ class CrashAnalyzer:
 
         ranked = sorted(
             [
-                {"mod": m, "top_suspect_count": top_counts[m], "crash_count": mod_in_crash.get(m, 0)}
+                {
+                    "mod": m,
+                    "top_suspect_count": top_counts[m],
+                    "crash_count": mod_in_crash.get(m, 0),
+                }
                 for m in top_counts
             ],
             key=lambda d: (d["top_suspect_count"], d["crash_count"]),
