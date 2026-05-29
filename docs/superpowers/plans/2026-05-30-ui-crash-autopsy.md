@@ -50,7 +50,7 @@ Important repo facts:
 - Modify: `src/simanalysis/models.py`
 - Test: `tests/unit/test_models.py`
 
-- [ ] **Step 1: Write the failing model test**
+- [x] **Step 1: Write the failing model test**
 
 Append this test to `tests/unit/test_models.py`:
 
@@ -97,7 +97,7 @@ def test_ui_crash_models_defaults() -> None:
     assert result.index_errors == []
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run:
 
@@ -107,7 +107,7 @@ Run:
 
 Expected: FAIL with an import error for `UIAnalysisResult` or another new UI model.
 
-- [ ] **Step 3: Add UI model dataclasses**
+- [x] **Step 3: Add UI model dataclasses**
 
 Insert these dataclasses in `src/simanalysis/models.py` immediately after `CrashAnalysisResult`:
 
@@ -174,7 +174,7 @@ class UIAnalysisResult:
     index_errors: list[str] = field(default_factory=list)
 ```
 
-- [ ] **Step 4: Run the model test**
+- [x] **Step 4: Run the model test**
 
 Run:
 
@@ -184,7 +184,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Run:
 
