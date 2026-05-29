@@ -513,27 +513,48 @@ def crash(
             parse_errors.append(f"{lf.name}: {exc}")
 
     analyzer = CrashAnalyzer()
-    index = analyzer.build_module_index(mods_dir) if mods_dir.exists() else {}
+    # Auto-discover deliberately set-aside folders so disabled/quarantined culprits are named.
+    extra_roots = [
+        d
+        for d in base.iterdir()
+        if d.is_dir()
+        and (d.name.lower().startswith("_disabled") or d.name.lower().startswith("_quarantine"))
+    ]
+    index = analyzer.build_module_index(mods_dir, extra_roots=extra_roots)
     result = analyzer.analyze(reports, index)
     result.parse_errors = parse_errors
 
     if fmt == "json":
         text = json.dumps(serialization.crash_result_to_dict(result), indent=2)
     else:
+        s = result.summary
         lines = [
-            f"🔬 Crash Autopsy — {len(log_files)} log file(s), {result.summary['reports']} crash(es)",
-            f"   attributable: {result.summary['attributable']}  |  base-game-only: {result.summary['base_game_only']}",
+            f"🔬 Crash Autopsy — {len(log_files)} log file(s), {s['reports']} crash(es)",
+            f"   active: {s['active_culprits']}  |  already-disabled: {s['disabled_culprits']}"
+            f"  |  not-installed: {s['not_installed_culprits']}  |  base-game-only: {s['base_game_only']}",
             "",
-            f"Top suspect mods (of {len(result.ranked_mods)}):",
         ]
-        for entry in result.ranked_mods[:limit]:
-            lines.append(
-                f"  • {entry['mod']}  — top suspect in {entry['top_suspect_count']} crash(es)"
-                f", seen in {entry['crash_count']}"
-            )
-        if not result.ranked_mods:
+        groups = [
+            ("active", "[ACTIVE] mods still implicated — fix these"),
+            ("disabled", "[DISABLED] already set aside — likely handled"),
+            ("not_installed", "[NOT INSTALLED] referenced but not on disk — best guess"),
+        ]
+        any_shown = False
+        for status_key, header in groups:
+            entries = [e for e in result.ranked_mods if e.get("status") == status_key]
+            if not entries:
+                continue
+            any_shown = True
+            lines.append(f"{header}:")
+            for entry in entries[:limit]:
+                lines.append(
+                    f"  - {entry['mod']}  — top suspect in {entry['top_suspect_count']} crash(es)"
+                    f", seen in {entry['crash_count']}"
+                )
+            lines.append("")
+        if not any_shown:
             lines.append("  (no mod-attributable crashes found)")
-        text = "\n".join(lines)
+        text = "\n".join(lines).rstrip()
 
     if output:
         Path(output).write_text(text, encoding="utf-8")

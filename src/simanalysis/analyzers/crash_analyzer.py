@@ -179,14 +179,14 @@ class CrashAnalyzer:
             if not mod_frames:
                 unknowns = [f for f in r.frames if f.kind == "unknown"]
                 if unknowns:  # best-effort: deepest unknown frame names a not-installed culprit
-                    deepest = unknowns[-1]
-                    deepest.mod_status = STATUS_NOT_INSTALLED
-                    name = _besteffort_name(deepest.raw_path)
+                    unk_frame = unknowns[-1]
+                    unk_frame.mod_status = STATUS_NOT_INSTALLED
+                    name = _besteffort_name(unk_frame.raw_path)
                     suspect = Suspect(
                         mod_name=name,
                         confidence="low",
-                        reason=f"referenced but not installed: {deepest.raw_path}",
-                        evidence=[deepest],
+                        reason=f"referenced but not installed: {unk_frame.raw_path}",
+                        evidence=[unk_frame],
                         status=STATUS_NOT_INSTALLED,
                     )
                     top_counts[name] = top_counts.get(name, 0) + 1

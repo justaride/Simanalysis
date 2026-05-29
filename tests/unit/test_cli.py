@@ -456,3 +456,36 @@ def test_crash_command_limit_truncates_txt(tmp_path):
     result = CliRunner().invoke(cli, ["crash", str(tmp_path), "--limit", "2"])
     assert result.exit_code == 0, result.output
     assert result.output.count("top suspect in") == 2  # only 2 of 3 ranked mods shown
+
+
+def test_crash_command_names_disabled_culprit(tmp_path):
+    import json
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    disabled = sims4 / "_Disabled_adeepindigo_2026"
+    disabled.mkdir()
+    with zipfile.ZipFile(disabled / "adeepindigo_core.ts4script", "w") as zf:
+        zf.writestr("adeepindigo/core.pyc", b"\x00")
+
+    (sims4 / "lastException_1.txt").write_text(
+        "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+        "Traceback (most recent call last):&#13;&#10;"
+        'File "Core\\sims4\\utils.py", line 1, in w&#13;&#10;'
+        'File "E:\\proj\\adeepindigo\\core.py", line 7, in run&#13;&#10;'
+        "</desyncdata></report></root>",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, ["crash", str(sims4), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    top = data["ranked_mods"][0]
+    assert top["mod"] == "adeepindigo_core.ts4script"
+    assert top["status"] == "disabled"
+    assert data["summary"]["disabled_culprits"] == 1
