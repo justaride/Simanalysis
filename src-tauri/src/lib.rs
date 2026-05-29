@@ -177,7 +177,13 @@ async fn start_analysis(
 
 #[tauri::command]
 fn cancel_analysis(app: AppHandle, task_id: String) -> Result<(), String> {
-    if let Some(child) = app.state::<ChildRegistry>().0.lock().unwrap().remove(&task_id) {
+    if let Some(child) = app
+        .state::<ChildRegistry>()
+        .0
+        .lock()
+        .unwrap()
+        .remove(&task_id)
+    {
         child
             .kill()
             .map_err(|e| format!("failed to kill task {task_id}: {e}"))?;
@@ -231,8 +237,7 @@ fn set_config(patch: Value) -> Result<Value, String> {
     let config_dir = simanalysis_config_dir()?;
     let config_path = config_dir.join("config.json");
 
-    std::fs::create_dir_all(&config_dir)
-        .map_err(|e| format!("cannot create config dir: {e}"))?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| format!("cannot create config dir: {e}"))?;
 
     // Load existing config (or start with {})
     let mut existing: serde_json::Map<String, Value> = if config_path.exists() {
@@ -257,8 +262,7 @@ fn set_config(patch: Value) -> Result<Value, String> {
     let serialized = serde_json::to_string_pretty(&Value::Object(existing))
         .map_err(|e| format!("serialization error: {e}"))?;
 
-    std::fs::write(&config_path, serialized)
-        .map_err(|e| format!("cannot write config: {e}"))?;
+    std::fs::write(&config_path, serialized).map_err(|e| format!("cannot write config: {e}"))?;
 
     Ok(serde_json::json!({ "status": "ok" }))
 }
@@ -287,13 +291,14 @@ fn delete_mod_file(path: String) -> Result<Value, String> {
         .map(|s| s.to_ascii_lowercase())
         .unwrap_or_default();
     if suffix != "package" && suffix != "ts4script" {
-        return Err(format!("Not a valid mod file (suffix '.{suffix}' not allowed)"));
+        return Err(format!(
+            "Not a valid mod file (suffix '.{suffix}' not allowed)"
+        ));
     }
 
     // Audit log
     let config_dir = simanalysis_config_dir()?;
-    std::fs::create_dir_all(&config_dir)
-        .map_err(|e| format!("cannot create config dir: {e}"))?;
+    std::fs::create_dir_all(&config_dir).map_err(|e| format!("cannot create config dir: {e}"))?;
     let log_path = config_dir.join("deletion_log.txt");
 
     let unix_secs = SystemTime::now()
