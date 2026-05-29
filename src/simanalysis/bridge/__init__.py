@@ -1,4 +1,5 @@
 """`simanalysis-bridge` — headless NDJSON stdio entry point for the Tauri desktop app."""
+
 from __future__ import annotations
 
 import argparse

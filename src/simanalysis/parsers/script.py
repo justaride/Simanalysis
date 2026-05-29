@@ -12,7 +12,7 @@ This module provides tools to analyze these scripts for:
 import ast
 import zipfile
 from pathlib import Path
-from typing import List, Set, Optional
+from typing import Optional
 
 from simanalysis.exceptions import ScriptError
 from simanalysis.models import ScriptMetadata, ScriptModule
@@ -75,7 +75,7 @@ class ScriptAnalyzer:
             raise ScriptError(f"File is not a valid ZIP archive: {self.path}")
 
         self._metadata: Optional[ScriptMetadata] = None
-        self._modules: Optional[List[ScriptModule]] = None
+        self._modules: Optional[list[ScriptModule]] = None
 
     def extract_metadata(self) -> ScriptMetadata:
         """
@@ -119,7 +119,7 @@ class ScriptAnalyzer:
                         if "name:" in line.lower():
                             parts = line.split(":", 1)
                             if len(parts) == 2:
-                                return parts[1].strip().strip('"\'')
+                                return parts[1].strip().strip("\"'")
                 except KeyError:
                     continue
 
@@ -137,7 +137,7 @@ class ScriptAnalyzer:
                         if "version:" in line.lower():
                             parts = line.split(":", 1)
                             if len(parts) == 2:
-                                return parts[1].strip().strip('"\'')
+                                return parts[1].strip().strip("\"'")
                 except KeyError:
                     continue
 
@@ -154,15 +154,15 @@ class ScriptAnalyzer:
                         if "author:" in line.lower() or "creator:" in line.lower():
                             parts = line.split(":", 1)
                             if len(parts) == 2:
-                                return parts[1].strip().strip('"\'')
+                                return parts[1].strip().strip("\"'")
                 except KeyError:
                     continue
 
         return "unknown"
 
-    def _extract_requirements(self) -> List[str]:
+    def _extract_requirements(self) -> list[str]:
         """Extract script requirements/dependencies."""
-        requires: List[str] = []
+        requires: list[str] = []
 
         with zipfile.ZipFile(self.path, "r") as zf:
             # Look for requirements
@@ -178,7 +178,7 @@ class ScriptAnalyzer:
 
         return requires
 
-    def list_modules(self) -> List[ScriptModule]:
+    def list_modules(self) -> list[ScriptModule]:
         """
         List all Python modules in the script.
 
@@ -188,7 +188,7 @@ class ScriptAnalyzer:
         Raises:
             ScriptError: If modules cannot be read
         """
-        modules: List[ScriptModule] = []
+        modules: list[ScriptModule] = []
 
         try:
             with zipfile.ZipFile(self.path, "r") as zf:
@@ -198,7 +198,7 @@ class ScriptAnalyzer:
                         try:
                             module = self.analyze_module(filename)
                             modules.append(module)
-                        except Exception as e:
+                        except Exception:
                             # Skip modules that can't be analyzed
                             # (They might be bytecode-only or corrupted)
                             continue
@@ -256,21 +256,20 @@ class ScriptAnalyzer:
         except Exception as e:
             raise ScriptError(f"Failed to analyze module {module_path}: {e}") from e
 
-    def _extract_imports(self, tree: ast.AST) -> Set[str]:
+    def _extract_imports(self, tree: ast.AST) -> set[str]:
         """Extract import statements from AST."""
-        imports: Set[str] = set()
+        imports: set[str] = set()
 
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     imports.add(alias.name)
-            elif isinstance(node, ast.ImportFrom):
-                if node.module:
-                    imports.add(node.module)
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                imports.add(node.module)
 
         return imports
 
-    def detect_hooks(self, tree: ast.AST, source: str) -> List[str]:
+    def detect_hooks(self, tree: ast.AST, source: str) -> list[str]:
         """
         Detect game injection points (hooks).
 
@@ -281,7 +280,7 @@ class ScriptAnalyzer:
         Returns:
             List of detected hook patterns
         """
-        hooks: List[str] = []
+        hooks: list[str] = []
 
         # Check for common hook patterns in source
         for pattern in self.HOOK_PATTERNS:
@@ -299,7 +298,9 @@ class ScriptAnalyzer:
                     elif isinstance(decorator, ast.Call):
                         if isinstance(decorator.func, ast.Name):
                             decorator_name = decorator.func.id
-                            if any(hook in decorator_name for hook in ["inject", "wrap", "override"]):
+                            if any(
+                                hook in decorator_name for hook in ["inject", "wrap", "override"]
+                            ):
                                 hooks.append(f"@{decorator_name}")
 
         # Remove duplicates while preserving order
@@ -338,9 +339,9 @@ class ScriptAnalyzer:
                 complexity += 2  # Classes are more complex
 
             # Control flow
-            elif isinstance(node, (ast.If, ast.While, ast.For, ast.AsyncFor)):
-                complexity += 1
-            elif isinstance(node, (ast.Try, ast.ExceptHandler)):
+            elif isinstance(
+                node, (ast.If, ast.While, ast.For, ast.AsyncFor, ast.Try, ast.ExceptHandler)
+            ):
                 complexity += 1
 
             # Boolean operations add complexity
@@ -362,7 +363,7 @@ class ScriptAnalyzer:
         return self._metadata
 
     @property
-    def modules(self) -> List[ScriptModule]:
+    def modules(self) -> list[ScriptModule]:
         """
         Get modules (lazy loaded).
 

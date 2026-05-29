@@ -1,8 +1,9 @@
 """Quick test script for Save Analysis backend."""
 
 from pathlib import Path
-from simanalysis.scanners.save_scanner import SaveScanner
+
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
+from simanalysis.scanners.save_scanner import SaveScanner
 
 # Find a save file
 saves_dir = Path.home() / "Documents/Electronic Arts/The Sims 4/saves"
@@ -20,7 +21,7 @@ print("\n--- Testing SaveScanner ---")
 scanner = SaveScanner()
 try:
     save_data = scanner.scan_save_file(save_file)
-    print(f"✓ Successfully scanned save file")
+    print("✓ Successfully scanned save file")
     print(f"  Total resources: {save_data.total_resources}")
     print(f"  CAS items: {len(save_data.cas_resources)}")
     print(f"  Build/Buy items: {len(save_data.build_buy_resources)}")
@@ -39,14 +40,14 @@ else:
     analyzer = SaveAnalyzer()
     try:
         print("Running analysis (this may take a while)...")
-        
+
         def progress(stage, current, total):
             print(f"  {stage}: {current}/{total}")
-        
+
         result = analyzer.analyze_save(save_file, mods_dir, progress_callback=progress)
         summary = analyzer.get_summary(result)
-        
-        print(f"\n✓ Analysis complete!")
+
+        print("\n✓ Analysis complete!")
         print(f"  Total mods: {summary['total_mods']}")
         print(f"  Used mods: {summary['used_mods']} ({summary['used_size_mb']:.1f} MB)")
         print(f"  Unused mods: {summary['unused_mods']} ({summary['unused_size_mb']:.1f} MB)")
@@ -55,6 +56,7 @@ else:
     except Exception as e:
         print(f"✗ Error: {e}")
         import traceback
+
         traceback.print_exc()
         exit(1)
 

@@ -55,7 +55,7 @@ def test_broken_pipe_exits_quietly():
 
 def test_setup_redirects_stdout_and_binds_emitter_to_real_stdout(monkeypatch):
     sentinel = io.StringIO()
-    monkeypatch.setattr(sys, "stdout", sentinel)      # monkeypatch auto-restores after test
+    monkeypatch.setattr(sys, "stdout", sentinel)  # monkeypatch auto-restores after test
     monkeypatch.setattr(sys, "stderr", io.StringIO())
 
     emit = setup()

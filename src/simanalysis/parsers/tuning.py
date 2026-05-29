@@ -7,11 +7,12 @@ Tuning files define objects, interactions, buffs, traits, and more.
 """
 
 import re
-from typing import Dict, Any, Set, Optional
+from typing import Any, Optional
+
 from lxml import etree
 
 from simanalysis.exceptions import TuningError
-from simanalysis.models import TuningData, PACK_PREFIXES
+from simanalysis.models import PACK_PREFIXES, TuningData
 
 
 class TuningParser:
@@ -106,7 +107,7 @@ class TuningParser:
 
         try:
             # Instance ID can be decimal or hex
-            if instance_str.startswith("0x") or instance_str.startswith("0X"):
+            if instance_str.startswith(("0x", "0X")):
                 return int(instance_str, 16)
             else:
                 return int(instance_str)
@@ -170,7 +171,7 @@ class TuningParser:
 
         return module or "unknown"
 
-    def extract_modifications(self, root: etree._Element) -> Dict[str, Any]:
+    def extract_modifications(self, root: etree._Element) -> dict[str, Any]:
         """
         Extract modified attributes from tuning.
 
@@ -180,7 +181,7 @@ class TuningParser:
         Returns:
             Dictionary of modified attributes
         """
-        modifications: Dict[str, Any] = {}
+        modifications: dict[str, Any] = {}
 
         # Walk through all elements and collect attribute modifications
         for element in root.iter():
@@ -201,7 +202,7 @@ class TuningParser:
 
         return modifications
 
-    def find_references(self, root: etree._Element) -> Set[int]:
+    def find_references(self, root: etree._Element) -> set[int]:
         """
         Find references to other tunings.
 
@@ -214,7 +215,7 @@ class TuningParser:
         Returns:
             Set of referenced tuning instance IDs
         """
-        references: Set[int] = set()
+        references: set[int] = set()
 
         # Look for common reference patterns
         for element in root.iter():
@@ -257,7 +258,7 @@ class TuningParser:
 
         return None
 
-    def detect_pack_requirements(self, root: etree._Element) -> Set[str]:
+    def detect_pack_requirements(self, root: etree._Element) -> set[str]:
         """
         Detect required game packs from tuning.
 
@@ -272,13 +273,13 @@ class TuningParser:
         Returns:
             Set of pack codes (e.g., {"EP01", "GP03"})
         """
-        packs: Set[str] = set()
+        packs: set[str] = set()
 
         # Get all text content
         all_text = etree.tostring(root, encoding="unicode", method="text")
 
         # Search for pack prefixes
-        for pack_code in PACK_PREFIXES.keys():
+        for pack_code in PACK_PREFIXES:
             # Look for pack code in the XML
             # Common patterns: EP01:..., EP01/..., EP01.module
             pattern = rf"\b{pack_code}[:\\/\.]"
@@ -288,7 +289,7 @@ class TuningParser:
         # Check module path
         module = self.get_module(root)
         if module:
-            for pack_code in PACK_PREFIXES.keys():
+            for pack_code in PACK_PREFIXES:
                 if pack_code.lower() in module.lower():
                     packs.add(pack_code)
 

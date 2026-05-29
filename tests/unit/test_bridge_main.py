@@ -32,7 +32,8 @@ def test_scan_mods_full_sequence_exit_zero(monkeypatch, tmp_path):
 
     monkeypatch.setattr(commands, "ModAnalyzer", FakeModAnalyzer)
     monkeypatch.setattr(
-        commands.serialization, "mod_result_to_dict",
+        commands.serialization,
+        "mod_result_to_dict",
         lambda a, r: {"summary": a.get_summary(r), "mods": []},
     )
 

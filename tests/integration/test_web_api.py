@@ -30,23 +30,18 @@ class TestWebApi:
     def test_scan_directory(self, client, sample_mods_path):
         """Test scan endpoint."""
         response = client.post(
-            "/api/scan",
-            json={
-                "path": str(sample_mods_path),
-                "recursive": True,
-                "quick": True
-            }
+            "/api/scan", json={"path": str(sample_mods_path), "recursive": True, "quick": True}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
-        
+
         # Check structure
         assert "summary" in data
         assert "conflicts" in data
         assert "performance" in data
         assert "recommendations" in data
-        
+
         # Check content
         assert data["summary"]["total_mods"] == 5
         assert len(data["conflicts"]) > 0
@@ -55,12 +50,8 @@ class TestWebApi:
     def test_scan_invalid_directory(self, client):
         """Test scan with invalid directory."""
         response = client.post(
-            "/api/scan",
-            json={
-                "path": "/path/to/nonexistent/directory",
-                "recursive": True
-            }
+            "/api/scan", json={"path": "/path/to/nonexistent/directory", "recursive": True}
         )
-        
+
         assert response.status_code == 400
         assert "Invalid directory" in response.json()["detail"]

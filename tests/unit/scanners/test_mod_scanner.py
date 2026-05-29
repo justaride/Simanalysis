@@ -2,7 +2,6 @@
 
 import struct
 import zlib
-from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -140,18 +139,14 @@ def test_function():
         with pytest.raises(SimanalysisError, match="Not a directory"):
             scanner.scan_directory(file_path)
 
-    def test_scan_empty_directory(
-        self, scanner: ModScanner, test_directory: Path
-    ) -> None:
+    def test_scan_empty_directory(self, scanner: ModScanner, test_directory: Path) -> None:
         """Test scanning empty directory."""
         mods = scanner.scan_directory(test_directory)
 
         assert len(mods) == 0
         assert scanner.mods_scanned == 0
 
-    def test_scan_directory_with_package(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_scan_directory_with_package(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test scanning directory with package file."""
         mods = scanner.scan_directory(sample_package.parent)
 
@@ -159,9 +154,7 @@ def test_function():
         assert any(mod.name == "test_mod.package" for mod in mods)
         assert scanner.mods_scanned >= 1
 
-    def test_scan_directory_with_script(
-        self, scanner: ModScanner, sample_script: Path
-    ) -> None:
+    def test_scan_directory_with_script(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test scanning directory with script file."""
         mods = scanner.scan_directory(sample_script.parent)
 
@@ -202,9 +195,7 @@ def test_function():
         mods = scanner.scan_directory(test_directory, extensions={".txt"})
         assert len(mods) == 0  # .txt files aren't valid mods
 
-    def test_scan_file_package(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_scan_file_package(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test scanning a single package file."""
         mod = scanner.scan_file(sample_package)
 
@@ -214,9 +205,7 @@ def test_function():
         assert mod.size > 0
         assert len(mod.resources) > 0
 
-    def test_scan_file_script(
-        self, scanner: ModScanner, sample_script: Path
-    ) -> None:
+    def test_scan_file_script(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test scanning a single script file."""
         mod = scanner.scan_file(sample_script)
 
@@ -240,9 +229,7 @@ def test_function():
         assert mod.hash is not None
         assert len(mod.hash) == 64  # SHA256 hex string length
 
-    def test_scan_file_without_hash(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_scan_file_without_hash(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test that hash calculation can be disabled."""
         scanner.calculate_hashes = False
         mod = scanner.scan_file(sample_package)
@@ -250,9 +237,7 @@ def test_function():
         assert mod is not None
         assert mod.hash is None
 
-    def test_scan_package_with_resources(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_scan_package_with_resources(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test package scanning extracts resources."""
         mod = scanner.scan_file(sample_package)
 
@@ -260,9 +245,7 @@ def test_function():
         assert len(mod.resources) == 1
         assert mod.resources[0].type == 0x12345678
 
-    def test_scan_script_with_metadata(
-        self, scanner: ModScanner, sample_script: Path
-    ) -> None:
+    def test_scan_script_with_metadata(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test script scanning extracts metadata."""
         mod = scanner.scan_file(sample_script)
 
@@ -270,9 +253,7 @@ def test_function():
         # Version and author should be extracted from module
         # (might be None if metadata extraction fails, that's OK)
 
-    def test_scan_script_without_parsing(
-        self, scanner: ModScanner, sample_script: Path
-    ) -> None:
+    def test_scan_script_without_parsing(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test script scanning with parsing disabled."""
         scanner.parse_scripts = False
         mod = scanner.scan_file(sample_script)
@@ -280,9 +261,7 @@ def test_function():
         assert mod is not None
         assert len(mod.scripts) == 0  # No scripts parsed
 
-    def test_scan_handles_corrupt_files(
-        self, scanner: ModScanner, test_directory: Path
-    ) -> None:
+    def test_scan_handles_corrupt_files(self, scanner: ModScanner, test_directory: Path) -> None:
         """Test scanner handles corrupt files gracefully."""
         # Create corrupt package file
         corrupt_package = test_directory / "corrupt.package"
@@ -292,13 +271,9 @@ def test_function():
         mods = scanner.scan_directory(test_directory)
 
         # Either returns minimal mod or records error
-        assert scanner.errors_encountered or any(
-            m.name == "corrupt.package" for m in mods
-        )
+        assert scanner.errors_encountered or any(m.name == "corrupt.package" for m in mods)
 
-    def test_get_scan_summary(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_get_scan_summary(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test getting scan summary."""
         scanner.scan_directory(sample_package.parent)
 
@@ -309,9 +284,7 @@ def test_function():
         assert "error_details" in summary
         assert summary["mods_scanned"] > 0
 
-    def test_multiple_scans(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_multiple_scans(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test that scanner can be reused for multiple scans."""
         # First scan
         mods1 = scanner.scan_directory(sample_package.parent)
@@ -351,9 +324,7 @@ def test_function():
 
         assert mod is None  # Unsupported file type
 
-    def test_hash_consistency(
-        self, scanner: ModScanner, sample_package: Path
-    ) -> None:
+    def test_hash_consistency(self, scanner: ModScanner, sample_package: Path) -> None:
         """Test that hash calculation is consistent."""
         scanner.calculate_hashes = True
 
@@ -364,9 +335,7 @@ def test_function():
         assert mod2 is not None
         assert mod1.hash == mod2.hash  # Same file should have same hash
 
-    def test_scan_directory_sorts_results(
-        self, scanner: ModScanner, test_directory: Path
-    ) -> None:
+    def test_scan_directory_sorts_results(self, scanner: ModScanner, test_directory: Path) -> None:
         """Test that scan results are sorted by path."""
         # Create multiple files
         for i in range(3):

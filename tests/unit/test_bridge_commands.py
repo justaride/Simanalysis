@@ -24,9 +24,7 @@ def test_scan_mods_drives_emitter_in_order(monkeypatch, tmp_path):
             return []
 
     monkeypatch.setattr(commands, "ModAnalyzer", FakeModAnalyzer)
-    monkeypatch.setattr(
-        commands.serialization, "mod_result_to_dict", lambda a, r: {"mods": []}
-    )
+    monkeypatch.setattr(commands.serialization, "mod_result_to_dict", lambda a, r: {"mods": []})
 
     buf = io.StringIO()
     args = argparse.Namespace(path=str(tmp_path), quick=True, recursive=True)
@@ -78,7 +76,9 @@ def test_analyze_save_uses_stage_callback_and_emits_in_order(monkeypatch, tmp_pa
             return {}
 
     monkeypatch.setattr(commands, "SaveAnalyzer", FakeSaveAnalyzer)
-    monkeypatch.setattr(commands.serialization, "save_result_to_dict", lambda a, r: {"save_info": {}})
+    monkeypatch.setattr(
+        commands.serialization, "save_result_to_dict", lambda a, r: {"save_info": {}}
+    )
 
     buf = io.StringIO()
     args = argparse.Namespace(save_path=str(save_file), mods_path=str(mods_dir))

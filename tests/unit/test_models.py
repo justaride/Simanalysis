@@ -1,8 +1,9 @@
 """Tests for data models."""
 
-import pytest
 from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 from simanalysis.models import (
     AnalysisMetadata,
@@ -14,8 +15,6 @@ from simanalysis.models import (
     ModConflict,
     ModType,
     PerformanceMetrics,
-    ScriptMetadata,
-    ScriptModule,
     Severity,
     TuningData,
 )

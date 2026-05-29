@@ -3,9 +3,10 @@
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 class ConfigService:
     """
@@ -16,7 +17,7 @@ class ConfigService:
     def __init__(self):
         self.config_dir = Path.home() / ".simanalysis"
         self.config_file = self.config_dir / "config.json"
-        self._config: Dict[str, Any] = {}
+        self._config: dict[str, Any] = {}
         self._load_config()
 
     def _load_config(self) -> None:
@@ -26,12 +27,12 @@ class ConfigService:
                 self.config_dir.mkdir(parents=True, exist_ok=True)
 
             if self.config_file.exists():
-                with open(self.config_file, "r") as f:
+                with open(self.config_file) as f:
                     self._config = json.load(f)
             else:
                 self._config = {}
                 self._save_config()
-                
+
         except Exception as e:
             logger.error(f"Failed to load config: {e}")
             self._config = {}

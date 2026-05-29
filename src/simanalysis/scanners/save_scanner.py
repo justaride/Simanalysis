@@ -1,19 +1,18 @@
 """Scanner for Sims 4 save files to extract CC references."""
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Optional
 
 from simanalysis.exceptions import SimanalysisError
 from simanalysis.parsers.dbpf import DBPFReader
 
-
 # Resource key: (Type, Group, Instance)
-ResourceKey = Tuple[int, int, int]
+ResourceKey = tuple[int, int, int]
 
 
 class SaveData:
     """Data extracted from a Sims 4 save file."""
-    
+
     def __init__(
         self,
         save_path: Path,
@@ -23,20 +22,20 @@ class SaveData:
         self.save_path = save_path
         self.save_name = save_name
         self.save_size = save_size
-        
+
         # All resources referenced in the save
-        self.referenced_resources: Set[ResourceKey] = set()
-        
+        self.referenced_resources: set[ResourceKey] = set()
+
         # Resources organized by type
-        self.cas_resources: Set[ResourceKey] = set()  # CAS (Create-A-Sim) items
-        self.build_buy_resources: Set[ResourceKey] = set()  # Build/Buy mode items
-        self.other_resources: Set[ResourceKey] = set()
-        
+        self.cas_resources: set[ResourceKey] = set()  # CAS (Create-A-Sim) items
+        self.build_buy_resources: set[ResourceKey] = set()  # Build/Buy mode items
+        self.other_resources: set[ResourceKey] = set()
+
         # Metadata
         self.total_resources = 0
         self.game_version: Optional[str] = None
-        
-    def to_dict(self) -> Dict:
+
+    def to_dict(self) -> dict:
         """Convert to dictionary for API response."""
         return {
             "save_name": self.save_name,
@@ -52,11 +51,11 @@ class SaveData:
 class SaveScanner:
     """
     Scanner for Sims 4 save files.
-    
+
     Parses save files (which are DBPF packages) and extracts
     all CC resource references.
     """
-    
+
     # Resource type IDs for different categories
     # These are common Sims 4 resource types
     CAS_TYPES = {
@@ -64,57 +63,57 @@ class SaveScanner:
         0x0355E0A6,  # Skin tone
         0x0354796A,  # Makeup
     }
-    
+
     BUILD_BUY_TYPES = {
         0x515CA4CD,  # Object catalog
         0x319E4F1D,  # Object definition
         0xC0DB5AE7,  # Build/Buy catalog
     }
-    
+
     def __init__(self) -> None:
-        self.errors_encountered: List[Tuple[Path, str]] = []
-    
+        self.errors_encountered: list[tuple[Path, str]] = []
+
     def scan_save_file(self, save_path: Path) -> SaveData:
         """
         Scan a Sims 4 save file and extract CC references.
-        
+
         Args:
             save_path: Path to the .save file
-            
+
         Returns:
             SaveData with extracted resource references
-            
+
         Raises:
             SimanalysisError: If save file is invalid or can't be parsed
         """
         if not save_path.exists():
             raise SimanalysisError(f"Save file not found: {save_path}")
-        
-        if save_path.suffix.lower() not in ['.save', '.ver0', '.ver1', '.ver2']:
+
+        if save_path.suffix.lower() not in [".save", ".ver0", ".ver1", ".ver2"]:
             raise SimanalysisError(f"Invalid save file extension: {save_path.suffix}")
-        
+
         save_name = save_path.stem
         save_size = save_path.stat().st_size
-        
+
         save_data = SaveData(
             save_path=save_path,
             save_name=save_name,
             save_size=save_size,
         )
-        
+
         try:
             # Parse the save file as a DBPF package
             reader = DBPFReader(save_path)
-            
+
             # Extract all resource keys
             for resource in reader.resources:
                 # Create resource key tuple (Type, Group, Instance)
                 resource_key = (resource.type, resource.group, resource.instance)
-                
+
                 # Add to referenced resources
                 save_data.referenced_resources.add(resource_key)
                 save_data.total_resources += 1
-                
+
                 # Categorize by type
                 if resource.type in self.CAS_TYPES:
                     save_data.cas_resources.add(resource_key)
@@ -122,20 +121,20 @@ class SaveScanner:
                     save_data.build_buy_resources.add(resource_key)
                 else:
                     save_data.other_resources.add(resource_key)
-            
+
             # Try to extract game version from header if available
             # (This is optional metadata that may be in the DBPF header)
             save_data.game_version = self._extract_game_version(reader)
-            
+
             return save_data
-            
+
         except Exception as e:
             raise SimanalysisError(f"Failed to parse save file {save_path}: {e}")
-    
+
     def _extract_game_version(self, reader: DBPFReader) -> Optional[str]:
         """
         Try to extract game version from save file.
-        
+
         This is a best-effort attempt - may not always be available.
         """
         # This would require deeper parsing of save file metadata

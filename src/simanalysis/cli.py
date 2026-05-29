@@ -34,7 +34,6 @@ def cli():
         # Show summary only
         simanalysis scan ~/Mods
     """
-    pass
 
 
 @cli.command()
@@ -218,7 +217,7 @@ def analyze(
 
     # Performance metrics
     perf = result.performance
-    click.echo(f"\n📈 Performance Metrics:")
+    click.echo("\n📈 Performance Metrics:")
     click.echo(f"   Total Size: {perf.total_size_mb:.2f} MB")
     click.echo(f"   Resources: {perf.total_resources:,}")
     click.echo(f"   Tunings: {perf.total_tunings:,}")
@@ -229,7 +228,7 @@ def analyze(
 
     # Recommendations
     if result.recommendations:
-        click.echo(f"\n💡 RECOMMENDATIONS:")
+        click.echo("\n💡 RECOMMENDATIONS:")
         click.echo("-" * 70)
         for rec in result.recommendations:
             # Color-code recommendations
@@ -242,7 +241,7 @@ def analyze(
 
     # Show top conflicts if verbose
     if verbose and result.conflicts:
-        click.echo(f"\n🔍 TOP CONFLICTS:")
+        click.echo("\n🔍 TOP CONFLICTS:")
         click.echo("-" * 70)
         for i, conflict in enumerate(result.conflicts[:10], 1):
             severity_color = {
@@ -252,7 +251,9 @@ def analyze(
                 Severity.LOW: "green",
             }[conflict.severity]
 
-            click.echo(f"\n{i}. [{click.style(conflict.severity.value, fg=severity_color)}] {conflict.type.value}")
+            click.echo(
+                f"\n{i}. [{click.style(conflict.severity.value, fg=severity_color)}] {conflict.type.value}"
+            )
             click.echo(f"   {conflict.description}")
             click.echo(f"   Affected: {', '.join(conflict.affected_mods[:3])}")
             if len(conflict.affected_mods) > 3:
@@ -346,7 +347,7 @@ def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool):
 
     # Show individual mods if verbose
     if verbose:
-        click.echo(f"\n📋 MOD LIST:")
+        click.echo("\n📋 MOD LIST:")
         click.echo("-" * 70)
         for mod in sorted(mods, key=lambda m: m.size, reverse=True):
             size_mb = mod.size / 1024 / 1024
@@ -358,7 +359,7 @@ def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool):
     if summary.get("errors_encountered", 0) > 0:
         click.echo(f"\n⚠️  Encountered {summary['errors_encountered']} errors during scan")
 
-    click.echo(f"\n⏱️  Scan completed")
+    click.echo("\n⏱️  Scan completed")
 
 
 @cli.command()
@@ -373,7 +374,7 @@ def view(report_file: str):
 
     report_path = Path(report_file).expanduser().resolve()
 
-    if not report_path.suffix == ".json":
+    if report_path.suffix != ".json":
         click.echo(click.style("❌ Error: Only JSON reports can be viewed", fg="red"))
         sys.exit(1)
 
@@ -395,13 +396,13 @@ def view(report_file: str):
 
     # Recommendations
     if report["recommendations"]:
-        click.echo(f"\n💡 RECOMMENDATIONS:")
+        click.echo("\n💡 RECOMMENDATIONS:")
         for rec in report["recommendations"]:
             click.echo(f"  {rec}")
 
     # Top conflicts
     if report["conflicts"]:
-        click.echo(f"\n🔍 TOP CONFLICTS:")
+        click.echo("\n🔍 TOP CONFLICTS:")
         for i, conflict in enumerate(report["conflicts"][:10], 1):
             click.echo(f"\n{i}. [{conflict['severity']}] {conflict['type']}")
             click.echo(f"   {conflict['description']}")
@@ -461,15 +462,16 @@ def info(version: bool):
 def web(port: int, host: str):
     """
     Launch the Web GUI.
-    
+
     Starts the FastAPI backend and serves the React frontend.
     """
     """
     Launch the Web GUI.
-    
+
     Starts the FastAPI backend and serves the React frontend.
     """
     from simanalysis.web.run import run_web_gui
+
     run_web_gui(host=host, port=port)
 
 

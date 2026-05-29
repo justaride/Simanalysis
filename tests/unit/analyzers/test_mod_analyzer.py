@@ -11,10 +11,8 @@ from simanalysis.analyzers import ModAnalyzer
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.models import (
     ConflictType,
-    DBPFResource,
     Mod,
     ModType,
-    Severity,
     TuningData,
 )
 
@@ -34,7 +32,7 @@ class TestModAnalyzer:
         mods_dir.mkdir()
 
         # Create two package files with conflicting tunings
-        for i, name in enumerate(["mod_a.package", "mod_b.package"]):
+        for _i, name in enumerate(["mod_a.package", "mod_b.package"]):
             pkg_path = mods_dir / name
             self._create_test_package(pkg_path, tuning_id=0x12345678)
 
@@ -116,9 +114,7 @@ class TestModAnalyzer:
 
         return [mod1, mod2]
 
-    def _create_test_package(
-        self, path: Path, tuning_id: int = 0x12345678
-    ) -> None:
+    def _create_test_package(self, path: Path, tuning_id: int = 0x12345678) -> None:
         """Create a minimal test package file."""
         # Create minimal DBPF file (96-byte header)
         header = bytearray(96)
@@ -209,9 +205,7 @@ class TestModAnalyzer:
         assert all(hasattr(c, "type") for c in conflicts)
         assert all(hasattr(c, "severity") for c in conflicts)
 
-    def test_get_summary(
-        self, analyzer: ModAnalyzer, test_mods_with_conflicts: list[Mod]
-    ) -> None:
+    def test_get_summary(self, analyzer: ModAnalyzer, test_mods_with_conflicts: list[Mod]) -> None:
         """Test getting summary statistics."""
         result = analyzer.analyze_mods(test_mods_with_conflicts)
         summary = analyzer.get_summary(result)
@@ -265,7 +259,9 @@ class TestModAnalyzer:
         recommendations = analyzer.get_recommendations(result)
 
         # Should mention organizing into subfolders
-        assert any("organizing" in rec.lower() or "subfolders" in rec.lower() for rec in recommendations)
+        assert any(
+            "organizing" in rec.lower() or "subfolders" in rec.lower() for rec in recommendations
+        )
 
     def test_export_text_report(
         self, analyzer: ModAnalyzer, test_mods_with_conflicts: list[Mod], tmp_path: Path
@@ -315,9 +311,7 @@ class TestModAnalyzer:
         with pytest.raises(ValueError, match="Unsupported format"):
             analyzer.export_report(result, output_path, format="xml")
 
-    def test_analyze_directory(
-        self, analyzer: ModAnalyzer, test_mods_directory: Path
-    ) -> None:
+    def test_analyze_directory(self, analyzer: ModAnalyzer, test_mods_directory: Path) -> None:
         """Test analyzing a directory."""
         result = analyzer.analyze_directory(test_mods_directory)
 
@@ -340,9 +334,7 @@ class TestModAnalyzer:
         # Should only find mods in root directory
         assert all("Subfolder" not in str(mod.path) for mod in result.mods)
 
-    def test_recommendations_critical_conflicts(
-        self, analyzer: ModAnalyzer
-    ) -> None:
+    def test_recommendations_critical_conflicts(self, analyzer: ModAnalyzer) -> None:
         """Test recommendations with critical conflicts."""
         # Create mods with critical conflict (Buff is core)
         mods = [
@@ -370,9 +362,7 @@ class TestModAnalyzer:
         # Should mention critical conflicts
         assert any("critical" in rec.lower() for rec in recommendations)
 
-    def test_recommendations_hash_collisions(
-        self, analyzer: ModAnalyzer
-    ) -> None:
+    def test_recommendations_hash_collisions(self, analyzer: ModAnalyzer) -> None:
         """Test recommendations with hash collisions."""
         # Create mods with same hash
         duplicate_hash = "duplicate_hash_12345"

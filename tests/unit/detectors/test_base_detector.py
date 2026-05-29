@@ -99,90 +99,64 @@ class TestConflictDetector:
     def test_calculate_severity_script_injection(self, detector):
         """Test severity calculation for script injections."""
         # 3+ affected = CRITICAL
-        severity = detector.calculate_severity(
-            ConflictType.SCRIPT_INJECTION, affected_count=3
-        )
+        severity = detector.calculate_severity(ConflictType.SCRIPT_INJECTION, affected_count=3)
         assert severity == Severity.CRITICAL
 
         # 2 affected = HIGH
-        severity = detector.calculate_severity(
-            ConflictType.SCRIPT_INJECTION, affected_count=2
-        )
+        severity = detector.calculate_severity(ConflictType.SCRIPT_INJECTION, affected_count=2)
         assert severity == Severity.HIGH
 
         # 1 affected = MEDIUM
-        severity = detector.calculate_severity(
-            ConflictType.SCRIPT_INJECTION, affected_count=1
-        )
+        severity = detector.calculate_severity(ConflictType.SCRIPT_INJECTION, affected_count=1)
         assert severity == Severity.MEDIUM
 
     def test_calculate_severity_tuning_overlap(self, detector):
         """Test severity calculation for tuning overlaps."""
         # 3+ affected = HIGH
-        severity = detector.calculate_severity(
-            ConflictType.TUNING_OVERLAP, affected_count=3
-        )
+        severity = detector.calculate_severity(ConflictType.TUNING_OVERLAP, affected_count=3)
         assert severity == Severity.HIGH
 
         # 2 affected = MEDIUM
-        severity = detector.calculate_severity(
-            ConflictType.TUNING_OVERLAP, affected_count=2
-        )
+        severity = detector.calculate_severity(ConflictType.TUNING_OVERLAP, affected_count=2)
         assert severity == Severity.MEDIUM
 
         # 1 affected = LOW
-        severity = detector.calculate_severity(
-            ConflictType.TUNING_OVERLAP, affected_count=1
-        )
+        severity = detector.calculate_severity(ConflictType.TUNING_OVERLAP, affected_count=1)
         assert severity == Severity.LOW
 
     def test_calculate_severity_resource_duplicate(self, detector):
         """Test severity calculation for resource duplicates."""
         # 3+ affected = MEDIUM
-        severity = detector.calculate_severity(
-            ConflictType.RESOURCE_DUPLICATE, affected_count=3
-        )
+        severity = detector.calculate_severity(ConflictType.RESOURCE_DUPLICATE, affected_count=3)
         assert severity == Severity.MEDIUM
 
         # <3 affected = LOW
-        severity = detector.calculate_severity(
-            ConflictType.RESOURCE_DUPLICATE, affected_count=2
-        )
+        severity = detector.calculate_severity(ConflictType.RESOURCE_DUPLICATE, affected_count=2)
         assert severity == Severity.LOW
 
     def test_calculate_severity_dependency_missing(self, detector):
         """Test severity for missing dependencies."""
-        severity = detector.calculate_severity(
-            ConflictType.DEPENDENCY_MISSING, affected_count=1
-        )
+        severity = detector.calculate_severity(ConflictType.DEPENDENCY_MISSING, affected_count=1)
         assert severity == Severity.HIGH
 
     def test_calculate_severity_version_conflict(self, detector):
         """Test severity for version conflicts."""
-        severity = detector.calculate_severity(
-            ConflictType.VERSION_CONFLICT, affected_count=2
-        )
+        severity = detector.calculate_severity(ConflictType.VERSION_CONFLICT, affected_count=2)
         assert severity == Severity.MEDIUM
 
     def test_calculate_severity_namespace_collision(self, detector):
         """Test severity for namespace collisions."""
         # 2+ affected = HIGH
-        severity = detector.calculate_severity(
-            ConflictType.NAMESPACE_COLLISION, affected_count=2
-        )
+        severity = detector.calculate_severity(ConflictType.NAMESPACE_COLLISION, affected_count=2)
         assert severity == Severity.HIGH
 
         # 1 affected = MEDIUM
-        severity = detector.calculate_severity(
-            ConflictType.NAMESPACE_COLLISION, affected_count=1
-        )
+        severity = detector.calculate_severity(ConflictType.NAMESPACE_COLLISION, affected_count=1)
         assert severity == Severity.MEDIUM
 
     def test_generate_conflict_id(self, detector):
         """Test conflict ID generation."""
-        conflict_id = detector.generate_conflict_id(
-            ConflictType.TUNING_OVERLAP, "12345678"
-        )
+        conflict_id = detector.generate_conflict_id(ConflictType.TUNING_OVERLAP, "12345678")
 
         assert conflict_id.startswith("tuni_")
         assert "12345678" in conflict_id
@@ -329,9 +303,7 @@ class TestConflictResolutions:
         resolution = ConflictResolutions.get_resolution(ConflictType.TUNING_OVERLAP)
         assert resolution == ConflictResolutions.TUNING_OVERLAP
 
-        resolution = ConflictResolutions.get_resolution(
-            ConflictType.RESOURCE_DUPLICATE
-        )
+        resolution = ConflictResolutions.get_resolution(ConflictType.RESOURCE_DUPLICATE)
         assert resolution == ConflictResolutions.RESOURCE_DUPLICATE
 
     def test_get_resolution_all_types(self):

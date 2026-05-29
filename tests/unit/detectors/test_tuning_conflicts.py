@@ -260,9 +260,7 @@ class TestTuningConflictDetector:
         assert conflict.severity == Severity.CRITICAL
         assert conflict.details["is_core_tuning"] is True
 
-    def test_truly_non_core_conflict_severity(
-        self, detector: TuningConflictDetector
-    ) -> None:
+    def test_truly_non_core_conflict_severity(self, detector: TuningConflictDetector) -> None:
         """Test that non-core tuning types get appropriate severity."""
         shared_id = 0xDEADBEEF
 

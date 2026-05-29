@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import Callable, List, Optional, Set
+from typing import Callable, Optional
 
 from simanalysis.exceptions import SimanalysisError
 from simanalysis.models import Mod, ModType
@@ -43,15 +43,15 @@ class ModScanner:
         self.parse_scripts = parse_scripts
         self.calculate_hashes = calculate_hashes
         self.mods_scanned = 0
-        self.errors_encountered: List[tuple[Path, str]] = []
+        self.errors_encountered: list[tuple[Path, str]] = []
 
     def scan_directory(
         self,
         directory: Path,
         recursive: bool = True,
-        extensions: Optional[Set[str]] = None,
+        extensions: Optional[set[str]] = None,
         progress_callback: Optional["Callable[[int, int, str], None]"] = None,
-    ) -> List[Mod]:
+    ) -> list[Mod]:
         """
         Scan directory for mods.
 
@@ -77,20 +77,20 @@ class ModScanner:
         if extensions is None:
             extensions = {".package", ".ts4script"}
 
-        mods: List[Mod] = []
+        mods: list[Mod] = []
         self.mods_scanned = 0
         self.errors_encountered = []
 
         # Find all mod files
         if progress_callback:
             progress_callback(0, 0, "Discovering files...")
-            
+
         files = self._find_mod_files(directory, recursive, extensions)
         total_files = len(files)
-        
+
         # Batch processing configuration
         BATCH_SIZE = 50
-        
+
         import time
 
         # Scan each file
@@ -101,7 +101,7 @@ class ModScanner:
 
             if progress_callback:
                 progress_callback(i, total_files, file_path.name)
-                
+
             try:
                 mod = self.scan_file(file_path)
                 if mod:
@@ -133,9 +133,7 @@ class ModScanner:
         else:
             return None
 
-    def _find_mod_files(
-        self, directory: Path, recursive: bool, extensions: Set[str]
-    ) -> List[Path]:
+    def _find_mod_files(self, directory: Path, recursive: bool, extensions: set[str]) -> list[Path]:
         """
         Find all mod files in directory.
 
@@ -147,7 +145,7 @@ class ModScanner:
         Returns:
             List of file paths
         """
-        files: List[Path] = []
+        files: list[Path] = []
 
         if recursive:
             for ext in extensions:
@@ -185,7 +183,7 @@ class ModScanner:
                 tunings = self._extract_tunings(reader)
 
             # Detect pack requirements from tunings
-            pack_requirements: Set[str] = set()
+            pack_requirements: set[str] = set()
             for tuning in tunings:
                 pack_requirements.update(tuning.pack_requirements)
 
@@ -291,7 +289,7 @@ class ModScanner:
                 scripts=[],
             )
 
-    def _extract_tunings(self, reader: DBPFReader) -> List:
+    def _extract_tunings(self, reader: DBPFReader) -> list:
         """
         Extract tuning data from DBPF package.
 

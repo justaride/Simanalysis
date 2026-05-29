@@ -1,13 +1,12 @@
 """Interactive Terminal User Interface using Textual."""
 
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
-from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import (
     Button,
@@ -20,9 +19,7 @@ from textual.widgets import (
     Static,
     TabbedContent,
     TabPane,
-    Tree,
 )
-from textual.widgets.tree import TreeNode
 
 from simanalysis.analyzers import ModAnalyzer
 from simanalysis.models import AnalysisResult, Mod, ModConflict, Severity
@@ -47,7 +44,7 @@ class SummaryPane(Static):
         medium = len([c for c in self.result.conflicts if c.severity == Severity.MEDIUM])
         low = len([c for c in self.result.conflicts if c.severity == Severity.LOW])
 
-        yield Label(f"[bold cyan]📊 Analysis Summary[/bold cyan]\n")
+        yield Label("[bold cyan]📊 Analysis Summary[/bold cyan]\n")
         yield Label(f"Total Mods: [bold]{len(self.result.mods)}[/bold]")
         yield Label(f"Total Conflicts: [bold]{len(self.result.conflicts)}[/bold]")
         yield Label("")
@@ -63,19 +60,27 @@ class SummaryPane(Static):
 
         # Performance metrics
         perf = self.result.performance
-        yield Label(f"\n[bold cyan]📈 Performance[/bold cyan]")
+        yield Label("\n[bold cyan]📈 Performance[/bold cyan]")
         yield Label(f"Total Size: {perf.total_size_mb:.2f} MB")
         yield Label(f"Resources: {perf.total_resources:,}")
         yield Label(f"Est. Load Time: {perf.estimated_load_time_seconds:.1f}s")
 
-        complexity_color = "red" if perf.complexity_score >= 80 else "yellow" if perf.complexity_score >= 60 else "green"
-        yield Label(f"Complexity: [{complexity_color}]{perf.complexity_score:.1f}/100[/{complexity_color}]")
+        complexity_color = (
+            "red"
+            if perf.complexity_score >= 80
+            else "yellow"
+            if perf.complexity_score >= 60
+            else "green"
+        )
+        yield Label(
+            f"Complexity: [{complexity_color}]{perf.complexity_score:.1f}/100[/{complexity_color}]"
+        )
 
 
 class ConflictsTable(Static):
     """Conflicts data table."""
 
-    def __init__(self, conflicts: List[ModConflict]):
+    def __init__(self, conflicts: list[ModConflict]):
         super().__init__()
         self.conflicts = conflicts
         self.filtered_conflicts = conflicts
@@ -89,11 +94,13 @@ class ConflictsTable(Static):
         table.zebra_stripes = True
 
         # Sort by severity
-        severity_order = {Severity.CRITICAL: 0, Severity.HIGH: 1, Severity.MEDIUM: 2, Severity.LOW: 3}
-        sorted_conflicts = sorted(
-            self.filtered_conflicts,
-            key=lambda c: severity_order[c.severity]
-        )
+        severity_order = {
+            Severity.CRITICAL: 0,
+            Severity.HIGH: 1,
+            Severity.MEDIUM: 2,
+            Severity.LOW: 3,
+        }
+        sorted_conflicts = sorted(self.filtered_conflicts, key=lambda c: severity_order[c.severity])
 
         for conflict in sorted_conflicts[:100]:  # Limit to 100 for performance
             severity_emoji = {
@@ -129,7 +136,7 @@ class ConflictsTable(Static):
 class ModsTable(Static):
     """Mods data table."""
 
-    def __init__(self, mods: List[Mod]):
+    def __init__(self, mods: list[Mod]):
         super().__init__()
         self.mods = mods
 
@@ -162,7 +169,7 @@ class ModsTable(Static):
 class RecommendationsPane(Static):
     """Recommendations display pane."""
 
-    def __init__(self, recommendations: List[str]):
+    def __init__(self, recommendations: list[str]):
         super().__init__()
         self.recommendations = recommendations
 
@@ -210,24 +217,23 @@ class AnalysisScreen(Screen):
                 yield RecommendationsPane(self.result.recommendations)
 
             # Main content area with tabs
-            with VerticalScroll(id="content"):
-                with TabbedContent(initial="conflicts"):
-                    with TabPane("Conflicts", id="conflicts"):
-                        if self.result.conflicts:
-                            yield Label(f"[bold]Showing {len(self.result.conflicts)} conflicts[/bold]")
-                            yield ConflictsTable(self.result.conflicts)
-                        else:
-                            yield Label("[green]✅ No conflicts detected![/green]")
+            with VerticalScroll(id="content"), TabbedContent(initial="conflicts"):
+                with TabPane("Conflicts", id="conflicts"):
+                    if self.result.conflicts:
+                        yield Label(f"[bold]Showing {len(self.result.conflicts)} conflicts[/bold]")
+                        yield ConflictsTable(self.result.conflicts)
+                    else:
+                        yield Label("[green]✅ No conflicts detected![/green]")
 
-                    with TabPane("Mods", id="mods"):
-                        yield Label(f"[bold]Showing {len(self.result.mods)} mods[/bold]")
-                        yield ModsTable(self.result.mods)
+                with TabPane("Mods", id="mods"):
+                    yield Label(f"[bold]Showing {len(self.result.mods)} mods[/bold]")
+                    yield ModsTable(self.result.mods)
 
-                    with TabPane("Details", id="details"):
-                        yield Label("[bold cyan]📋 Analysis Details[/bold cyan]\n")
-                        yield Label(f"Directory: {self.result.metadata.mod_directory}")
-                        yield Label(f"Duration: {self.result.metadata.analysis_duration_seconds:.2f}s")
-                        yield Label(f"Version: {self.result.metadata.version}")
+                with TabPane("Details", id="details"):
+                    yield Label("[bold cyan]📋 Analysis Details[/bold cyan]\n")
+                    yield Label(f"Directory: {self.result.metadata.mod_directory}")
+                    yield Label(f"Duration: {self.result.metadata.analysis_duration_seconds:.2f}s")
+                    yield Label(f"Version: {self.result.metadata.version}")
 
         yield Footer()
 
@@ -293,7 +299,11 @@ class ExportScreen(Screen):
     def export_txt(self) -> None:
         """Export as TXT."""
         path_input = self.query_one("#export-path", Input)
-        path = Path(path_input.value).expanduser() if path_input.value else Path("~/Desktop/report.txt").expanduser()
+        path = (
+            Path(path_input.value).expanduser()
+            if path_input.value
+            else Path("~/Desktop/report.txt").expanduser()
+        )
 
         analyzer = ModAnalyzer()
         analyzer.export_report(self.result, path, format="txt")
@@ -303,7 +313,11 @@ class ExportScreen(Screen):
     def export_json(self) -> None:
         """Export as JSON."""
         path_input = self.query_one("#export-path", Input)
-        path = Path(path_input.value).expanduser() if path_input.value else Path("~/Desktop/report.json").expanduser()
+        path = (
+            Path(path_input.value).expanduser()
+            if path_input.value
+            else Path("~/Desktop/report.json").expanduser()
+        )
 
         analyzer = ModAnalyzer()
         analyzer.export_report(self.result, path, format="json")

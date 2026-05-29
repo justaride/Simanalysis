@@ -4,6 +4,7 @@ Intended as the single source of truth for both the desktop stdio bridge
 (simanalysis.bridge — already wired) and the FastAPI/WebSocket layer
 (simanalysis.web.api — wiring pending; it still inlines its own transforms today).
 """
+
 from __future__ import annotations
 
 from typing import Any

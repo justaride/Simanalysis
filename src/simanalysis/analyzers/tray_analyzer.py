@@ -3,18 +3,18 @@
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Optional
 
 from simanalysis import __version__
-from simanalysis.scanners.tray_scanner import TrayScanner, TrayItem
+from simanalysis.scanners.tray_scanner import TrayItem, TrayScanner
 
 
 class TrayAnalysisResult:
     """Result of a tray analysis."""
-    
+
     def __init__(
         self,
-        items: List[TrayItem],
+        items: list[TrayItem],
         scan_duration: float,
         directory: str,
     ):
@@ -49,28 +49,24 @@ class TrayAnalyzer:
             TrayAnalysisResult
         """
         start_time = time.time()
-        
+
         items = self.scanner.scan_directory(directory, progress_callback=progress_callback)
-        
+
         # Sort by creation time (newest first)
         items.sort(key=lambda x: x.creation_time or 0, reverse=True)
-        
-        duration = time.time() - start_time
-        
-        return TrayAnalysisResult(
-            items=items,
-            scan_duration=duration,
-            directory=str(directory)
-        )
 
-    def get_summary(self, result: TrayAnalysisResult) -> Dict:
+        duration = time.time() - start_time
+
+        return TrayAnalysisResult(items=items, scan_duration=duration, directory=str(directory))
+
+    def get_summary(self, result: TrayAnalysisResult) -> dict:
         """Get summary of tray analysis."""
         total_items = len(result.items)
         households = len([i for i in result.items if i.type == "Household"])
         lots = len([i for i in result.items if "Lot" in i.type or "Room" in i.type])
-        
+
         total_size = sum(i.size for i in result.items)
-        
+
         return {
             "total_items": total_items,
             "households": households,

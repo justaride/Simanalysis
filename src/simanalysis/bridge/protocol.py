@@ -3,6 +3,7 @@
 stdout MUST stay pure NDJSON or the Rust line-parser chokes, so setup() redirects
 sys.stdout -> stderr and emits only through a private handle to the real stdout.
 """
+
 from __future__ import annotations
 
 import contextlib

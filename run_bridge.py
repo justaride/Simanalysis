@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """PyInstaller entry point for the Simanalysis stdio bridge sidecar."""
+
 import multiprocessing
 import sys
 

@@ -1,4 +1,5 @@
 """Dispatch desktop-bridge commands onto the existing analysis core."""
+
 from __future__ import annotations
 
 import argparse

@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 
 class ModType(Enum):
@@ -87,9 +87,9 @@ class TuningData:
     tuning_name: str
     tuning_class: str
     module: str
-    modified_attributes: Dict[str, Any] = field(default_factory=dict)
-    references: Set[int] = field(default_factory=set)
-    pack_requirements: Set[str] = field(default_factory=set)
+    modified_attributes: dict[str, Any] = field(default_factory=dict)
+    references: set[int] = field(default_factory=set)
+    pack_requirements: set[str] = field(default_factory=set)
 
 
 @dataclass
@@ -99,7 +99,7 @@ class ScriptMetadata:
     name: str
     version: str = "unknown"
     author: str = "unknown"
-    requires: List[str] = field(default_factory=list)
+    requires: list[str] = field(default_factory=list)
     python_version: str = "3.7"
 
 
@@ -109,8 +109,8 @@ class ScriptModule:
 
     name: str
     path: str
-    imports: Set[str] = field(default_factory=set)
-    hooks: List[str] = field(default_factory=list)
+    imports: set[str] = field(default_factory=set)
+    hooks: list[str] = field(default_factory=list)
     complexity: int = 0
 
 
@@ -125,23 +125,23 @@ class Mod:
     hash: str
 
     # Parsed data
-    resources: List[DBPFResource] = field(default_factory=list)
-    tunings: List[TuningData] = field(default_factory=list)
-    scripts: List[ScriptModule] = field(default_factory=list)
+    resources: list[DBPFResource] = field(default_factory=list)
+    tunings: list[TuningData] = field(default_factory=list)
+    scripts: list[ScriptModule] = field(default_factory=list)
 
     # Metadata
     version: Optional[str] = None
     author: Optional[str] = None
-    requires: List[str] = field(default_factory=list)
-    pack_requirements: Set[str] = field(default_factory=set)
+    requires: list[str] = field(default_factory=list)
+    pack_requirements: set[str] = field(default_factory=set)
 
     @property
-    def tuning_ids(self) -> Set[int]:
+    def tuning_ids(self) -> set[int]:
         """Get all tuning instance IDs in this mod."""
         return {tuning.instance_id for tuning in self.tunings}
 
     @property
-    def resource_keys(self) -> Set[tuple[int, int, int]]:
+    def resource_keys(self) -> set[tuple[int, int, int]]:
         """Get all resource keys (Type, Group, Instance) in this mod."""
         return {resource.key for resource in self.resources}
 
@@ -153,10 +153,10 @@ class ModConflict:
     id: str
     severity: Severity
     type: ConflictType
-    affected_mods: List[str]
+    affected_mods: list[str]
     description: str
     resolution: Optional[str] = None
-    details: Dict[str, Any] = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -189,18 +189,18 @@ class AnalysisResult:
     """Complete analysis results."""
 
     metadata: AnalysisMetadata
-    mods: List[Mod]
-    conflicts: List[ModConflict]
-    dependencies: Dict[str, List[str]]
+    mods: list[Mod]
+    conflicts: list[ModConflict]
+    dependencies: dict[str, list[str]]
     performance: PerformanceMetrics
-    recommendations: List[str]
-    warnings: List[str] = field(default_factory=list)
+    recommendations: list[str]
+    warnings: list[str] = field(default_factory=list)
 
     def get_conflicts(
         self,
         severity: Optional[Severity] = None,
         type: Optional[ConflictType] = None,
-    ) -> List[ModConflict]:
+    ) -> list[ModConflict]:
         """Filter conflicts by severity and/or type."""
         filtered = self.conflicts
 
@@ -213,7 +213,7 @@ class AnalysisResult:
         return filtered
 
     @property
-    def critical_conflicts(self) -> List[ModConflict]:
+    def critical_conflicts(self) -> list[ModConflict]:
         """Get all critical conflicts."""
         return self.get_conflicts(severity=Severity.CRITICAL)
 
