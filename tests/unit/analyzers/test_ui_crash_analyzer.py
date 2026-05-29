@@ -1,7 +1,7 @@
 import struct
 from pathlib import Path
 
-from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer
+from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.models import UIExceptionReport
 
 TARGET_KEY = 15023068382072182982
@@ -81,6 +81,18 @@ def test_disabled_only_hit_classifies_disabled(tmp_path: Path) -> None:
     assert result.summary["disabled_findings"] == 1
 
 
+def test_discover_disabled_roots_scans_only_under_base(tmp_path: Path) -> None:
+    sims_base = tmp_path / "The Sims 4"
+    in_scope = sims_base / "_Quarantine_UI"
+    out_of_scope = tmp_path / "_Disabled_Sibling"
+    in_scope.mkdir(parents=True)
+    out_of_scope.mkdir()
+
+    roots = discover_disabled_roots(sims_base)
+
+    assert roots == [in_scope]
+
+
 def test_active_beats_disabled_for_same_key(tmp_path: Path) -> None:
     mods = tmp_path / "Mods"
     disabled = tmp_path / "_Disabled_Old"
@@ -120,6 +132,25 @@ def test_duplicate_reports_are_collapsed(tmp_path: Path) -> None:
     assert len(result.findings) == 1
     assert result.findings[0].report.occurrences == 3
     assert result.summary["occurrences"] == 3
+
+
+def test_duplicate_reports_keep_unique_source_files(tmp_path: Path) -> None:
+    mods = tmp_path / "Mods"
+    _write_dbpf_package(mods / "Active.package", TARGET_KEY)
+    first = _report(signature="same")
+    second = _report(signature="same")
+    first.source_files = ["lastUIException.txt", "olderUIException.txt"]
+    second.source_files = ["lastUIException.txt", "olderUIException.txt"]
+
+    analyzer = UICrashAnalyzer()
+    index = analyzer.build_resource_index(mods)
+    result = analyzer.analyze([first, second], index)
+
+    assert result.findings[0].report.occurrences == 2
+    assert result.findings[0].report.source_files == [
+        "lastUIException.txt",
+        "olderUIException.txt",
+    ]
 
 
 def test_corrupt_package_is_recorded_not_raised(tmp_path: Path) -> None:

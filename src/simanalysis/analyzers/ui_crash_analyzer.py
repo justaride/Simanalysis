@@ -34,15 +34,14 @@ def _status_for_package(path: Path) -> str:
     return STATUS_ACTIVE
 
 
-def discover_disabled_roots(mods_dir: str | Path) -> list[Path]:
-    """Find disabled/quarantine folders near a Mods directory."""
-    mods_path = Path(mods_dir)
-    base = mods_path.parent
-    if not base.exists():
+def discover_disabled_roots(base: str | Path) -> list[Path]:
+    """Find disabled/quarantine folders under a Sims 4/base directory."""
+    base_path = Path(base)
+    if not base_path.exists():
         return []
     return sorted(
         path
-        for path in base.rglob("*")
+        for path in base_path.rglob("*")
         if path.is_dir() and _is_disabled_name(path.name) and not _is_excluded_copy_path(path)
     )
 
@@ -123,7 +122,7 @@ class UICrashAnalyzer:
                 copied = copy(report)
                 copied.keys = list(report.keys)
                 copied.stack = list(report.stack)
-                copied.source_files = list(report.source_files or [report.source_file])
+                copied.source_files = list(dict.fromkeys(report.source_files or [report.source_file]))
                 copied.occurrences = report.occurrences
                 collapsed[signature] = copied
                 order.append(signature)
@@ -132,7 +131,8 @@ class UICrashAnalyzer:
             existing = collapsed[signature]
             existing.occurrences += report.occurrences
             for source_file in report.source_files or [report.source_file]:
-                existing.source_files.append(source_file)
+                if source_file not in existing.source_files:
+                    existing.source_files.append(source_file)
 
         return [collapsed[signature] for signature in order]
 
