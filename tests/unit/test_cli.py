@@ -387,3 +387,72 @@ class TestCLI:
         # Should exit with 1 if critical conflicts detected
         # (depends on detector logic, but at minimum should not crash)
         assert result.exit_code in [0, 1]
+
+
+def test_crash_command_sweeps_and_ranks(tmp_path):
+    import json
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    sims4 = tmp_path
+    mods = sims4 / "Mods"
+    mods.mkdir()
+    with zipfile.ZipFile(mods / "CoolMod.ts4script", "w") as zf:
+        zf.writestr("coolmod/thing.py", "x = 1\n")
+
+    (sims4 / "lastException_1.txt").write_text(
+        "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+        "Traceback (most recent call last):&#13;&#10;"
+        'File "Core\\sims4\\utils.py", line 1, in w&#13;&#10;'
+        'File "F:\\p\\coolmod\\thing.py", line 7, in run&#13;&#10;'
+        "</desyncdata></report></root>",
+        encoding="utf-8",
+    )
+
+    result = CliRunner().invoke(cli, ["crash", str(sims4), "--format", "json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["ranked_mods"][0]["mod"] == "CoolMod.ts4script"
+
+
+def test_crash_command_tolerates_unparseable_log(tmp_path):
+    import json
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    (tmp_path / "lastException_bad.txt").write_text(
+        "<root><report><desyncdata>Traceback (most recent", encoding="utf-8"
+    )
+    result = CliRunner().invoke(cli, ["crash", str(tmp_path), "--format", "json"])
+    assert result.exit_code == 0, result.output  # malformed log must not abort the sweep
+    data = json.loads(result.output)
+    assert data["summary"]["reports"] == 0
+
+
+def test_crash_command_limit_truncates_txt(tmp_path):
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    mods = tmp_path / "Mods"
+    mods.mkdir()
+    for i in range(3):
+        with zipfile.ZipFile(mods / f"Mod{i}.ts4script", "w") as zf:
+            zf.writestr(f"mod{i}/m.py", "x = 1\n")
+        (tmp_path / f"lastException_{i}.txt").write_text(
+            "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+            "Traceback (most recent call last):&#13;&#10;"
+            f'File "F:\\p\\mod{i}\\m.py", line 7, in run&#13;&#10;'
+            "</desyncdata></report></root>",
+            encoding="utf-8",
+        )
+    result = CliRunner().invoke(cli, ["crash", str(tmp_path), "--limit", "2"])
+    assert result.exit_code == 0, result.output
+    assert result.output.count("top suspect in") == 2  # only 2 of 3 ranked mods shown

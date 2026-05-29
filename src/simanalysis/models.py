@@ -80,6 +80,62 @@ class DBPFResource:
 
 
 @dataclass
+class TracebackFrame:
+    """One frame of a crash traceback."""
+
+    raw_path: str
+    module_path: Optional[str] = None  # normalized package-relative tail, if attributed
+    line: Optional[int] = None
+    func: Optional[str] = None
+    kind: str = "unknown"  # "game" | "mod" | "unknown"
+    mod_name: Optional[str] = None  # set when kind == "mod"
+
+
+@dataclass
+class CrashReport:
+    """A single parsed crash (one <report> block)."""
+
+    source_file: str
+    report_type: str
+    message: str
+    frames: list[TracebackFrame] = field(default_factory=list)
+    exception_class: Optional[str] = None
+    creator_tag: Optional[str] = None
+    created: Optional[str] = None
+    game_version: Optional[str] = None
+    be_advice: Optional[str] = None
+    signature: str = ""  # dedupe key
+
+
+@dataclass
+class Suspect:
+    """A mod implicated in a crash, with confidence."""
+
+    mod_name: str
+    confidence: str  # "high" | "medium" | "low"
+    reason: str
+    evidence: list[TracebackFrame] = field(default_factory=list)
+
+
+@dataclass
+class CrashFinding:
+    """One analyzed crash and its ranked suspects (empty => base-game/unattributable)."""
+
+    report: CrashReport
+    suspects: list[Suspect] = field(default_factory=list)
+
+
+@dataclass
+class CrashAnalysisResult:
+    """Whole-library crash analysis output."""
+
+    summary: dict = field(default_factory=dict)
+    ranked_mods: list[dict] = field(default_factory=list)
+    findings: list[CrashFinding] = field(default_factory=list)
+    parse_errors: list[str] = field(default_factory=list)
+
+
+@dataclass
 class TuningData:
     """Parsed tuning file data."""
 
