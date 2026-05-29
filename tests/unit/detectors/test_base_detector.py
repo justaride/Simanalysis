@@ -1,6 +1,6 @@
 """Tests for base detector framework."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -211,9 +211,9 @@ class TestConflictDetector:
         assert counting_detector.conflicts_found == 0
 
         # Run detection
-        before = datetime.now()
+        before = datetime.now(timezone.utc)
         conflicts = counting_detector.run(sample_mods)
-        after = datetime.now()
+        after = datetime.now(timezone.utc)
 
         # Should have tracked run
         assert counting_detector.last_run is not None

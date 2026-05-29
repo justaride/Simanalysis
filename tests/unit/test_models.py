@@ -1,6 +1,6 @@
 """Tests for data models."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -230,7 +230,7 @@ class TestAnalysisResult:
     def test_get_conflicts_by_severity(self) -> None:
         """Test filtering conflicts by severity."""
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version="2.0.0",
             mod_directory="/mods",
             analysis_duration_seconds=10.5,
@@ -290,7 +290,7 @@ class TestAnalysisResult:
     def test_get_conflicts_by_type(self) -> None:
         """Test filtering conflicts by type."""
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version="2.0.0",
             mod_directory="/mods",
             analysis_duration_seconds=10.5,
@@ -340,7 +340,7 @@ class TestAnalysisResult:
     def test_critical_conflicts_property(self) -> None:
         """Test critical_conflicts property."""
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version="2.0.0",
             mod_directory="/mods",
             analysis_duration_seconds=10.5,

@@ -1,7 +1,7 @@
 """Scanner for Sims 4 save files to extract CC references."""
 
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from simanalysis.exceptions import SimanalysisError
 from simanalysis.parsers.dbpf import DBPFReader
@@ -58,13 +58,13 @@ class SaveScanner:
 
     # Resource type IDs for different categories
     # These are common Sims 4 resource types
-    CAS_TYPES = {
+    CAS_TYPES: ClassVar[set[int]] = {
         0x034AEECB,  # CAS Part (clothing, hair, etc.)
         0x0355E0A6,  # Skin tone
         0x0354796A,  # Makeup
     }
 
-    BUILD_BUY_TYPES = {
+    BUILD_BUY_TYPES: ClassVar[set[int]] = {
         0x515CA4CD,  # Object catalog
         0x319E4F1D,  # Object definition
         0xC0DB5AE7,  # Build/Buy catalog
@@ -129,7 +129,7 @@ class SaveScanner:
             return save_data
 
         except Exception as e:
-            raise SimanalysisError(f"Failed to parse save file {save_path}: {e}")
+            raise SimanalysisError(f"Failed to parse save file {save_path}: {e}") from e
 
     def _extract_game_version(self, reader: DBPFReader) -> Optional[str]:
         """

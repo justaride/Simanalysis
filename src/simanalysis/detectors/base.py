@@ -1,7 +1,8 @@
 """Base classes and utilities for conflict detection."""
 
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import ClassVar
 
 from simanalysis.models import ConflictType, Mod, ModConflict, Severity
 
@@ -164,7 +165,7 @@ class ConflictDetector(ABC):
         Returns:
             List of detected conflicts
         """
-        self.last_run = datetime.now()
+        self.last_run = datetime.now(timezone.utc)
         conflicts = self.detect(mods)
         self.conflicts_found = len(conflicts)
         return conflicts
@@ -183,7 +184,7 @@ class SeverityRules:
     MEDIUM_THRESHOLD = 1  # 1+ mods = medium
 
     # Core resource types (always critical if conflicted)
-    CORE_TUNING_TYPES = {
+    CORE_TUNING_TYPES: ClassVar[set[str]] = {
         "Buff",
         "Trait",
         "Skill",
@@ -193,7 +194,7 @@ class SeverityRules:
     }
 
     # High-risk script patterns
-    HIGH_RISK_HOOKS = {
+    HIGH_RISK_HOOKS: ClassVar[set[str]] = {
         "inject_to",
         "wrap_function",
         "override",

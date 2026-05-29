@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from simanalysis.exceptions import DBPFError
 from simanalysis.parsers.dbpf import DBPFReader
@@ -14,7 +14,7 @@ class ThumbnailService:
     """Service for extracting thumbnails from Sims 4 package files."""
 
     # Resource Type IDs for thumbnails
-    THUMBNAIL_TYPES = [
+    THUMBNAIL_TYPES: ClassVar[list[int]] = [
         0x3C2A8647,  # Build/Buy Thumbnail
         0x3C1AF1F2,  # CAS Part Thumbnail
         0x5B282D45,  # Body Part Thumbnail

@@ -1,7 +1,7 @@
 """Interactive Terminal User Interface using Textual."""
 
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from textual import on, work
 from textual.app import App, ComposeResult
@@ -194,7 +194,7 @@ class RecommendationsPane(Static):
 class AnalysisScreen(Screen):
     """Main analysis results screen."""
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list] = [
         Binding("q", "quit", "Quit", priority=True),
         Binding("r", "refresh", "Refresh"),
         Binding("e", "export", "Export Report"),
@@ -274,7 +274,7 @@ class LoadingScreen(Screen):
 class ExportScreen(Screen):
     """Export report screen."""
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list] = [
         Binding("escape", "dismiss", "Cancel"),
     ]
 
@@ -332,7 +332,7 @@ class ExportScreen(Screen):
 class FilterScreen(Screen):
     """Filter conflicts screen."""
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list] = [
         Binding("escape", "dismiss", "Cancel"),
     ]
 
@@ -370,7 +370,7 @@ class FilterScreen(Screen):
 class HelpScreen(Screen):
     """Help screen."""
 
-    BINDINGS = [
+    BINDINGS: ClassVar[list] = [
         Binding("escape", "dismiss", "Close"),
     ]
 
@@ -470,7 +470,7 @@ class SimanalysisApp(App):
     """
 
     TITLE = "🔬 Simanalysis - Interactive Mod Analyzer"
-    BINDINGS = [
+    BINDINGS: ClassVar[list] = [
         Binding("q", "quit", "Quit", key_display="Q"),
         Binding("?", "help", "Help", key_display="?"),
     ]

@@ -5,6 +5,7 @@ such as textures, meshes, audio files, or string tables.
 """
 
 from collections import defaultdict
+from typing import ClassVar
 
 from simanalysis.detectors.base import (
     ConflictDetector,
@@ -30,7 +31,7 @@ class ResourceConflictDetector(ConflictDetector):
     """
 
     # Critical resource types that affect gameplay
-    CRITICAL_RESOURCE_TYPES = {
+    CRITICAL_RESOURCE_TYPES: ClassVar[set[int]] = {
         0x545503B2,  # SimData (core game data)
         0x0333406C,  # OBJD (object definitions)
         0x034AEECB,  # OBJK (object keys)

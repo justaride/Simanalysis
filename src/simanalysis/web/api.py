@@ -5,7 +5,8 @@ import contextlib
 import logging
 import os
 import shutil
-from datetime import datetime
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 # ... existing imports ...
@@ -59,7 +60,7 @@ async def get_mod_thumbnail(path: str = Query(..., description="Absolute path to
     except Exception as e:
         # Log error but return 404 to avoid breaking UI
         print(f"Error serving thumbnail for {path}: {e}")
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e)) from e
 
 
 # ... existing endpoints ...
@@ -107,7 +108,7 @@ async def delete_mod_file(path: str = Query(..., description="Absolute path to t
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(log_path, "a") as log_file:
-            timestamp = datetime.now().isoformat()
+            timestamp = datetime.now(timezone.utc).isoformat()
             log_file.write(f"{timestamp} | DELETED | {file_path}\n")
 
         # Try to move to trash instead of permanent deletion
@@ -119,7 +120,7 @@ async def delete_mod_file(path: str = Query(..., description="Absolute path to t
                 trash_path = (
                     Path.home()
                     / ".Trash"
-                    / f"{file_path.stem}_{int(datetime.now().timestamp())}{file_path.suffix}"
+                    / f"{file_path.stem}_{int(datetime.now(timezone.utc).timestamp())}{file_path.suffix}"
                 )
             shutil.move(str(file_path), str(trash_path))
             return {
@@ -136,7 +137,7 @@ async def delete_mod_file(path: str = Query(..., description="Absolute path to t
         raise
     except Exception as e:
         logging.error(f"Error deleting file {path}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/conflicts/{conflict_id}")
@@ -465,18 +466,14 @@ async def scan_directory(request: ScanRequest):
             "recommendations": analyzer.get_recommendations(result),
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.get("/api/system/browse")
 async def browse_system(path: str = Query(None, description="Path to browse")):
     """Browse system files and directories."""
     try:
-        if not path:
-            # Default to home directory
-            current_path = Path.home()
-        else:
-            current_path = Path(path).expanduser().resolve()
+        current_path = Path.home() if not path else Path(path).expanduser().resolve()
 
         if not current_path.exists():
             raise HTTPException(status_code=404, detail="Path not found")
@@ -513,8 +510,8 @@ async def browse_system(path: str = Query(None, description="Path to browse")):
                         )
                     except PermissionError:
                         continue
-            except PermissionError:
-                raise HTTPException(status_code=403, detail="Permission denied")
+            except PermissionError as exc:
+                raise HTTPException(status_code=403, detail="Permission denied") from exc
 
         # Sort: Directories first, then files, alphabetically
         items.sort(key=lambda x: (x["type"] != "directory", x["name"].lower()))
@@ -522,11 +519,10 @@ async def browse_system(path: str = Query(None, description="Path to browse")):
         return {"current_path": str(current_path), "items": items}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 # Mount static files (must be last)
-import sys
 
 
 def get_web_dist_path():

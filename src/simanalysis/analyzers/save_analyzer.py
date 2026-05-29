@@ -2,7 +2,7 @@
 
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -35,7 +35,7 @@ class SaveAnalysisResult:
         self.save_data = save_data
         self.mods_directory = mods_directory
         self.scan_duration = scan_duration
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(timezone.utc)
         self.version = __version__
 
         # Analysis results

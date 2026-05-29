@@ -1,9 +1,11 @@
 """Service for checking application updates."""
 
 import logging
+import ssl
 from typing import Any, Optional
 
 import aiohttp
+import certifi
 
 from simanalysis import __version__
 

@@ -89,14 +89,14 @@ class ModScanner:
         total_files = len(files)
 
         # Batch processing configuration
-        BATCH_SIZE = 50
+        batch_size = 50
 
         import time
 
         # Scan each file
         for i, file_path in enumerate(files, 1):
             # Yield to other threads every batch
-            if i % BATCH_SIZE == 0:
+            if i % batch_size == 0:
                 time.sleep(0.01)
 
             if progress_callback:

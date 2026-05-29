@@ -1,7 +1,7 @@
 """Complete mod analysis pipeline integrating scanning and conflict detection."""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -109,7 +109,7 @@ class ModAnalyzer:
 
         # Create metadata
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version=__version__,
             mod_directory=str(directory),
             analysis_duration_seconds=time.time() - start_time,
@@ -146,7 +146,7 @@ class ModAnalyzer:
         recommendations = self.get_recommendations_list(mods, conflicts)
 
         metadata = AnalysisMetadata(
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             version=__version__,
             mod_directory="pre-scanned",
             analysis_duration_seconds=time.time() - start_time,

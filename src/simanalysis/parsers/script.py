@@ -12,7 +12,7 @@ This module provides tools to analyze these scripts for:
 import ast
 import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import ClassVar, Optional
 
 from simanalysis.exceptions import ScriptError
 from simanalysis.models import ScriptMetadata, ScriptModule
@@ -40,7 +40,7 @@ class ScriptAnalyzer:
     """
 
     # Common game hook patterns in Sims 4 mods
-    HOOK_PATTERNS = [
+    HOOK_PATTERNS: ClassVar[list[str]] = [
         "inject_to",
         "wrap_function",
         "override",

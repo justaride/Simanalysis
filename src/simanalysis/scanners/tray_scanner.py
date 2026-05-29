@@ -1,6 +1,7 @@
 """Scanner for discovering Sims 4 tray files (Households, Lots, Rooms)."""
 
 import struct
+from collections.abc import Callable
 from pathlib import Path
 from typing import Optional
 
@@ -53,7 +54,7 @@ class TrayScanner:
         self,
         directory: Path,
         recursive: bool = False,  # Tray folder is usually flat
-        progress_callback: Optional["Callable[[int, int, str], None]"] = None,
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> list[TrayItem]:
         """
         Scan directory for tray items.
@@ -117,7 +118,7 @@ class TrayScanner:
             )
 
         except Exception as e:
-            raise SimanalysisError(f"Failed to parse tray item {tray_file}: {e}")
+            raise SimanalysisError(f"Failed to parse tray item {tray_file}: {e}") from e
 
     def _extract_name(self, content: bytes, fallback: str) -> str:
         """
@@ -203,12 +204,9 @@ class TrayScanner:
                 type_code = struct.unpack("<I", content[0:4])[0]
 
                 # Common type codes (may need adjustment)
-                if type_code == 0x00000001:
-                    return "Household"
-                elif type_code == 0x00000002:
-                    return "Lot"
-                elif type_code == 0x00000003:
-                    return "Room"
+                type_code_names = {0x00000001: "Household", 0x00000002: "Lot", 0x00000003: "Room"}
+                if type_code in type_code_names:
+                    return type_code_names[type_code]
             except struct.error:
                 pass  # Invalid binary data format
 

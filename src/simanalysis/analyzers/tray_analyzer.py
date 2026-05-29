@@ -1,7 +1,7 @@
 """Analyzer for Sims 4 Tray items."""
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -21,7 +21,7 @@ class TrayAnalysisResult:
         self.items = items
         self.scan_duration = scan_duration
         self.directory = directory
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(timezone.utc)
         self.version = __version__
 
 
