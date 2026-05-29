@@ -45,6 +45,11 @@ class MeshAnalyzer:
 
         # Pass 1: Indexing
         for mod in mods:
+            # Meshes only live in DBPF .package files; skip scripts (.ts4script are
+            # ZIP archives) and other non-package mods to avoid guaranteed parse
+            # failures (and the resulting log noise).
+            if mod.path.suffix.lower() != ".package":
+                continue
             try:
                 reader = DBPFReader(mod.path)
 

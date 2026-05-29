@@ -139,7 +139,15 @@ class DBPFReader:
 
     def read_index(self) -> list[DBPFResource]:
         """
-        Read and parse the resource index table.
+        Read and parse the resource index table (Sims 4 DBPF v2 layout).
+
+        The Sims 4 index begins with a 32-bit ``mnIndexType`` flags word. Bits
+        0/1/2 mark the Type / Group / InstanceHi fields as *constant*: when set,
+        that field is stored once (immediately after the flags word) instead of
+        in every entry, so the per-entry size shrinks by 4 bytes per constant
+        field (a full entry is 32 bytes; 28 with one constant, etc.). A flat
+        fixed-32-byte parse ignores the flags word and over-reads the table on
+        real packages, which is why most CC files failed to parse.
 
         Returns:
             List of DBPFResource entries
@@ -157,60 +165,79 @@ class DBPFReader:
             # Read entire index table
             index_data = f.read(self._header.index_size)
 
-            if len(index_data) < self._header.index_size:
-                raise DBPFError(
-                    f"Could not read complete index table: "
-                    f"expected {self._header.index_size} bytes, "
-                    f"got {len(index_data)}"
-                )
+        if len(index_data) < self._header.index_size:
+            raise DBPFError(
+                f"Could not read complete index table: "
+                f"expected {self._header.index_size} bytes, "
+                f"got {len(index_data)}"
+            )
+        if len(index_data) < 4:
+            raise DBPFError("Index table too small to contain the index flags word")
 
-            resources = []
-            offset = 0
+        zlib_compression = 0x5A42  # value of the per-entry "compressed" field for zlib
 
-            for i in range(self._header.index_count):
-                if offset + self.INDEX_ENTRY_SIZE > len(index_data):
-                    raise DBPFError(
-                        f"Index entry {i} extends beyond index table "
-                        f"(offset {offset} + {self.INDEX_ENTRY_SIZE} > {len(index_data)})"
-                    )
+        pos = 0
 
-                entry_data = index_data[offset : offset + self.INDEX_ENTRY_SIZE]
+        def _u32() -> int:
+            nonlocal pos
+            value: int = struct.unpack_from("<I", index_data, pos)[0]
+            pos += 4
+            return value
 
-                try:
-                    # Parse index entry
-                    # Format: I = type (4 bytes)
-                    #         I = group (4 bytes)
-                    #         Q = instance (8 bytes)
-                    #         I = offset (4 bytes)
-                    #         I = size (4 bytes)
-                    #         I = compressed_size (4 bytes)
-                    #         I = flags (4 bytes, skip)
+        def _u16() -> int:
+            nonlocal pos
+            value: int = struct.unpack_from("<H", index_data, pos)[0]
+            pos += 2
+            return value
 
-                    res_type = struct.unpack("<I", entry_data[0:4])[0]
-                    res_group = struct.unpack("<I", entry_data[4:8])[0]
-                    res_instance = struct.unpack("<Q", entry_data[8:16])[0]
-                    res_offset = struct.unpack("<I", entry_data[16:20])[0]
-                    res_size = struct.unpack("<I", entry_data[20:24])[0]
-                    res_compressed_size = struct.unpack("<I", entry_data[24:28])[0]
+        index_type = _u32()
+        if index_type & ~0x7:
+            # Only the low three bits (Type/Group/InstanceHi constant) are defined
+            # for Sims 4 packages; anything else is a layout we don't model.
+            raise DBPFError(f"Unsupported index flags: {index_type:#010x}")
 
-                    resource = DBPFResource(
+        # Constant fields are stored once, right after the flags word.
+        const_type = _u32() if index_type & 0x1 else None
+        const_group = _u32() if index_type & 0x2 else None
+        const_instance_hi = _u32() if index_type & 0x4 else None
+
+        resources: list[DBPFResource] = []
+        try:
+            for _ in range(self._header.index_count):
+                res_type = const_type if const_type is not None else _u32()
+                res_group = const_group if const_group is not None else _u32()
+                instance_hi = const_instance_hi if const_instance_hi is not None else _u32()
+                instance_lo = _u32()
+                chunk_offset = _u32()
+                file_size = _u32() & 0x7FFFFFFF  # high bit is a flag, not part of the size
+                mem_size = _u32()
+                compression = _u16()
+                _u16()  # committed flag (unused)
+
+                resources.append(
+                    DBPFResource(
                         type=res_type,
                         group=res_group,
-                        instance=res_instance,
-                        offset=res_offset,
-                        size=res_size,
-                        compressed_size=res_compressed_size,
+                        instance=(instance_hi << 32) | instance_lo,
+                        offset=chunk_offset,
+                        size=mem_size,
+                        # Record the on-disk size only when zlib-compressed, so that
+                        # DBPFResource.is_compressed and get_resource() do the right thing.
+                        compressed_size=file_size if compression == zlib_compression else 0,
                     )
+                )
+        except struct.error as e:
+            raise DBPFError(f"Failed to parse index entry {len(resources)}: {e}") from e
 
-                    resources.append(resource)
+        if pos != len(index_data):
+            raise DBPFError(
+                f"Index parse consumed {pos} of {len(index_data)} bytes "
+                f"(index_count={self._header.index_count}, flags={index_type:#x}); "
+                "unexpected index layout"
+            )
 
-                except struct.error as e:
-                    raise DBPFError(f"Failed to parse index entry {i}: {e}") from e
-
-                offset += self.INDEX_ENTRY_SIZE
-
-            self._resources = resources
-            return resources
+        self._resources = resources
+        return resources
 
     def get_resource(self, resource: DBPFResource) -> bytes:
         """

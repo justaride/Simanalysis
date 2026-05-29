@@ -104,42 +104,29 @@ class TestDBPFPerformance:
                 resource_data_size += len(data)
 
         index_offset = 96 + resource_data_size
-        index_size = resource_count * 32
+        index_size = 4 + resource_count * 32  # mnIndexType flags word + 32-byte entries
 
         header[44:48] = struct.pack("<I", index_size)  # Index size at offset 44
         header[64:68] = struct.pack("<I", index_offset)  # Index offset at offset 64
 
-        # Create index entries
-        index = bytearray(index_size)
+        # Real Sims 4 DBPF v2 index: mnIndexType flags word (0 = no constant
+        # fields) followed by full 32-byte entries.
+        index = bytearray()
+        index += struct.pack("<I", 0)  # mnIndexType
 
         for i in range(resource_count):
-            offset = i * 32
             original_data, stored_data, is_compressed = resources_data[i]
-
-            # Type ID (vary types)
+            instance = 0x1000000000000000 + i
             type_id = 0x545503B2 if i % 3 == 0 else 0x0333406C
-            index[offset : offset + 4] = struct.pack("<I", type_id)
-
-            # Group ID
-            index[offset + 4 : offset + 8] = struct.pack("<I", 0x00000000)
-
-            # Instance ID (unique)
-            index[offset + 8 : offset + 16] = struct.pack("<Q", 0x1000000000000000 + i)
-
-            # Resource offset
-            index[offset + 16 : offset + 20] = struct.pack("<I", resource_offsets[i])
-
-            # Uncompressed size
-            index[offset + 20 : offset + 24] = struct.pack("<I", len(original_data))
-
-            # Compressed size
-            if is_compressed:
-                index[offset + 24 : offset + 28] = struct.pack("<I", len(stored_data))
-            else:
-                index[offset + 24 : offset + 28] = struct.pack("<I", 0)
-
-            # Flags
-            index[offset + 28 : offset + 32] = struct.pack("<I", 0)
+            index += struct.pack("<I", type_id)  # type
+            index += struct.pack("<I", 0x00000000)  # group
+            index += struct.pack("<I", instance >> 32)  # instance high
+            index += struct.pack("<I", instance & 0xFFFFFFFF)  # instance low
+            index += struct.pack("<I", resource_offsets[i])  # chunk offset
+            index += struct.pack("<I", len(stored_data))  # file size (on disk)
+            index += struct.pack("<I", len(original_data))  # mem size (uncompressed)
+            index += struct.pack("<H", 0x5A42 if is_compressed else 0x0000)  # compressed
+            index += struct.pack("<H", 1)  # committed
 
         # Write complete package
         with open(output_path, "wb") as f:
@@ -442,21 +429,24 @@ class TestDBPFScalability:
         # Small resources for faster creation
         resource_size = 100
         index_offset = 96 + (count * resource_size)
-        index_size = count * 32
+        index_size = 4 + count * 32  # mnIndexType flags word + 32-byte entries
 
         header[44:48] = struct.pack("<I", index_size)  # Index size at offset 44
         header[64:68] = struct.pack("<I", index_offset)  # Index offset at offset 64
 
-        # Index
-        index = bytearray(index_size)
+        # Index: mnIndexType flags word (0 = no constant fields) + full 32-byte v2 entries
+        index = bytearray()
+        index += struct.pack("<I", 0)  # mnIndexType
         for i in range(count):
-            offset = i * 32
-            index[offset : offset + 4] = struct.pack("<I", 0x545503B2)
-            index[offset + 4 : offset + 8] = struct.pack("<I", 0)
-            index[offset + 8 : offset + 16] = struct.pack("<Q", i)
-            index[offset + 16 : offset + 20] = struct.pack("<I", 96 + i * resource_size)
-            index[offset + 20 : offset + 24] = struct.pack("<I", resource_size)
-            index[offset + 24 : offset + 28] = struct.pack("<I", 0)
+            index += struct.pack("<I", 0x545503B2)  # type
+            index += struct.pack("<I", 0)  # group
+            index += struct.pack("<I", 0)  # instance high
+            index += struct.pack("<I", i)  # instance low
+            index += struct.pack("<I", 96 + i * resource_size)  # chunk offset
+            index += struct.pack("<I", resource_size)  # file size (on disk)
+            index += struct.pack("<I", resource_size)  # mem size
+            index += struct.pack("<H", 0x0000)  # compressed: none
+            index += struct.pack("<H", 1)  # committed
 
         # Write file
         with open(package, "wb") as f:

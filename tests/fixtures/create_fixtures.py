@@ -25,48 +25,51 @@ def create_package_file(
         resource_count: Number of resources to include
         name: Name/description for the resource
     """
-    # DBPF Header (96 bytes)
+    # DBPF header (96 bytes). The parser reads index_count@36, index_size@44 and
+    # index_offset@40 (falling back to @64). The index sits right after the
+    # header; resource data follows the index.
+    index_size = 4 + 32 * resource_count  # mnIndexType flags word + 32-byte v2 entries
+    index_offset = 96
+    data_offset = index_offset + index_size
+
     header = bytearray(96)
     header[0:4] = b"DBPF"  # Magic number
     header[4:8] = struct.pack("<I", 2)  # Major version
     header[8:12] = struct.pack("<I", 1)  # Minor version
-    header[40:44] = struct.pack("<I", resource_count)  # Index entry count
-    header[44:48] = struct.pack("<I", 96)  # Index offset
-    header[48:52] = struct.pack("<I", 32 * resource_count)  # Index size
+    header[36:40] = struct.pack("<I", resource_count)  # Index entry count
+    header[44:48] = struct.pack("<I", index_size)  # Index size
+    header[64:68] = struct.pack("<I", index_offset)  # Index offset
 
-    # Create resources
-    resources = []
-    current_offset = 96 + (32 * resource_count)
+    # Real Sims 4 DBPF v2 index: mnIndexType flags word (0 = no constant fields)
+    # followed by full 32-byte entries:
+    #   type(4) group(4) instanceHi(4) instanceLo(4) chunkOffset(4)
+    #   fileSize(4) memSize(4) compressed(2) committed(2)
+    index = bytearray()
+    index += struct.pack("<I", 0)  # mnIndexType
 
+    blobs = []
+    current_offset = data_offset
     for i in range(resource_count):
         resource_data = f"{name} {i}".encode()
         compressed_data = zlib.compress(resource_data)
-
-        # Index entry (32 bytes each)
-        index_entry = struct.pack(
-            "<IIQIII",
-            0x545503B2,  # Type ID (XML tuning)
-            0x00000000,  # Group ID
-            tuning_id + i,  # Instance ID
-            current_offset,  # File offset
-            len(compressed_data),  # Compressed size
-            len(resource_data),  # Decompressed size
-        )
-
-        resources.append((index_entry, compressed_data))
+        instance = tuning_id + i
+        index += struct.pack("<I", 0x545503B2)  # type (XML tuning)
+        index += struct.pack("<I", 0x00000000)  # group
+        index += struct.pack("<I", instance >> 32)  # instance high
+        index += struct.pack("<I", instance & 0xFFFFFFFF)  # instance low
+        index += struct.pack("<I", current_offset)  # chunk offset
+        index += struct.pack("<I", len(compressed_data))  # file size (compressed, on disk)
+        index += struct.pack("<I", len(resource_data))  # mem size (uncompressed)
+        index += struct.pack("<H", 0x5A42)  # compressed: zlib
+        index += struct.pack("<H", 1)  # committed
+        blobs.append(compressed_data)
         current_offset += len(compressed_data)
 
-    # Write file
+    # Write file: header, then index, then resource data
     with open(output_path, "wb") as f:
-        # Write header
         f.write(header)
-
-        # Write index entries
-        for index_entry, _ in resources:
-            f.write(index_entry)
-
-        # Write resource data
-        for _, compressed_data in resources:
+        f.write(index)
+        for compressed_data in blobs:
             f.write(compressed_data)
 
     print(f"Created: {output_path.name} (tuning ID: 0x{tuning_id:08X})")
