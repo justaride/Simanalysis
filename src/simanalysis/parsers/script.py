@@ -173,7 +173,7 @@ class ScriptAnalyzer:
                         line = line.strip()
                         if line and not line.startswith("#"):
                             requires.append(line)
-                except Exception:
+                except Exception:  # nosec B110 - intentionally skip malformed requirements.txt
                     pass
 
         return requires
@@ -198,7 +198,7 @@ class ScriptAnalyzer:
                         try:
                             module = self.analyze_module(filename)
                             modules.append(module)
-                        except Exception:
+                        except Exception:  # nosec B112 - skip unanalyzable/corrupt modules
                             # Skip modules that can't be analyzed
                             # (They might be bytecode-only or corrupted)
                             continue

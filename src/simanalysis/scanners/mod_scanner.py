@@ -254,7 +254,7 @@ class ModScanner:
                                 if "sims4communitylib" in imp.lower():
                                     requires.append("Sims4CommunityLibrary")
 
-                    except Exception:
+                    except Exception:  # nosec B110 - skip modules that fail to parse
                         # Skip modules that fail to parse
                         pass
 
@@ -315,7 +315,7 @@ class ModScanner:
                     tuning = parser.parse(data)
                     tunings.append(tuning)
 
-                except Exception:
+                except Exception:  # nosec B110 - skip resources that fail to parse
                     # Skip resources that fail to parse
                     pass
 
