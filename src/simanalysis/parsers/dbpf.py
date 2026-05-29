@@ -6,10 +6,11 @@ This module provides tools to read and extract resources from these files.
 Format specification: https://simswiki.info/DatabasePackedFile
 """
 
+from __future__ import annotations
+
 import struct
 import zlib
 from pathlib import Path
-from typing import Optional
 
 from simanalysis.exceptions import DBPFError
 from simanalysis.models import DBPFHeader, DBPFResource
@@ -56,8 +57,8 @@ class DBPFReader:
         if not self.path.is_file():
             raise DBPFError(f"Path is not a file: {self.path}")
 
-        self._header: Optional[DBPFHeader] = None
-        self._resources: Optional[list[DBPFResource]] = None
+        self._header: DBPFHeader | None = None
+        self._resources: list[DBPFResource] | None = None
 
     def read_header(self) -> DBPFHeader:
         """

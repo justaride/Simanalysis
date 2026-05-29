@@ -9,10 +9,12 @@ This module provides tools to analyze these scripts for:
 - Code complexity
 """
 
+from __future__ import annotations
+
 import ast
 import zipfile
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from simanalysis.exceptions import ScriptError
 from simanalysis.models import ScriptMetadata, ScriptModule
@@ -74,8 +76,8 @@ class ScriptAnalyzer:
         if not zipfile.is_zipfile(self.path):
             raise ScriptError(f"File is not a valid ZIP archive: {self.path}")
 
-        self._metadata: Optional[ScriptMetadata] = None
-        self._modules: Optional[list[ScriptModule]] = None
+        self._metadata: ScriptMetadata | None = None
+        self._modules: list[ScriptModule] | None = None
 
     def extract_metadata(self) -> ScriptMetadata:
         """
