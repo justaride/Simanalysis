@@ -13,16 +13,20 @@ from simanalysis.models import (
 )
 from simanalysis.parsers.script import ScriptAnalyzer
 
-# Base-game path roots (lowercased, '/'-separated) — never a mod.
-GAME_PREFIXES = ("core/sims4", "core/", "server/", "gamedata", "widgets", "olympus", "sims4/")
+# Leading path segments that mark a base-game module (never a mod).
+GAME_ROOTS = ("core", "server", "gamedata", "widgets", "olympus", "sims4")
 # Mods that hook broadly and appear in most stacks; not the per-crash culprit.
 CURATED_FRAMEWORKS = ("betterexceptions", "xmlinjector", "xml injector")
-# A mod implicated in >= this fraction of attributable crashes is treated as a framework.
+# A mod implicated in MORE THAN this fraction of all crash reports is treated as a
+# broadly-hooking framework and down-weighted as a per-crash culprit (tunable; see Task 7).
 FRAMEWORK_CRASH_FRACTION = 0.5
 
 
 def _norm(p: str) -> str:
-    return p.replace("\\", "/").lstrip("./").lstrip("/").lower()
+    s = p.replace("\\", "/")
+    if s.startswith("./"):
+        s = s[2:]  # drop a leading './' (NOT lstrip, which strips '.'/'/' chars, mangling dot-dirs)
+    return s.lstrip("/").lower()
 
 
 class CrashAnalyzer:
@@ -42,14 +46,16 @@ class CrashAnalyzer:
 
     def classify_frame(self, frame: TracebackFrame, index: dict[str, str]) -> None:
         norm = _norm(frame.raw_path)
-        if any(norm.startswith(g) or f"/{g}" in norm for g in GAME_PREFIXES):
-            frame.kind = "game"
-            return
+        # 1. Explicit in-archive path (…/<name>.ts4script/<module>) — the strongest signal.
         if ".ts4script/" in norm:
+            head, tail = norm.split(".ts4script/", 1)
             frame.kind = "mod"
-            frame.module_path = norm
-            frame.mod_name = norm.split(".ts4script/")[0].split("/")[-1] + ".ts4script"
+            frame.module_path = tail
+            frame.mod_name = head.split("/")[-1] + ".ts4script"
             return
+        # 2. Known installed mod: frame path ends with an indexed module path (longest wins).
+        #    Checked BEFORE the game heuristic so an installed mod whose own package mirrors
+        #    the game tree (e.g. '.../server/...') is never shadowed as base-game.
         best: str | None = None
         for key in index:
             if (norm == key or norm.endswith("/" + key)) and (best is None or len(key) > len(best)):
@@ -58,6 +64,11 @@ class CrashAnalyzer:
             frame.kind = "mod"
             frame.module_path = best
             frame.mod_name = index[best]
+            return
+        # 3. Base-game module: a known game root as the LEADING path segment (anchored, so a
+        #    '/server/' deeper in a mod's own path no longer false-matches as base-game).
+        if norm.split("/", 1)[0] in GAME_ROOTS:
+            frame.kind = "game"
             return
         frame.kind = "unknown"
 
@@ -124,7 +135,7 @@ class CrashAnalyzer:
                 top_counts[suspects[0].mod_name] = top_counts.get(suspects[0].mod_name, 0) + 1
             findings.append(CrashFinding(report=r, suspects=suspects))
 
-        ranked = sorted(
+        ranked: list[dict] = sorted(
             [
                 {
                     "mod": m,
@@ -133,8 +144,7 @@ class CrashAnalyzer:
                 }
                 for m in top_counts
             ],
-            key=lambda d: (d["top_suspect_count"], d["crash_count"]),
-            reverse=True,
+            key=lambda d: (-d["top_suspect_count"], -d["crash_count"], d["mod"]),
         )
         summary = {
             "reports": len(reports),

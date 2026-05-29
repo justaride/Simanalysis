@@ -416,3 +416,43 @@ def test_crash_command_sweeps_and_ranks(tmp_path):
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)
     assert data["ranked_mods"][0]["mod"] == "CoolMod.ts4script"
+
+
+def test_crash_command_tolerates_unparseable_log(tmp_path):
+    import json
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    (tmp_path / "lastException_bad.txt").write_text(
+        "<root><report><desyncdata>Traceback (most recent", encoding="utf-8"
+    )
+    result = CliRunner().invoke(cli, ["crash", str(tmp_path), "--format", "json"])
+    assert result.exit_code == 0, result.output  # malformed log must not abort the sweep
+    data = json.loads(result.output)
+    assert data["summary"]["reports"] == 0
+
+
+def test_crash_command_limit_truncates_txt(tmp_path):
+    import zipfile
+
+    from click.testing import CliRunner
+
+    from simanalysis.cli import cli
+
+    mods = tmp_path / "Mods"
+    mods.mkdir()
+    for i in range(3):
+        with zipfile.ZipFile(mods / f"Mod{i}.ts4script", "w") as zf:
+            zf.writestr(f"mod{i}/m.py", "x = 1\n")
+        (tmp_path / f"lastException_{i}.txt").write_text(
+            "<root><report><type>desync</type><desyncdata>boom (ValueError)&#13;&#10;"
+            "Traceback (most recent call last):&#13;&#10;"
+            f'File "F:\\p\\mod{i}\\m.py", line 7, in run&#13;&#10;'
+            "</desyncdata></report></root>",
+            encoding="utf-8",
+        )
+    result = CliRunner().invoke(cli, ["crash", str(tmp_path), "--limit", "2"])
+    assert result.exit_code == 0, result.output
+    assert result.output.count("top suspect in") == 2  # only 2 of 3 ranked mods shown
