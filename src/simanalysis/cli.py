@@ -489,7 +489,6 @@ def crash(
 ) -> None:
     """Autopsy lastException crash logs: rank the mods most likely behind your crashes."""
     import json
-    from pathlib import Path
 
     from simanalysis import serialization
     from simanalysis.analyzers.crash_analyzer import CrashAnalyzer

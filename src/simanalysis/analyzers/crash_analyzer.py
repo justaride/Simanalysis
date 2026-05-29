@@ -20,7 +20,8 @@ CURATED_FRAMEWORKS = ("betterexceptions", "xmlinjector", "xml injector")
 # A mod is treated as a broadly-hooking framework (and down-weighted as a per-crash
 # culprit) when it is implicated in MORE THAN FRAMEWORK_CRASH_FRACTION of all crash reports
 # AND is the deepest (culprit) frame in fewer than FRAMEWORK_DEEPEST_FRACTION of its crashes
-# — i.e. a frequent pass-through hook, not the thing actually crashing. (Tunable; see Task 7.)
+# — i.e. a frequent pass-through hook, not the thing actually crashing. (Both fractions are
+# configurable via the CrashAnalyzer constructor.)
 FRAMEWORK_CRASH_FRACTION = 0.5
 FRAMEWORK_DEEPEST_FRACTION = 0.3
 
