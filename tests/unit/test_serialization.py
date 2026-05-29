@@ -138,6 +138,7 @@ def test_crash_result_to_dict_shape():
     assert f0["suspects"][0] == {
         "mod": "ModA.ts4script",
         "confidence": "high",
+        "status": "active",
         "reason": "r",
         "evidence": ["x/moda/a.py"],
     }
