@@ -97,3 +97,27 @@ def test_save_result_to_dict_shape_and_unused_cap():
         "size": 0,
         "resource_count": 0,
     }
+
+
+def test_crash_result_to_dict_shape():
+    from simanalysis import serialization
+    from simanalysis.models import (
+        CrashAnalysisResult, CrashFinding, CrashReport, Suspect, TracebackFrame,
+    )
+
+    frame = TracebackFrame(raw_path="x/moda/a.py", line=7, func="run", kind="mod", mod_name="ModA.ts4script")
+    report = CrashReport(source_file="l.txt", report_type="desync", message="boom (ValueError)",
+                         frames=[frame], exception_class="ValueError")
+    finding = CrashFinding(report=report,
+                           suspects=[Suspect(mod_name="ModA.ts4script", confidence="high", reason="r", evidence=[frame])])
+    result = CrashAnalysisResult(
+        summary={"reports": 1}, ranked_mods=[{"mod": "ModA.ts4script", "top_suspect_count": 1, "crash_count": 1}],
+        findings=[finding],
+    )
+    out = serialization.crash_result_to_dict(result)
+    assert out["summary"] == {"reports": 1}
+    assert out["ranked_mods"][0]["mod"] == "ModA.ts4script"
+    f0 = out["findings"][0]
+    assert f0["exception_class"] == "ValueError"
+    assert f0["suspects"][0] == {"mod": "ModA.ts4script", "confidence": "high",
+                                 "reason": "r", "evidence": ["x/moda/a.py"]}

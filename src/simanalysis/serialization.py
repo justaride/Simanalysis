@@ -80,3 +80,33 @@ def save_result_to_dict(analyzer: Any, result: Any) -> dict[str, Any]:
             for mod in result.unused_mods[:100]
         ],
     }
+
+
+def crash_result_to_dict(result: Any) -> dict[str, Any]:
+    return {
+        "summary": result.summary,
+        "ranked_mods": result.ranked_mods,
+        "parse_errors": result.parse_errors,
+        "findings": [
+            {
+                "source_file": f.report.source_file,
+                "report_type": f.report.report_type,
+                "exception_class": f.report.exception_class,
+                "message": f.report.message,
+                "creator_tag": f.report.creator_tag,
+                "created": f.report.created,
+                "game_version": f.report.game_version,
+                "be_advice": f.report.be_advice,
+                "suspects": [
+                    {
+                        "mod": s.mod_name,
+                        "confidence": s.confidence,
+                        "reason": s.reason,
+                        "evidence": [fr.raw_path for fr in s.evidence],
+                    }
+                    for s in f.suspects
+                ],
+            }
+            for f in result.findings
+        ],
+    }
