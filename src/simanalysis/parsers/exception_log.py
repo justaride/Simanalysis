@@ -61,7 +61,8 @@ def parse_exception_file(path: str | Path) -> list[CrashReport]:
         report.signature = hashlib.sha1(
             (
                 str(report.exception_class) + report.message + "|".join(f.raw_path for f in frames)
-            ).encode("utf-8", "replace")
+            ).encode("utf-8", "replace"),
+            usedforsecurity=False,  # content fingerprint for dedupe, not a security control
         ).hexdigest()
 
         if report.signature in seen:

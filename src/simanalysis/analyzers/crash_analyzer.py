@@ -33,6 +33,15 @@ def _norm(p: str) -> str:
     return s.lstrip("/").lower()
 
 
+def _archive_names(path: Path) -> list[str]:
+    """Return a .ts4script's zip namelist, or [] if it can't be opened (corrupt/non-zip)."""
+    try:
+        with zipfile.ZipFile(path) as zf:
+            return zf.namelist()
+    except (zipfile.BadZipFile, OSError):
+        return []
+
+
 class CrashAnalyzer:
     def __init__(
         self,
@@ -50,12 +59,7 @@ class CrashAnalyzer:
         """
         index: dict[str, str] = {}
         for ts4 in Path(mods_dir).rglob("*.ts4script"):
-            try:
-                with zipfile.ZipFile(ts4) as zf:
-                    names = zf.namelist()
-            except Exception:
-                continue  # corrupt/non-zip archive — skip
-            for name in names:
+            for name in _archive_names(ts4):
                 if name.endswith(".pyc"):
                     index[_norm(name[:-1])] = ts4.name  # 'module.pyc' -> 'module.py'
                 elif name.endswith(".py"):
