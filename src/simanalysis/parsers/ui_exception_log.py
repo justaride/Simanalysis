@@ -62,6 +62,8 @@ def parse_ui_exception_file(path: str | Path) -> list[UIExceptionReport]:
     reports: list[UIExceptionReport] = []
     for block in _REPORT_RE.findall(text):
         data = _tag(block, "desyncdata") or ""
+        if not data.strip():
+            continue
         lines = [ln.strip() for ln in data.splitlines() if ln.strip()]
         message = lines[0] if lines else ""
         stack = [frame for line in lines if (frame := _parse_stack_line(line)) is not None]

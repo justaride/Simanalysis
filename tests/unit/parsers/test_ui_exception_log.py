@@ -66,3 +66,10 @@ def test_parse_ui_exception_file_malformed_returns_empty(tmp_path: Path) -> None
     log.write_text("<root><report><desyncdata>Error", encoding="utf-8")
 
     assert parse_ui_exception_file(log) == []
+
+
+def test_parse_ui_exception_file_skips_empty_closed_report(tmp_path: Path) -> None:
+    log = tmp_path / "lastUIException_empty.txt"
+    log.write_text("<root><report><type>desync</type></report></root>", encoding="utf-8")
+
+    assert parse_ui_exception_file(log) == []
