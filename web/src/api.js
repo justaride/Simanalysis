@@ -45,6 +45,8 @@ export const api = {
     runAnalysis('scan-tray', path, {}, callbacks),
   analyzeSave: (savePath, modsPath, callbacks) =>
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
+  scanDoctor: (sims4Path, modsPath, callbacks) =>
+    runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
 };
 
 export default api;

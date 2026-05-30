@@ -30,6 +30,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 
+    p_doctor = sub.add_parser("doctor-scan")
+    p_doctor.add_argument("path")
+    p_doctor.add_argument("--mods", default=None)
+    p_doctor.add_argument("--recursive", action="store_true")
+
     return parser
 
 

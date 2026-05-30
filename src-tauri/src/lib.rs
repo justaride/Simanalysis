@@ -58,6 +58,17 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push(path.into());
             args.push(mods.into());
         }
+        "doctor-scan" => {
+            args.push("doctor-scan".into());
+            args.push(path.into());
+            if let Some(mods) = opts.mods_path.as_deref() {
+                args.push("--mods".into());
+                args.push(mods.into());
+            }
+            if opts.recursive {
+                args.push("--recursive".into());
+            }
+        }
         other => return Err(format!("unknown analysis kind: {other}")),
     }
     Ok(args)
@@ -72,6 +83,13 @@ fn drain_complete_lines(buf: &mut Vec<u8>) -> Vec<Vec<u8>> {
     out
 }
 
+fn is_terminal_bridge_event(value: &Value) -> bool {
+    matches!(
+        value.get("type").and_then(|t| t.as_str()),
+        Some("result" | "error")
+    )
+}
+
 fn forward_line(on_event: &Channel<Value>, line: &[u8]) -> bool {
     let text = match std::str::from_utf8(line) {
         Ok(t) => t.trim(),
@@ -82,9 +100,9 @@ fn forward_line(on_event: &Channel<Value>, line: &[u8]) -> bool {
     }
     match serde_json::from_str::<Value>(text) {
         Ok(value) => {
-            let is_result = value.get("type").and_then(|t| t.as_str()) == Some("result");
+            let is_terminal = is_terminal_bridge_event(&value);
             let _ = on_event.send(value);
-            is_result
+            is_terminal
         }
         Err(e) => {
             eprintln!("dropping non-JSON stdout line: {e}: {text}");
@@ -121,14 +139,14 @@ async fn start_analysis(
     let reader_app = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut buf: Vec<u8> = Vec::new();
-        let mut saw_result = false;
+        let mut saw_terminal_event = false;
         while let Some(event) = rx.recv().await {
             match event {
                 CommandEvent::Stdout(bytes) => {
                     buf.extend_from_slice(&bytes);
                     for line in drain_complete_lines(&mut buf) {
                         if forward_line(&on_event, &line) {
-                            saw_result = true;
+                            saw_terminal_event = true;
                         }
                     }
                 }
@@ -144,16 +162,17 @@ async fn start_analysis(
                     let _ = on_event.send(serde_json::json!({
                         "v": 1, "type": "error", "code": "IO_ERROR", "message": err
                     }));
+                    saw_terminal_event = true;
                 }
                 CommandEvent::Terminated(payload) => {
                     if !buf.is_empty() {
                         if forward_line(&on_event, &buf) {
-                            saw_result = true;
+                            saw_terminal_event = true;
                         }
                         buf.clear();
                     }
                     let code = payload.code.unwrap_or(-1);
-                    if code != 0 && !saw_result {
+                    if code != 0 && !saw_terminal_event {
                         let _ = on_event.send(serde_json::json!({
                             "v": 1, "type": "error", "code": "CRASHED",
                             "message": format!("analyzer exited with code {code}; see logs")
@@ -477,7 +496,8 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::drain_complete_lines;
+    use super::{build_args, drain_complete_lines, is_terminal_bridge_event, AnalysisOptions};
+    use serde_json::json;
 
     #[test]
     fn frames_lines_across_chunk_boundaries() {
@@ -497,5 +517,42 @@ mod tests {
         let mut buf = b"partial".to_vec();
         assert!(drain_complete_lines(&mut buf).is_empty());
         assert_eq!(buf, b"partial".to_vec());
+    }
+
+    #[test]
+    fn builds_doctor_scan_args_with_mods_path() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/Mods".into()),
+            recursive: true,
+            ..Default::default()
+        };
+        let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "doctor-scan",
+                "/Sims/The Sims 4",
+                "--mods",
+                "/Sims/Mods",
+                "--recursive",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_doctor_scan_args_without_recursive_flag_when_disabled() {
+        let opts = AnalysisOptions {
+            recursive: false,
+            ..Default::default()
+        };
+        let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn bridge_error_event_counts_as_terminal_output() {
+        assert!(is_terminal_bridge_event(&json!({"type": "error"})));
+        assert!(is_terminal_bridge_event(&json!({"type": "result"})));
+        assert!(!is_terminal_bridge_event(&json!({"type": "progress"})));
     }
 }

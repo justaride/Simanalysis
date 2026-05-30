@@ -308,38 +308,40 @@ class TestDBPFPerformance:
 
     @pytest.mark.benchmark
     def test_lazy_loading_overhead(self, benchmark_1mb_package: Path) -> None:
-        """Benchmark: Measure lazy loading overhead."""
+        """Benchmark: Lazy initialization stays cheap and defers header parsing."""
         iterations = 100
 
-        # Test with lazy loading
-        times_lazy = []
+        # DBPFReader construction should only validate the path. On fast CI
+        # runners these timings are sub-millisecond, so use absolute ceilings
+        # instead of a fragile ratio between two tiny measurements.
+        times_init = []
         for _ in range(iterations):
             start = time.perf_counter()
             reader = DBPFReader(benchmark_1mb_package)
-            # Access header property (triggers lazy load)
             elapsed = time.perf_counter() - start
-            times_lazy.append(elapsed)
+            times_init.append(elapsed)
 
-        # Test without lazy loading (direct call)
-        times_direct = []
+            assert reader._header is None
+
+        times_read_header = []
         for _ in range(iterations):
-            start = time.perf_counter()
             reader = DBPFReader(benchmark_1mb_package)
+            start = time.perf_counter()
             reader.read_header()
             elapsed = time.perf_counter() - start
-            times_direct.append(elapsed)
+            times_read_header.append(elapsed)
 
-        avg_lazy = sum(times_lazy) / len(times_lazy)
-        avg_direct = sum(times_direct) / len(times_direct)
-        overhead = avg_lazy - avg_direct
+            assert reader._header is not None
 
-        print(f"\nLazy Loading Overhead ({iterations} iterations):")
-        print(f"  Lazy loading:   {avg_lazy * 1000:.3f}ms")
-        print(f"  Direct call:    {avg_direct * 1000:.3f}ms")
-        print(f"  Overhead:       {overhead * 1000:.3f}ms ({overhead / avg_direct:.1%})")
+        avg_init = sum(times_init) / len(times_init)
+        avg_read_header = sum(times_read_header) / len(times_read_header)
 
-        # Overhead should be minimal (< 10% of direct time)
-        assert overhead < avg_direct * 0.1
+        print(f"\nLazy Loading ({iterations} iterations):")
+        print(f"  Initialize only: {avg_init * 1000:.3f}ms")
+        print(f"  Header read:     {avg_read_header * 1000:.3f}ms")
+
+        assert avg_init < 0.001
+        assert avg_read_header < 0.001
 
     @pytest.mark.benchmark
     def test_full_pipeline_performance(self, benchmark_10mb_package: Path) -> None:
