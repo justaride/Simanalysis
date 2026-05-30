@@ -1199,7 +1199,7 @@ git commit -m "feat: add ui-crash CLI report"
 **Files:**
 - Create: `docs/superpowers/2026-05-30-ui-crash-autopsy-validation.md`
 
-- [ ] **Step 1: Run UI Crash Autopsy on the real Sims folder**
+- [x] **Step 1: Run UI Crash Autopsy on the real Sims folder**
 
 Run:
 
@@ -1216,7 +1216,7 @@ Expected:
 - Output includes `0xD07CA9190DD098C6`.
 - Output includes `adeepindigo_base_generalpiemenus_v3-2.package`.
 
-- [ ] **Step 2: Verify JSON with a small Python assertion**
+- [x] **Step 2: Verify JSON with a small Python assertion**
 
 Run:
 
@@ -1245,7 +1245,7 @@ PY
 
 Expected: prints the JSON summary, `disabled`, and a package list including `adeepindigo_base_generalpiemenus_v3-2.package`.
 
-- [ ] **Step 3: Write validation note**
+- [x] **Step 3: Write validation note**
 
 Create `docs/superpowers/2026-05-30-ui-crash-autopsy-validation.md`:
 
@@ -1273,7 +1273,7 @@ The current UI exception points at a pie-menu category resource that is not acti
 
 If the real output differs because logs changed after the spec was written, update only the bullet values that are directly observed from the command output. Keep the interpretation evidence-only.
 
-- [ ] **Step 4: Commit validation note**
+- [x] **Step 4: Commit validation note**
 
 Run:
 
