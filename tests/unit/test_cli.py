@@ -663,6 +663,7 @@ def test_ui_crash_command_expands_tilde_mods_path(tmp_path, monkeypatch):
     _write_ui_dbpf_package(home_mods / "ActivePieMenu.package", target_key)
     _write_ui_exception_log(sims4 / "lastUIException_1.txt", target_key)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
 
     result = CliRunner().invoke(
         cli,
@@ -688,6 +689,7 @@ def test_ui_crash_command_expands_tilde_output_path(tmp_path, monkeypatch):
     sims4 = tmp_path / "Sims 4"
     (sims4 / "Mods").mkdir(parents=True)
     monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
 
     result = CliRunner().invoke(
         cli,
