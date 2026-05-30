@@ -257,3 +257,85 @@ def test_doctor_scan_rejects_missing_sims_dir(tmp_path):
     args = argparse.Namespace(path=str(tmp_path / "missing"), mods=None, recursive=False)
     with pytest.raises(ValueError, match="Invalid directory path"):
         commands.doctor_scan(args, Emitter(io.StringIO()))
+
+
+def test_doctor_scan_allows_missing_default_mods_dir(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    class FakeCrashAnalyzer:
+        def build_module_index(self, mods_dir, extra_roots=()):
+            assert mods_dir == sims4 / "Mods"
+            return {}
+
+        def analyze(self, reports, index):
+            return type(
+                "CrashResult",
+                (),
+                {
+                    "summary": {
+                        "reports": 0,
+                        "active_culprits": 0,
+                        "disabled_culprits": 0,
+                        "not_installed_culprits": 0,
+                        "base_game_only": 0,
+                    },
+                    "parse_errors": [],
+                },
+            )()
+
+    class FakeUICrashAnalyzer:
+        index_errors = []
+
+        def analyze(self, reports, index):
+            return type(
+                "UIResult",
+                (),
+                {
+                    "summary": {
+                        "unique_findings": 0,
+                        "occurrences": 0,
+                        "active_findings": 0,
+                        "disabled_findings": 0,
+                        "not_found_findings": 0,
+                        "no_key_findings": 0,
+                    },
+                    "parse_errors": [],
+                    "index_errors": [],
+                },
+            )()
+
+    monkeypatch.setattr(commands, "CrashAnalyzer", FakeCrashAnalyzer)
+    monkeypatch.setattr(commands, "UICrashAnalyzer", FakeUICrashAnalyzer)
+    monkeypatch.setattr(commands, "discover_disabled_roots", lambda base: [])
+    monkeypatch.setattr(
+        commands.serialization,
+        "crash_result_to_dict",
+        lambda result: {"summary": result.summary, "parse_errors": result.parse_errors},
+    )
+    monkeypatch.setattr(
+        commands.serialization,
+        "ui_result_to_dict",
+        lambda result: {
+            "summary": result.summary,
+            "parse_errors": result.parse_errors,
+            "index_errors": result.index_errors,
+        },
+    )
+
+    buf = io.StringIO()
+    commands.doctor_scan(
+        argparse.Namespace(path=str(sims4), mods=None, recursive=False),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events][-2:] == ["result", "done"]
+
+
+def test_doctor_scan_rejects_explicit_missing_mods_dir(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    args = argparse.Namespace(path=str(sims4), mods=str(tmp_path / "missing-mods"), recursive=False)
+    with pytest.raises(ValueError, match="Invalid directory path"):
+        commands.doctor_scan(args, Emitter(io.StringIO()))

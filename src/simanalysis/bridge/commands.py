@@ -101,9 +101,7 @@ def _doctor_summary(script_payload: dict, ui_payload: dict) -> dict[str, int]:
 
 def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
     base = _require_dir(args.path)
-    mods_dir = Path(args.mods).expanduser().resolve() if args.mods else base / "Mods"
-    if not mods_dir.exists() or not mods_dir.is_dir():
-        raise ValueError(f"Invalid directory path: {mods_dir}")
+    mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
 
     emit.start("doctor-scan", total=2)
 
