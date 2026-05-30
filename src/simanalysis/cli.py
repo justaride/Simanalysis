@@ -537,9 +537,7 @@ def _format_ui_txt(log_count: int, result: Any, limit: int = 20) -> str:
                 lines.append(f"  category: {finding.report.category_id}")
             lines.append(f"  occurrences: {finding.report.occurrences}")
             if finding.hits:
-                packages = ", ".join(
-                    dict.fromkeys(hit.package_name for hit in finding.hits)
-                )
+                packages = ", ".join(dict.fromkeys(hit.package_name for hit in finding.hits))
                 lines.append(f"  packages: {packages}")
             lines.append("")
 
