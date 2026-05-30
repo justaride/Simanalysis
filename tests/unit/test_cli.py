@@ -576,3 +576,169 @@ def test_crash_command_finds_nested_disabled_folder(tmp_path):
     top = data["ranked_mods"][0]
     assert top["mod"] == "NestedMod.ts4script"
     assert top["status"] == "disabled"  # discovered in a deeply-nested _Disabled_* folder
+
+
+def _write_ui_dbpf_package(path: Path, key: int, resource_type: int = 0x03E9D964) -> None:
+    payload = b"resource"
+    index = bytearray()
+    index += struct.pack("<I", 0)  # mnIndexType: no constants
+    index += struct.pack("<I", resource_type)
+    index += struct.pack("<I", 0)
+    index += struct.pack("<I", key >> 32)
+    index += struct.pack("<I", key & 0xFFFFFFFF)
+    index += struct.pack("<I", 96 + 4 + 32)
+    index += struct.pack("<I", len(payload))
+    index += struct.pack("<I", len(payload))
+    index += struct.pack("<H", 0)
+    index += struct.pack("<H", 1)
+
+    header = bytearray(96)
+    header[0:4] = b"DBPF"
+    header[4:8] = struct.pack("<I", 2)
+    header[8:12] = struct.pack("<I", 1)
+    header[36:40] = struct.pack("<I", 1)
+    header[44:48] = struct.pack("<I", len(index))
+    header[64:68] = struct.pack("<I", 96)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "wb") as f:
+        f.write(header)
+        f.write(index)
+        f.write(payload)
+
+
+def _write_ui_exception_log(path: Path, key: int) -> None:
+    path.write_text(
+        "<root><report><type>desync</type>"
+        "<categoryid>(AS)gamedata.Gameplay.InteractionMenu::InteractionCategory</categoryid>"
+        f"<desyncdata>Error: missing key: {key}&#13;&#10;"
+        "at widgets.Gameplay.PieMenu::PieMenuMain/HandlePieMenuCreate()"
+        "</desyncdata></report></root>",
+        encoding="utf-8",
+    )
+
+
+def test_ui_crash_command_json_reports_disabled_resource(tmp_path):
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    disabled = sims4 / "_Quarantine_UI"
+    _write_ui_dbpf_package(
+        disabled / "adeepindigo_base_generalpiemenus_v3-2.package",
+        15023068382072182982,
+    )
+    _write_ui_exception_log(sims4 / "lastUIException_1.txt", 15023068382072182982)
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["summary"]["disabled_findings"] == 1
+    finding = data["findings"][0]
+    assert finding["status"] == "disabled"
+    assert finding["keys"][0]["hex"] == "0xD07CA9190DD098C6"
+    assert finding["hits"][0]["package_name"] == "adeepindigo_base_generalpiemenus_v3-2.package"
+
+
+def test_ui_crash_command_txt_groups_status_and_limit(tmp_path):
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    _write_ui_exception_log(sims4 / "lastUIException_1.txt", 1111111111111)
+    _write_ui_exception_log(sims4 / "lastUIException_2.txt", 2222222222222)
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--limit", "1"])
+
+    assert result.exit_code == 0, result.output
+    assert "UI Crash Autopsy" in result.output
+    assert "[NOT FOUND]" in result.output
+    assert result.output.count("message: Error: missing key") == 1
+
+
+def test_ui_crash_command_expands_tilde_mods_path(tmp_path, monkeypatch):
+    target_key = 15023068382072182982
+    home = tmp_path / "home"
+    home.mkdir()
+    sims4 = tmp_path / "Sims 4"
+    sims4.mkdir()
+    home_mods = home / "Custom Mods"
+    _write_ui_dbpf_package(home_mods / "ActivePieMenu.package", target_key)
+    _write_ui_exception_log(sims4 / "lastUIException_1.txt", target_key)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "ui-crash",
+            str(sims4),
+            "--mods",
+            "~/Custom Mods",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["findings"][0]["status"] == "active"
+    assert data["findings"][0]["hits"][0]["package_name"] == "ActivePieMenu.package"
+
+
+def test_ui_crash_command_expands_tilde_output_path(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    sims4 = tmp_path / "Sims 4"
+    (sims4 / "Mods").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+
+    result = CliRunner().invoke(
+        cli,
+        ["ui-crash", str(sims4), "--output", "~/ui-report.txt"],
+    )
+
+    output_path = home / "ui-report.txt"
+    assert result.exit_code == 0, result.output
+    assert output_path.exists()
+    assert "UI Crash Autopsy" in output_path.read_text(encoding="utf-8")
+
+
+def test_ui_crash_command_skips_disabled_discovery_without_keys(tmp_path, monkeypatch):
+    import simanalysis.analyzers.ui_crash_analyzer as ui_crash_analyzer
+
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    (sims4 / "lastUIException_1.txt").write_text(
+        "<root><report><type>desync</type>"
+        "<desyncdata>Error: UI failed without a resource key&#13;&#10;</desyncdata>"
+        "</report></root>",
+        encoding="utf-8",
+    )
+
+    def fail_discovery(base):
+        raise AssertionError(f"disabled discovery should not run for no-key reports: {base}")
+
+    monkeypatch.setattr(ui_crash_analyzer, "discover_disabled_roots", fail_discovery)
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["summary"]["no_key_findings"] == 1
+    assert data["index_errors"] == []
+
+
+def test_ui_crash_command_reports_malformed_log_parse_error(tmp_path):
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    (sims4 / "lastUIException_bad.txt").write_text(
+        "<root><report><desyncdata>Error", encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["summary"]["unique_findings"] == 0
+    assert len(data["parse_errors"]) == 1
+    assert "lastUIException_bad.txt" in data["parse_errors"][0]
+    assert "unterminated <report>" in data["parse_errors"][0]

@@ -379,3 +379,45 @@ class TestAnalysisResult:
 
         assert len(result.critical_conflicts) == 1
         assert result.has_critical_issues is True
+
+
+def test_ui_crash_models_defaults() -> None:
+    from simanalysis.models import (
+        UIAnalysisResult,
+        UIExceptionReport,
+        UIFinding,
+        UIResourceHit,
+        UIStackFrame,
+    )
+
+    stack = UIStackFrame(
+        raw="gamedata.Gameplay.InteractionMenu::InteractionCategory/Create()",
+        namespace="gamedata.Gameplay.InteractionMenu::InteractionCategory",
+        function="Create",
+    )
+    report = UIExceptionReport(
+        source_file="lastUIException.txt",
+        report_type="desync",
+        message="Error: Failed to locate category info for interaction category with key: 15023068382072182982",
+        category_id="(AS)gamedata.Gameplay.InteractionMenu::InteractionCategory",
+        keys=[15023068382072182982],
+        stack=[stack],
+        modded=True,
+        signature="sig",
+    )
+    hit = UIResourceHit(
+        key=15023068382072182982,
+        package_name="adeepindigo_base_generalpiemenus_v3-2.package",
+        package_path="/Sims/_Quarantine_UI/adeepindigo_base_generalpiemenus_v3-2.package",
+        resource_type=0x03E9D964,
+        resource_group=0,
+        status="disabled",
+    )
+    finding = UIFinding(report=report, status="disabled", keys=report.keys, hits=[hit])
+    result = UIAnalysisResult(summary={"unique_findings": 1}, findings=[finding])
+
+    assert report.occurrences == 1
+    assert report.source_files == []
+    assert finding.hits[0].status == "disabled"
+    assert result.parse_errors == []
+    assert result.index_errors == []

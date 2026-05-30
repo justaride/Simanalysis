@@ -111,3 +111,58 @@ def crash_result_to_dict(result: Any) -> dict[str, Any]:
             for f in result.findings
         ],
     }
+
+
+def _ui_key_to_dict(key: int) -> dict[str, Any]:
+    return {"decimal": key, "hex": f"0x{key:016X}"}
+
+
+def ui_result_to_dict(result: Any) -> dict[str, Any]:
+    return {
+        "summary": result.summary,
+        "parse_errors": result.parse_errors,
+        "index_errors": result.index_errors,
+        "findings": [
+            {
+                "status": finding.status,
+                "reason": finding.reason,
+                "keys": [_ui_key_to_dict(key) for key in finding.keys],
+                "report": {
+                    "source_file": finding.report.source_file,
+                    "source_files": finding.report.source_files,
+                    "report_type": finding.report.report_type,
+                    "message": finding.report.message,
+                    "category_id": finding.report.category_id,
+                    "created": finding.report.created,
+                    "game_version": finding.report.game_version,
+                    "session_id": finding.report.session_id,
+                    "desync_id": finding.report.desync_id,
+                    "modded": finding.report.modded,
+                    "occurrences": finding.report.occurrences,
+                    "signature": finding.report.signature,
+                    "stack": [
+                        {
+                            "raw": frame.raw,
+                            "namespace": frame.namespace,
+                            "function": frame.function,
+                        }
+                        for frame in finding.report.stack
+                    ],
+                },
+                "hits": [
+                    {
+                        "key": _ui_key_to_dict(hit.key),
+                        "package_name": hit.package_name,
+                        "package_path": hit.package_path,
+                        "resource_type": hit.resource_type,
+                        "resource_type_hex": f"0x{hit.resource_type:08X}",
+                        "resource_group": hit.resource_group,
+                        "resource_group_hex": f"0x{hit.resource_group:08X}",
+                        "status": hit.status,
+                    }
+                    for hit in finding.hits
+                ],
+            }
+            for finding in result.findings
+        ],
+    }
