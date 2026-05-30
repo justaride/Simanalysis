@@ -411,7 +411,7 @@ git commit -m "feat: parse Sims UI exception logs"
 - Create: `src/simanalysis/analyzers/ui_crash_analyzer.py`
 - Test: `tests/unit/analyzers/test_ui_crash_analyzer.py`
 
-- [ ] **Step 1: Write analyzer tests**
+- [x] **Step 1: Write analyzer tests**
 
 Create `tests/unit/analyzers/test_ui_crash_analyzer.py`:
 
@@ -554,7 +554,7 @@ def test_corrupt_package_is_recorded_not_raised(tmp_path: Path) -> None:
     assert "Bad.package" in analyzer.index_errors[0]
 ```
 
-- [ ] **Step 2: Run analyzer tests to verify they fail**
+- [x] **Step 2: Run analyzer tests to verify they fail**
 
 Run:
 
@@ -564,7 +564,7 @@ Run:
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'simanalysis.analyzers.ui_crash_analyzer'`.
 
-- [ ] **Step 3: Implement analyzer**
+- [x] **Step 3: Implement analyzer**
 
 Create `src/simanalysis/analyzers/ui_crash_analyzer.py`:
 
@@ -734,7 +734,7 @@ class UICrashAnalyzer:
         }
 ```
 
-- [ ] **Step 4: Run analyzer tests**
+- [x] **Step 4: Run analyzer tests**
 
 Run:
 
@@ -744,7 +744,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Run targeted lint/type checks**
+- [x] **Step 5: Run targeted lint/type checks**
 
 Run:
 
@@ -755,7 +755,7 @@ Run:
 
 Expected: both commands pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run:
 
