@@ -935,7 +935,7 @@ git commit -m "feat: serialize UI crash analysis results"
 - Modify: `src/simanalysis/cli.py`
 - Modify: `tests/unit/test_cli.py`
 
-- [ ] **Step 1: Write CLI tests**
+- [x] **Step 1: Write CLI tests**
 
 Append these tests to `tests/unit/test_cli.py`:
 
@@ -1020,7 +1020,7 @@ def test_ui_crash_command_txt_groups_status_and_limit(tmp_path):
     assert result.output.count("message: Error: missing key") == 1
 ```
 
-- [ ] **Step 2: Run CLI tests to verify they fail**
+- [x] **Step 2: Run CLI tests to verify they fail**
 
 Run:
 
@@ -1030,7 +1030,7 @@ Run:
 
 Expected: FAIL because `ui-crash` is not registered.
 
-- [ ] **Step 3: Add CLI formatter helpers**
+- [x] **Step 3: Add CLI formatter helpers**
 
 First change the typing import near the top of `src/simanalysis/cli.py`:
 
@@ -1096,7 +1096,7 @@ def _format_ui_txt(log_count: int, result: Any, limit: int = 20) -> str:
     return "\n".join(lines).rstrip()
 ```
 
-- [ ] **Step 4: Add `ui-crash` command**
+- [x] **Step 4: Add `ui-crash` command**
 
 Insert this command in `src/simanalysis/cli.py` immediately before the existing `crash` command:
 
@@ -1154,7 +1154,7 @@ def ui_crash(
         click.echo(text)
 ```
 
-- [ ] **Step 5: Run CLI tests**
+- [x] **Step 5: Run CLI tests**
 
 Run:
 
@@ -1164,7 +1164,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 6: Run full targeted UI test set**
+- [x] **Step 6: Run full targeted UI test set**
 
 Run:
 
@@ -1174,7 +1174,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 7: Run lint/type checks for touched Python**
+- [x] **Step 7: Run lint/type checks for touched Python**
 
 Run:
 
@@ -1185,7 +1185,7 @@ Run:
 
 Expected: both commands pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 Run:
 
