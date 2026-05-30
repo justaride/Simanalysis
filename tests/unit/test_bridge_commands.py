@@ -134,3 +134,126 @@ def test_thumbnail_missing(monkeypatch, tmp_path):
         if json.loads(line)["type"] == "result"
     )
     assert res["data"]["found"] is False
+
+
+def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    (sims4 / "Mods").mkdir()
+    crash_log = sims4 / "lastException.txt"
+    ui_log = sims4 / "lastUIException.txt"
+    crash_log.write_text("crash", encoding="utf-8")
+    ui_log.write_text("ui", encoding="utf-8")
+
+    class FakeCrashAnalyzer:
+        def build_module_index(self, mods_dir, extra_roots=()):
+            assert mods_dir == sims4 / "Mods"
+            return {"mod.py": "Active.ts4script"}
+
+        def analyze(self, reports, index):
+            assert reports == [crash_report]
+            assert index == {"mod.py": "Active.ts4script"}
+            return type(
+                "CrashResult",
+                (),
+                {
+                    "summary": {
+                        "reports": 1,
+                        "active_culprits": 1,
+                        "disabled_culprits": 0,
+                        "not_installed_culprits": 0,
+                        "base_game_only": 0,
+                    },
+                    "parse_errors": [],
+                },
+            )()
+
+    class FakeUICrashAnalyzer:
+        index_errors = ["bad package"]
+
+        def build_resource_index(self, mods_dir, extra_roots=(), target_keys=None):
+            assert mods_dir == sims4 / "Mods"
+            assert target_keys == {123}
+            return {123: ["hit"]}
+
+        def analyze(self, reports, index):
+            assert reports == [ui_report]
+            assert index == {123: ["hit"]}
+            return type(
+                "UIResult",
+                (),
+                {
+                    "summary": {
+                        "unique_findings": 1,
+                        "occurrences": 3,
+                        "active_findings": 0,
+                        "disabled_findings": 1,
+                        "not_found_findings": 0,
+                        "no_key_findings": 0,
+                    },
+                    "parse_errors": [],
+                    "index_errors": ["bad package"],
+                },
+            )()
+
+    crash_report = type("CrashReport", (), {"signature": "crash-sig"})()
+    ui_report = type("UIReport", (), {"keys": [123]})()
+    monkeypatch.setattr(commands, "CrashAnalyzer", FakeCrashAnalyzer)
+    monkeypatch.setattr(commands, "UICrashAnalyzer", FakeUICrashAnalyzer)
+    monkeypatch.setattr(commands, "parse_exception_file", lambda path: [crash_report])
+    monkeypatch.setattr(commands, "parse_ui_exception_file", lambda path: [ui_report])
+    monkeypatch.setattr(commands, "discover_disabled_roots", lambda base: [])
+    monkeypatch.setattr(commands, "_is_disabled_name", lambda name: False)
+    monkeypatch.setattr(
+        commands.serialization,
+        "crash_result_to_dict",
+        lambda result: {"summary": result.summary, "parse_errors": result.parse_errors},
+    )
+    monkeypatch.setattr(
+        commands.serialization,
+        "ui_result_to_dict",
+        lambda result: {
+            "summary": result.summary,
+            "parse_errors": result.parse_errors,
+            "index_errors": result.index_errors,
+        },
+    )
+
+    buf = io.StringIO()
+    commands.doctor_scan(
+        argparse.Namespace(path=str(sims4), mods=None, recursive=False),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == [
+        "start",
+        "progress",
+        "progress",
+        "result",
+        "done",
+    ]
+    data = next(event["data"] for event in events if event["type"] == "result")
+    assert data["summary"] == {
+        "script_reports": 1,
+        "script_active": 1,
+        "script_disabled": 0,
+        "script_not_installed": 0,
+        "script_base_game_only": 0,
+        "ui_findings": 1,
+        "ui_occurrences": 3,
+        "ui_active": 0,
+        "ui_disabled": 1,
+        "ui_not_found": 0,
+        "ui_no_key": 0,
+        "parse_errors": 0,
+        "index_errors": 1,
+    }
+    assert data["script_crashes"]["summary"]["reports"] == 1
+    assert data["ui_crashes"]["summary"]["unique_findings"] == 1
+
+
+def test_doctor_scan_rejects_missing_sims_dir(tmp_path):
+    args = argparse.Namespace(path=str(tmp_path / "missing"), mods=None, recursive=False)
+    with pytest.raises(ValueError, match="Invalid directory path"):
+        commands.doctor_scan(args, Emitter(io.StringIO()))

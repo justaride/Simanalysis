@@ -53,6 +53,25 @@ def test_invalid_path_emits_error_exit_two(monkeypatch):
     assert events[-1]["code"] == "INVALID_INPUT"
 
 
+def test_doctor_scan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_doctor_scan(args, emit):
+        called["path"] = args.path
+        called["mods"] = args.mods
+        called["recursive"] = args.recursive
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "doctor-scan", fake_doctor_scan)
+
+    code, events = _run(monkeypatch, ["doctor-scan", str(tmp_path), "--mods", str(tmp_path)])
+
+    assert code == 0
+    assert called == {"path": str(tmp_path), "mods": str(tmp_path), "recursive": False}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_unknown_command_argparse_exits(monkeypatch):
     with pytest.raises(SystemExit) as exc:
         main(["bogus-command"])
