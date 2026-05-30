@@ -142,3 +142,57 @@ def test_crash_result_to_dict_shape():
         "reason": "r",
         "evidence": ["x/moda/a.py"],
     }
+
+
+def test_ui_result_to_dict_shape():
+    from simanalysis import serialization
+    from simanalysis.models import (
+        UIAnalysisResult,
+        UIExceptionReport,
+        UIFinding,
+        UIResourceHit,
+        UIStackFrame,
+    )
+
+    report = UIExceptionReport(
+        source_file="lastUIException.txt",
+        report_type="desync",
+        message="Error: Failed to locate category info for interaction category with key: 15023068382072182982",
+        category_id="(AS)gamedata.Gameplay.InteractionMenu::InteractionCategory",
+        keys=[15023068382072182982],
+        stack=[UIStackFrame(raw="widgets.Gameplay.PieMenu::PieMenuMain/HandlePieMenuCreate()")],
+        created="2026-05-29 12:32:36",
+        game_version="Local.1.124.63.1220",
+        session_id="session",
+        desync_id="desync",
+        modded=True,
+        signature="sig",
+        occurrences=27,
+        source_files=["lastUIException.txt"],
+    )
+    hit = UIResourceHit(
+        key=15023068382072182982,
+        package_name="adeepindigo_base_generalpiemenus_v3-2.package",
+        package_path="/Sims/_Quarantine_UI/adeepindigo_base_generalpiemenus_v3-2.package",
+        resource_type=0x03E9D964,
+        resource_group=0,
+        status="disabled",
+    )
+    result = UIAnalysisResult(
+        summary={"unique_findings": 1, "occurrences": 27},
+        findings=[UIFinding(report=report, status="disabled", keys=report.keys, hits=[hit])],
+        parse_errors=["bad log"],
+        index_errors=["bad package"],
+    )
+
+    out = serialization.ui_result_to_dict(result)
+
+    assert out["summary"] == {"unique_findings": 1, "occurrences": 27}
+    assert out["parse_errors"] == ["bad log"]
+    assert out["index_errors"] == ["bad package"]
+    f0 = out["findings"][0]
+    assert f0["status"] == "disabled"
+    assert f0["keys"][0] == {"decimal": 15023068382072182982, "hex": "0xD07CA9190DD098C6"}
+    assert f0["report"]["occurrences"] == 27
+    assert f0["hits"][0]["package_name"] == "adeepindigo_base_generalpiemenus_v3-2.package"
+    assert f0["hits"][0]["resource_type_hex"] == "0x03E9D964"
