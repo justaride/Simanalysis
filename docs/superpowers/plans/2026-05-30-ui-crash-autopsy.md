@@ -770,7 +770,7 @@ git commit -m "feat: resolve UI exception keys to package resources"
 - Modify: `src/simanalysis/serialization.py`
 - Modify: `tests/unit/test_serialization.py`
 
-- [ ] **Step 1: Write serialization test**
+- [x] **Step 1: Write serialization test**
 
 Append this test to `tests/unit/test_serialization.py`:
 
@@ -829,7 +829,7 @@ def test_ui_result_to_dict_shape():
     assert f0["hits"][0]["resource_type_hex"] == "0x03E9D964"
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -839,7 +839,7 @@ Run:
 
 Expected: FAIL with `AttributeError: module 'simanalysis.serialization' has no attribute 'ui_result_to_dict'`.
 
-- [ ] **Step 3: Implement `ui_result_to_dict`**
+- [x] **Step 3: Implement `ui_result_to_dict`**
 
 Append this function to `src/simanalysis/serialization.py`:
 
@@ -899,7 +899,7 @@ def ui_result_to_dict(result: Any) -> dict[str, Any]:
     }
 ```
 
-- [ ] **Step 4: Run serialization tests**
+- [x] **Step 4: Run serialization tests**
 
 Run:
 
@@ -909,7 +909,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Run lint/type checks**
+- [x] **Step 5: Run lint/type checks**
 
 Run:
 
@@ -920,7 +920,7 @@ Run:
 
 Expected: both commands pass.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Run:
 
