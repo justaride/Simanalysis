@@ -590,9 +590,9 @@ def ui_crash(
             parse_errors.append(f"{log_file.name}: {exc}")
 
     analyzer = UICrashAnalyzer()
-    extra_roots = discover_disabled_roots(base)
     target_keys = {key for report in reports for key in report.keys}
     if target_keys:
+        extra_roots = discover_disabled_roots(base)
         index = analyzer.build_resource_index(
             mods_dir,
             extra_roots=extra_roots,

@@ -698,3 +698,45 @@ def test_ui_crash_command_expands_tilde_output_path(tmp_path, monkeypatch):
     assert result.exit_code == 0, result.output
     assert output_path.exists()
     assert "UI Crash Autopsy" in output_path.read_text(encoding="utf-8")
+
+
+def test_ui_crash_command_skips_disabled_discovery_without_keys(tmp_path, monkeypatch):
+    import simanalysis.analyzers.ui_crash_analyzer as ui_crash_analyzer
+
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    (sims4 / "lastUIException_1.txt").write_text(
+        "<root><report><type>desync</type>"
+        "<desyncdata>Error: UI failed without a resource key&#13;&#10;</desyncdata>"
+        "</report></root>",
+        encoding="utf-8",
+    )
+
+    def fail_discovery(base):
+        raise AssertionError(f"disabled discovery should not run for no-key reports: {base}")
+
+    monkeypatch.setattr(ui_crash_analyzer, "discover_disabled_roots", fail_discovery)
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["summary"]["no_key_findings"] == 1
+    assert data["index_errors"] == []
+
+
+def test_ui_crash_command_reports_malformed_log_parse_error(tmp_path):
+    sims4 = tmp_path
+    (sims4 / "Mods").mkdir()
+    (sims4 / "lastUIException_bad.txt").write_text(
+        "<root><report><desyncdata>Error", encoding="utf-8"
+    )
+
+    result = CliRunner().invoke(cli, ["ui-crash", str(sims4), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["summary"]["unique_findings"] == 0
+    assert len(data["parse_errors"]) == 1
+    assert "lastUIException_bad.txt" in data["parse_errors"][0]
+    assert "unterminated <report>" in data["parse_errors"][0]

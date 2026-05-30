@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 
 UI_XML = (
@@ -61,11 +63,12 @@ def test_parse_ui_exception_file_allows_no_key_reports(tmp_path: Path) -> None:
     assert r1.stack[0].function == "InitializeCheatSheetItemList"
 
 
-def test_parse_ui_exception_file_malformed_returns_empty(tmp_path: Path) -> None:
+def test_parse_ui_exception_file_malformed_raises(tmp_path: Path) -> None:
     log = tmp_path / "lastUIException_bad.txt"
     log.write_text("<root><report><desyncdata>Error", encoding="utf-8")
 
-    assert parse_ui_exception_file(log) == []
+    with pytest.raises(ValueError, match="unterminated <report>"):
+        parse_ui_exception_file(log)
 
 
 def test_parse_ui_exception_file_skips_empty_closed_report(tmp_path: Path) -> None:

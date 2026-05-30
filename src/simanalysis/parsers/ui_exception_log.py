@@ -58,9 +58,12 @@ def parse_ui_exception_file(path: str | Path) -> list[UIExceptionReport]:
     """Parse one lastUIException*.txt into UIExceptionReport objects."""
     source = Path(path)
     text = source.read_text(encoding="utf-8", errors="replace")
+    report_blocks = _REPORT_RE.findall(text)
+    if "<report" in text and not report_blocks:
+        raise ValueError("unterminated <report> in UI exception log")
 
     reports: list[UIExceptionReport] = []
-    for block in _REPORT_RE.findall(text):
+    for block in report_blocks:
         data = _tag(block, "desyncdata") or ""
         if not data.strip():
             continue
