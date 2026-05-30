@@ -19,6 +19,7 @@ function Sidebar() {
         { path: '/tray', icon: Home, label: 'Tray Organizer' },
         { path: '/save-analyzer', icon: FileSearch, label: 'Save Analyzer' },
         { path: '/conflicts', icon: AlertTriangle, label: 'Conflicts' },
+        { path: '/doctor', icon: Microscope, label: 'Doctor' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
 
