@@ -169,7 +169,8 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
             )()
 
     class FakeUICrashAnalyzer:
-        index_errors = ["bad package"]
+        def __init__(self):
+            self.index_errors = ["bad package"]
 
         def build_resource_index(self, mods_dir, extra_roots=(), target_keys=None):
             assert mods_dir == sims4 / "Mods"
@@ -285,7 +286,8 @@ def test_doctor_scan_allows_missing_default_mods_dir(monkeypatch, tmp_path):
             )()
 
     class FakeUICrashAnalyzer:
-        index_errors = []
+        def __init__(self):
+            self.index_errors = []
 
         def analyze(self, reports, index):
             return type(
