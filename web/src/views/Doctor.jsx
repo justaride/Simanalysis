@@ -30,16 +30,52 @@ function uniquePackages(hits = []) {
     return [...new Set(hits.map((hit) => hit.package_name).filter(Boolean))];
 }
 
+function uniquePackagePaths(hits = []) {
+    return [...new Set(hits.map((hit) => hit.package_path).filter(Boolean))];
+}
+
+function collectScriptEvidence(result) {
+    const byMod = {};
+    const findings = result?.script_crashes?.findings || [];
+    findings.forEach((finding) => {
+        (finding.suspects || []).forEach((suspect) => {
+            if (!suspect.mod) return;
+            if (!byMod[suspect.mod]) byMod[suspect.mod] = new Set();
+            (suspect.evidence || []).forEach((path) => byMod[suspect.mod].add(path));
+        });
+    });
+    return Object.fromEntries(Object.entries(byMod).map(([mod, paths]) => [mod, [...paths]]));
+}
+
 function buildGroups(result) {
     const rankedMods = result?.script_crashes?.ranked_mods || [];
     const uiFindings = result?.ui_crashes?.findings || [];
+    const scriptEvidence = collectScriptEvidence(result);
+    const scriptItems = rankedMods.map((item) => ({
+        ...item,
+        evidence: scriptEvidence[item.mod] || [],
+    }));
+    const errorItems = [
+        ...(result?.script_crashes?.parse_errors || []).map((message) => ({
+            source: 'Script log parser',
+            message,
+        })),
+        ...(result?.ui_crashes?.parse_errors || []).map((message) => ({
+            source: 'UI log parser',
+            message,
+        })),
+        ...(result?.ui_crashes?.index_errors || []).map((message) => ({
+            source: 'Package index',
+            message,
+        })),
+    ];
 
     return {
         needsAttention: [
             {
                 label: 'Script suspects still active',
                 kind: 'script',
-                items: rankedMods.filter((item) => item.status === 'active'),
+                items: scriptItems.filter((item) => item.status === 'active'),
             },
             {
                 label: 'UI resources found in active packages',
@@ -51,7 +87,7 @@ function buildGroups(result) {
             {
                 label: 'Script suspects already disabled',
                 kind: 'script',
-                items: rankedMods.filter((item) => item.status === 'disabled'),
+                items: scriptItems.filter((item) => item.status === 'disabled'),
             },
             {
                 label: 'UI resources already disabled',
@@ -63,12 +99,19 @@ function buildGroups(result) {
             {
                 label: 'Script references not installed',
                 kind: 'script',
-                items: rankedMods.filter((item) => item.status === 'not_installed'),
+                items: scriptItems.filter((item) => item.status === 'not_installed'),
             },
             {
                 label: 'UI resources missing or without keys',
                 kind: 'ui',
                 items: uiFindings.filter((item) => ['not_found', 'no_key'].includes(item.status)),
+            },
+        ],
+        errors: [
+            {
+                label: 'Parse and index errors',
+                kind: 'error',
+                items: errorItems,
             },
         ],
     };
@@ -91,21 +134,39 @@ function StatTile({ label, value, tone = 'blue' }) {
 }
 
 function ScriptFinding({ item }) {
+    const evidence = item.evidence || [];
     return (
         <div className="rounded-lg border border-gray-700/70 bg-gray-900/50 p-4">
-            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                <div className="min-w-0">
-                    <p className="truncate font-semibold text-white" title={item.mod}>
-                        {item.mod}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-400">
-                        Top suspect in {item.top_suspect_count || 0} crash(es)
-                        {item.status !== 'not_installed' ? `, seen in ${item.crash_count || 0}` : ''}
-                    </p>
+            <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                        <p className="truncate font-semibold text-white" title={item.mod}>
+                            {item.mod}
+                        </p>
+                        <p className="mt-1 text-sm text-gray-400">
+                            Top suspect in {item.top_suspect_count || 0} crash(es)
+                            {item.status !== 'not_installed' ? `, seen in ${item.crash_count || 0}` : ''}
+                        </p>
+                    </div>
+                    <span className="w-fit rounded-md border border-gray-600 px-2 py-1 text-xs uppercase text-gray-300">
+                        {item.status || 'unknown'}
+                    </span>
                 </div>
-                <span className="w-fit rounded-md border border-gray-600 px-2 py-1 text-xs uppercase text-gray-300">
-                    {item.status || 'unknown'}
-                </span>
+                {evidence.length > 0 && (
+                    <div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Evidence</p>
+                        <div className="space-y-1">
+                            {evidence.slice(0, 3).map((path) => (
+                                <p key={path} className="truncate rounded bg-black/30 px-2 py-1 font-mono text-xs text-gray-400" title={path}>
+                                    {path}
+                                </p>
+                            ))}
+                            {evidence.length > 3 && (
+                                <p className="text-xs text-gray-500">+{evidence.length - 3} more evidence path(s)</p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -113,6 +174,7 @@ function ScriptFinding({ item }) {
 
 function UIFinding({ item }) {
     const packages = uniquePackages(item.hits);
+    const packagePaths = uniquePackagePaths(item.hits);
     return (
         <div className="rounded-lg border border-gray-700/70 bg-gray-900/50 p-4">
             <div className="flex flex-col gap-3">
@@ -142,7 +204,31 @@ function UIFinding({ item }) {
                         </span>
                     ))}
                 </div>
+                {packagePaths.length > 0 && (
+                    <div>
+                        <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Package paths</p>
+                        <div className="space-y-1">
+                            {packagePaths.slice(0, 3).map((path) => (
+                                <p key={path} className="truncate rounded bg-black/30 px-2 py-1 font-mono text-xs text-gray-400" title={path}>
+                                    {path}
+                                </p>
+                            ))}
+                            {packagePaths.length > 3 && (
+                                <p className="text-xs text-gray-500">+{packagePaths.length - 3} more package path(s)</p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
+        </div>
+    );
+}
+
+function ErrorFinding({ item }) {
+    return (
+        <div className="rounded-lg border border-gray-700/70 bg-gray-900/50 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wider text-amber-300">{item.source}</p>
+            <p className="mt-2 break-words font-mono text-xs text-gray-300">{item.message}</p>
         </div>
     );
 }
@@ -189,7 +275,9 @@ function FindingGroup({ title, description, icon: Icon, tone, groups }) {
                                 </p>
                                 <div className="space-y-3">
                                     {group.items.map((item, index) =>
-                                        group.kind === 'script' ? (
+                                        group.kind === 'error' ? (
+                                            <ErrorFinding key={`${group.label}-${index}`} item={item} />
+                                        ) : group.kind === 'script' ? (
                                             <ScriptFinding key={`${group.label}-${item.mod}-${index}`} item={item} />
                                         ) : (
                                             <UIFinding
@@ -380,7 +468,7 @@ function Doctor() {
                             />
                         </section>
 
-                        <div className="grid gap-6 xl:grid-cols-3">
+                        <div className="grid gap-6 xl:grid-cols-4">
                             <FindingGroup
                                 title="Needs Attention"
                                 description="Active mods or packages still implicated by current logs."
@@ -401,6 +489,13 @@ function Doctor() {
                                 icon={FileWarning}
                                 tone="amber"
                                 groups={groups.missingUnknown}
+                            />
+                            <FindingGroup
+                                title="Errors"
+                                description="Log parse and package index errors surfaced during the scan."
+                                icon={FileWarning}
+                                tone="amber"
+                                groups={groups.errors}
                             />
                         </div>
 
