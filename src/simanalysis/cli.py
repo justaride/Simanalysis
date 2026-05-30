@@ -2,7 +2,7 @@
 
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import click
 
@@ -468,6 +468,154 @@ def web(port: int, host: str) -> None:
     from simanalysis.web.run import run_web_gui
 
     run_web_gui(host=host, port=port)
+
+
+def _format_ui_key(key: int) -> str:
+    return f"0x{key:016X} ({key})"
+
+
+def _ui_findings_for_status(result: Any, status: str) -> list[Any]:
+    return [finding for finding in result.findings if finding.status == status]
+
+
+def _format_ui_txt(log_count: int, result: Any, limit: int = 20) -> str:
+    summary = result.summary
+    findings = result.findings
+    unique_findings = summary.get("unique_findings", len(findings))
+    occurrences = summary.get(
+        "occurrences",
+        sum(finding.report.occurrences for finding in findings),
+    )
+
+    lines = [
+        (
+            f"UI Crash Autopsy - {log_count} log file(s), "
+            f"{unique_findings} unique UI finding(s), {occurrences} occurrence(s)"
+        ),
+        (
+            "status counts: "
+            f"active: {summary.get('active_findings', 0)}  |  "
+            f"disabled: {summary.get('disabled_findings', 0)}  |  "
+            f"not-found: {summary.get('not_found_findings', 0)}  |  "
+            f"no-key: {summary.get('no_key_findings', 0)}"
+        ),
+    ]
+    if result.parse_errors:
+        lines.append(f"parse errors: {len(result.parse_errors)}")
+    if result.index_errors:
+        lines.append(f"index errors: {len(result.index_errors)}")
+    lines.append("")
+
+    if not findings:
+        lines.append("(no UI exception reports found)")
+        return "\n".join(lines).rstrip()
+
+    groups = [
+        ("active", "[ACTIVE]"),
+        ("disabled", "[DISABLED]"),
+        ("not_found", "[NOT FOUND]"),
+        ("no_key", "[NO KEY]"),
+    ]
+    shown_any = False
+    safe_limit = max(limit, 0)
+    for status, header in groups:
+        entries = _ui_findings_for_status(result, status)
+        if not entries:
+            continue
+
+        shown_any = True
+        lines.append(f"{header}:")
+        for finding in entries[:safe_limit]:
+            if finding.keys:
+                if len(finding.keys) == 1:
+                    lines.append(f"  key: {_format_ui_key(finding.keys[0])}")
+                else:
+                    keys = ", ".join(_format_ui_key(key) for key in finding.keys)
+                    lines.append(f"  keys: {keys}")
+            lines.append(f"  message: {finding.report.message}")
+            if finding.report.category_id:
+                lines.append(f"  category: {finding.report.category_id}")
+            lines.append(f"  occurrences: {finding.report.occurrences}")
+            if finding.hits:
+                packages = ", ".join(
+                    dict.fromkeys(hit.package_name for hit in finding.hits)
+                )
+                lines.append(f"  packages: {packages}")
+            lines.append("")
+
+        hidden = len(entries) - safe_limit
+        if hidden > 0:
+            lines.append(f"  ... {hidden} more hidden by --limit")
+            lines.append("")
+
+    if not shown_any:
+        lines.append("(no UI exception reports found)")
+
+    return "\n".join(lines).rstrip()
+
+
+@cli.command("ui-crash")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--mods", type=click.Path(), default=None, help="Mods dir (default: <sims4_dir>/Mods)"
+)
+@click.option("--recursive", is_flag=True, help="Also scan subfolders for UI exception logs")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+@click.option("--limit", type=int, default=20, help="Top-N findings to show per status group (txt)")
+def ui_crash(
+    sims4_dir: str,
+    mods: Optional[str],
+    recursive: bool,
+    fmt: str,
+    output: Optional[str],
+    limit: int,
+) -> None:
+    """Autopsy lastUIException UI logs: map missing UI resources to packages."""
+    import json
+
+    from simanalysis import serialization
+    from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
+    from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
+
+    base = Path(sims4_dir)
+    mods_dir = Path(mods) if mods else base / "Mods"
+    pattern = "**/lastUIException*.txt" if recursive else "lastUIException*.txt"
+    log_files = sorted(base.glob(pattern))
+
+    reports = []
+    parse_errors = []
+    for log_file in log_files:
+        try:
+            reports.extend(parse_ui_exception_file(log_file))
+        except Exception as exc:
+            parse_errors.append(f"{log_file.name}: {exc}")
+
+    analyzer = UICrashAnalyzer()
+    extra_roots = discover_disabled_roots(base)
+    target_keys = {key for report in reports for key in report.keys}
+    if target_keys:
+        index = analyzer.build_resource_index(
+            mods_dir,
+            extra_roots=extra_roots,
+            target_keys=target_keys,
+        )
+    else:
+        index = {}
+
+    result = analyzer.analyze(reports, index)
+    result.parse_errors = parse_errors
+
+    if fmt == "json":
+        text = json.dumps(serialization.ui_result_to_dict(result), indent=2)
+    else:
+        text = _format_ui_txt(len(log_files), result, limit=limit)
+
+    if output:
+        Path(output).write_text(text, encoding="utf-8")
+        click.echo(f"Wrote report to {output}")
+    else:
+        click.echo(text)
 
 
 @cli.command()
