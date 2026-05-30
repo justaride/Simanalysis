@@ -1287,7 +1287,7 @@ git commit -m "docs: record UI crash autopsy real-log validation"
 **Files:**
 - No source files created unless verification reveals a defect.
 
-- [ ] **Step 1: Run focused UI tests**
+- [x] **Step 1: Run focused UI tests**
 
 Run:
 
@@ -1297,7 +1297,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 2: Run full Python unit/integration suite**
+- [x] **Step 2: Run full Python unit/integration suite**
 
 Run:
 
@@ -1311,7 +1311,7 @@ Expected: PASS. If a DBPF performance benchmark fails on a micro-timing threshol
 .venv/bin/python -m pytest tests/performance/test_dbpf_benchmarks.py --last-failed -q
 ```
 
-- [ ] **Step 3: Run lint, format check, type check**
+- [x] **Step 3: Run lint, format check, type check**
 
 Run:
 
@@ -1323,7 +1323,7 @@ Run:
 
 Expected: all pass.
 
-- [ ] **Step 4: Run local security gate**
+- [x] **Step 4: Run local security gate**
 
 Run:
 
@@ -1333,7 +1333,7 @@ Run:
 
 Expected: `No issues identified.`
 
-- [ ] **Step 5: Run desktop CI-equivalent smoke gates if dependencies are available**
+- [x] **Step 5: Run desktop CI-equivalent smoke gates if dependencies are available**
 
 Run:
 
