@@ -58,6 +58,17 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push(path.into());
             args.push(mods.into());
         }
+        "doctor-scan" => {
+            args.push("doctor-scan".into());
+            args.push(path.into());
+            if let Some(mods) = opts.mods_path.as_deref() {
+                args.push("--mods".into());
+                args.push(mods.into());
+            }
+            if opts.recursive {
+                args.push("--recursive".into());
+            }
+        }
         other => return Err(format!("unknown analysis kind: {other}")),
     }
     Ok(args)
@@ -477,7 +488,7 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::drain_complete_lines;
+    use super::{build_args, drain_complete_lines, AnalysisOptions};
 
     #[test]
     fn frames_lines_across_chunk_boundaries() {
@@ -497,5 +508,35 @@ mod tests {
         let mut buf = b"partial".to_vec();
         assert!(drain_complete_lines(&mut buf).is_empty());
         assert_eq!(buf, b"partial".to_vec());
+    }
+
+    #[test]
+    fn builds_doctor_scan_args_with_mods_path() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/Mods".into()),
+            recursive: true,
+            ..Default::default()
+        };
+        let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "doctor-scan",
+                "/Sims/The Sims 4",
+                "--mods",
+                "/Sims/Mods",
+                "--recursive",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_doctor_scan_args_without_recursive_flag_when_disabled() {
+        let opts = AnalysisOptions {
+            recursive: false,
+            ..Default::default()
+        };
+        let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
     }
 }
