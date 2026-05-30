@@ -651,3 +651,50 @@ def test_ui_crash_command_txt_groups_status_and_limit(tmp_path):
     assert "UI Crash Autopsy" in result.output
     assert "[NOT FOUND]" in result.output
     assert result.output.count("message: Error: missing key") == 1
+
+
+def test_ui_crash_command_expands_tilde_mods_path(tmp_path, monkeypatch):
+    target_key = 15023068382072182982
+    home = tmp_path / "home"
+    home.mkdir()
+    sims4 = tmp_path / "Sims 4"
+    sims4.mkdir()
+    home_mods = home / "Custom Mods"
+    _write_ui_dbpf_package(home_mods / "ActivePieMenu.package", target_key)
+    _write_ui_exception_log(sims4 / "lastUIException_1.txt", target_key)
+    monkeypatch.setenv("HOME", str(home))
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "ui-crash",
+            str(sims4),
+            "--mods",
+            "~/Custom Mods",
+            "--format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["findings"][0]["status"] == "active"
+    assert data["findings"][0]["hits"][0]["package_name"] == "ActivePieMenu.package"
+
+
+def test_ui_crash_command_expands_tilde_output_path(tmp_path, monkeypatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    sims4 = tmp_path / "Sims 4"
+    (sims4 / "Mods").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(home))
+
+    result = CliRunner().invoke(
+        cli,
+        ["ui-crash", str(sims4), "--output", "~/ui-report.txt"],
+    )
+
+    output_path = home / "ui-report.txt"
+    assert result.exit_code == 0, result.output
+    assert output_path.exists()
+    assert "UI Crash Autopsy" in output_path.read_text(encoding="utf-8")

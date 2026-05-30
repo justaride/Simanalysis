@@ -578,8 +578,8 @@ def ui_crash(
     from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
     from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 
-    base = Path(sims4_dir)
-    mods_dir = Path(mods) if mods else base / "Mods"
+    base = Path(sims4_dir).expanduser()
+    mods_dir = Path(mods).expanduser() if mods else base / "Mods"
     pattern = "**/lastUIException*.txt" if recursive else "lastUIException*.txt"
     log_files = sorted(base.glob(pattern))
 
@@ -612,7 +612,8 @@ def ui_crash(
         text = _format_ui_txt(len(log_files), result, limit=limit)
 
     if output:
-        Path(output).write_text(text, encoding="utf-8")
+        output_path = Path(output).expanduser()
+        output_path.write_text(text, encoding="utf-8")
         click.echo(f"Wrote report to {output}")
     else:
         click.echo(text)
