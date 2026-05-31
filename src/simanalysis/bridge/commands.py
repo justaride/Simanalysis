@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import time
 from pathlib import Path
 from typing import Any, Callable, cast
 
-from simanalysis import serialization, treatment
+from simanalysis import live_monitoring, serialization, treatment
 from simanalysis.analyzers.crash_analyzer import CrashAnalyzer, _is_disabled_name
 from simanalysis.analyzers.mod_analyzer import ModAnalyzer
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
@@ -278,6 +279,31 @@ def treatment_plan(args: argparse.Namespace, emit: Emitter) -> None:
     emit.done()
 
 
+def live_monitor(args: argparse.Namespace, emit: Emitter) -> None:
+    base = _require_dir(args.path)
+    if args.interval <= 0:
+        raise ValueError("Live monitor interval must be greater than zero")
+    mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
+    monitor = live_monitoring.LiveMonitor(base, mods_dir)
+
+    emit.start("live-monitor")
+    while True:
+        result = monitor.poll(_build_doctor_payload, treatment.create_plan)
+        watched_count = int(result.get("watched_log_count", 0) or 0)
+        emit.progress(
+            watched_count,
+            watched_count,
+            stage=str(result.get("recommended_next_action", "waiting")),
+            force=True,
+        )
+        if result.get("changed_logs") or args.once:
+            emit.result(result)
+        if args.once:
+            emit.done()
+            return
+        time.sleep(args.interval)
+
+
 def treatment_apply(args: argparse.Namespace, emit: Emitter) -> None:
     emit.start("treatment-apply")
     emit.result(treatment.apply_next_step(args.manifest_path))
@@ -309,6 +335,7 @@ DISPATCH = {
     "thumbnail": thumbnail,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,
+    "live-monitor": live_monitor,
     "treatment-apply": treatment_apply,
     "treatment-outcome": treatment_outcome,
     "treatment-restore": treatment_restore,

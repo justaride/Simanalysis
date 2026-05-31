@@ -144,6 +144,37 @@ def test_treatment_apply_restore_status_commands_are_dispatched(monkeypatch):
     assert [event["type"] for event in status_events] == ["result", "done"]
 
 
+def test_live_monitor_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_live_monitor(args, emit):
+        called["args"] = args
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "live-monitor", fake_live_monitor)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "live-monitor",
+            str(tmp_path),
+            "--mods",
+            str(tmp_path),
+            "--interval",
+            "0.25",
+            "--once",
+        ],
+    )
+
+    assert code == 0
+    assert called["args"].path == str(tmp_path)
+    assert called["args"].mods == str(tmp_path)
+    assert called["args"].interval == 0.25
+    assert called["args"].once is True
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_treatment_plan_malformed_doctor_json_is_invalid_input(monkeypatch, tmp_path):
     sims4 = tmp_path / "The Sims 4"
     sims4.mkdir()

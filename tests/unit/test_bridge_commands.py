@@ -439,6 +439,51 @@ def test_treatment_plan_rejects_invalid_doctor_json(tmp_path):
         )
 
 
+def test_live_monitor_once_emits_waiting_result(monkeypatch, tmp_path):
+    class FakeLiveMonitor:
+        def __init__(self, base, mods_dir):
+            self.base = base
+            self.mods_dir = mods_dir
+
+        def poll(self, doctor_builder, treatment_planner):
+            return {
+                "changed_logs": [],
+                "watched_log_count": 0,
+                "doctor_summary": {},
+                "treatment": {
+                    "candidate_count": 0,
+                    "first_batch_count": 0,
+                    "manifest_path": None,
+                    "warnings": [],
+                    "blockers": [],
+                },
+                "recommended_next_action": "waiting",
+                "warnings": [],
+            }
+
+    monkeypatch.setattr(commands.live_monitoring, "LiveMonitor", FakeLiveMonitor)
+    buf = io.StringIO()
+
+    commands.live_monitor(
+        argparse.Namespace(path=str(tmp_path), mods=None, interval=0.2, once=True),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "progress", "result", "done"]
+    assert events[0]["task"] == "live-monitor"
+    assert events[1]["stage"] == "waiting"
+    assert events[2]["data"]["recommended_next_action"] == "waiting"
+
+
+def test_live_monitor_rejects_non_positive_interval(tmp_path):
+    with pytest.raises(ValueError, match="Live monitor interval must be greater than zero"):
+        commands.live_monitor(
+            argparse.Namespace(path=str(tmp_path), mods=None, interval=0, once=True),
+            Emitter(io.StringIO()),
+        )
+
+
 def test_treatment_apply_emits_treatment_result(monkeypatch):
     calls = {}
 
