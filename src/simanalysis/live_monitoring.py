@@ -5,8 +5,11 @@ from __future__ import annotations
 import hashlib
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any, Callable
 
 LOG_GLOBS = (("script", "lastException*.txt"), ("ui", "lastUIException*.txt"))
+DoctorBuilder = Callable[[Path, Path, bool], dict[str, Any]]
+TreatmentPlanner = Callable[..., dict[str, Any]]
 
 
 @dataclass(frozen=True)
@@ -81,3 +84,64 @@ def changed_fingerprints(
         if previous.get(path) != fingerprint
     ]
     return sorted(changed, key=lambda item: (item.kind, item.name.casefold()))
+
+
+def _empty_treatment_summary() -> dict[str, object]:
+    return {
+        "candidate_count": 0,
+        "first_batch_count": 0,
+        "manifest_path": None,
+        "warnings": [],
+        "blockers": [],
+    }
+
+
+class LiveMonitor:
+    def __init__(
+        self,
+        sims4_dir: str | Path,
+        mods_dir: str | Path | None = None,
+        *,
+        initial_snapshot: dict[str, LogFingerprint] | None = None,
+    ) -> None:
+        self.sims4_dir = Path(sims4_dir).expanduser().resolve()
+        self.mods_dir = (
+            Path(mods_dir).expanduser().resolve()
+            if mods_dir is not None
+            else self.sims4_dir / "Mods"
+        )
+        if initial_snapshot is None:
+            self.snapshot, self.startup_warnings = build_snapshot(self.sims4_dir)
+        else:
+            self.snapshot = dict(initial_snapshot)
+            self.startup_warnings = []
+
+    def poll(
+        self,
+        doctor_builder: DoctorBuilder,
+        treatment_planner: TreatmentPlanner,
+    ) -> dict[str, Any]:
+        current, warnings = build_snapshot(self.sims4_dir)
+        changed = changed_fingerprints(self.snapshot, current)
+        self.snapshot = current
+        all_warnings = [*self.startup_warnings, *warnings]
+        self.startup_warnings = []
+
+        if not changed:
+            return {
+                "changed_logs": [],
+                "watched_log_count": len(current),
+                "doctor_summary": {},
+                "treatment": _empty_treatment_summary(),
+                "recommended_next_action": "waiting",
+                "warnings": all_warnings,
+            }
+
+        return {
+            "changed_logs": [fingerprint.to_event() for fingerprint in changed],
+            "watched_log_count": len(current),
+            "doctor_summary": {},
+            "treatment": _empty_treatment_summary(),
+            "recommended_next_action": "review_doctor",
+            "warnings": all_warnings,
+        }

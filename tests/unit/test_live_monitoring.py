@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from simanalysis.live_monitoring import (
+    LiveMonitor,
     build_snapshot,
     changed_fingerprints,
     discover_log_files,
@@ -82,3 +83,56 @@ def test_build_snapshot_warns_when_log_cannot_be_read(monkeypatch, tmp_path: Pat
 
     assert snapshot == {}
     assert warnings == ["Could not read lastException.txt: permission denied"]
+
+
+def test_live_monitor_baseline_ignores_existing_logs(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (sims4 / "lastException.txt").write_text("existing", encoding="utf-8")
+    monitor = LiveMonitor(sims4, mods)
+
+    def fail_doctor_builder(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("Doctor should not run when no log changed")
+
+    def fail_treatment_planner(*args: object, **kwargs: object) -> dict[str, object]:
+        raise AssertionError("Treatment should not run when no log changed")
+
+    result = monitor.poll(fail_doctor_builder, fail_treatment_planner)
+
+    assert result["changed_logs"] == []
+    assert result["watched_log_count"] == 1
+    assert result["doctor_summary"] == {}
+    assert result["treatment"] == {
+        "candidate_count": 0,
+        "first_batch_count": 0,
+        "manifest_path": None,
+        "warnings": [],
+        "blockers": [],
+    }
+    assert result["recommended_next_action"] == "waiting"
+
+
+def test_live_monitor_with_empty_prior_snapshot_detects_existing_log(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (sims4 / "lastUIException.txt").write_text("ui crash", encoding="utf-8")
+    monitor = LiveMonitor(sims4, mods, initial_snapshot={})
+
+    result = monitor.poll(
+        lambda base, mods_dir, recursive: {
+            "summary": {"script_reports": 0, "ui_findings": 1, "ui_active": 0},
+            "script_crashes": {},
+            "ui_crashes": {},
+        },
+        lambda base, mods_dir, doctor_payload, *, save=False: {
+            "active_candidates": [],
+            "next_batch": [],
+            "manifest_path": None,
+            "warnings": ["No active Doctor candidates can be moved."],
+            "blockers": [],
+        },
+    )
+
+    assert [log["name"] for log in result["changed_logs"]] == ["lastUIException.txt"]
