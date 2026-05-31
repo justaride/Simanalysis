@@ -95,7 +95,7 @@ V1 uses Doctor output as evidence, but it treats the file system as source of tr
 
 Eligible candidates are active findings:
 
-- script suspects with `status == "active"` and at least one evidence path that maps to an active `.ts4script`
+- script suspects with `status == "active"` whose suspect `mod` name can be resolved to an active `.ts4script` file under `Mods`
 - UI findings with `status == "active"` and at least one active package hit
 
 Disabled, quarantined, not-installed, not-found, and no-key findings are included in the explanation but are not movable candidates.
@@ -107,6 +107,8 @@ For each active candidate path:
 1. If the file is directly under `Mods`, the unit is that file.
 2. If the file is under a first-level child folder of `Mods`, the unit is that first-level folder.
 3. If the path is nested deeper, the unit still stays the first-level child folder.
+
+Script candidates resolve from the suspect `.ts4script` filename because traceback evidence paths are often creator build-machine paths rather than local disk paths. UI candidates resolve from `package_path` because UI resource hits already carry the active package path.
 
 This matches the user's real recovery workflow: restore and rollback by creator/category batches first, not by thousands of individual CC files.
 
