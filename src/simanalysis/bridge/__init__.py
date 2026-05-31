@@ -35,6 +35,30 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("--mods", default=None)
     p_doctor.add_argument("--recursive", action="store_true")
 
+    p_treatment_plan = sub.add_parser("treatment-plan")
+    p_treatment_plan.add_argument("path")
+    p_treatment_plan.add_argument("--mods", default=None)
+    p_treatment_plan.add_argument("--doctor-json", default=None)
+    p_treatment_plan.add_argument("--save", action="store_true")
+
+    p_treatment_apply = sub.add_parser("treatment-apply")
+    p_treatment_apply.add_argument("manifest_path")
+
+    p_treatment_outcome = sub.add_parser("treatment-outcome")
+    p_treatment_outcome.add_argument("manifest_path")
+    p_treatment_outcome.add_argument(
+        "--outcome",
+        required=True,
+        choices=("same_issue", "issue_gone", "different_issue"),
+    )
+
+    p_treatment_restore = sub.add_parser("treatment-restore")
+    p_treatment_restore.add_argument("manifest_path")
+    p_treatment_restore.add_argument("--step", default="latest", choices=("latest", "all"))
+
+    p_treatment_status = sub.add_parser("treatment-status")
+    p_treatment_status.add_argument("manifest_path")
+
     return parser
 
 

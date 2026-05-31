@@ -1,3 +1,4 @@
+# mypy: disable-error-code="no-untyped-def,no-untyped-call"
 import io
 import json
 import sys
@@ -70,6 +71,102 @@ def test_doctor_scan_command_is_dispatched(monkeypatch, tmp_path):
     assert code == 0
     assert called == {"path": str(tmp_path), "mods": str(tmp_path), "recursive": False}
     assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_treatment_plan_command_is_dispatched_with_save(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_treatment_plan(args, emit):
+        called["args"] = args
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "treatment-plan", fake_treatment_plan)
+
+    code, events = _run(monkeypatch, ["treatment-plan", str(tmp_path), "--save"])
+
+    assert code == 0
+    assert called["args"].path == str(tmp_path)
+    assert called["args"].mods is None
+    assert called["args"].doctor_json is None
+    assert called["args"].save is True
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_treatment_outcome_command_is_dispatched(monkeypatch):
+    called = {}
+
+    def fake_treatment_outcome(args, emit):
+        called["args"] = args
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "treatment-outcome", fake_treatment_outcome)
+
+    code, events = _run(
+        monkeypatch,
+        ["treatment-outcome", "manifest.json", "--outcome", "issue_gone"],
+    )
+
+    assert code == 0
+    assert called["args"].manifest_path == "manifest.json"
+    assert called["args"].outcome == "issue_gone"
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_treatment_apply_restore_status_commands_are_dispatched(monkeypatch):
+    called = []
+
+    def fake_handler(args, emit):
+        called.append((args.command, args.manifest_path, getattr(args, "step", None)))
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "treatment-apply", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "treatment-restore", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "treatment-status", fake_handler)
+
+    apply_code, apply_events = _run(monkeypatch, ["treatment-apply", "manifest.json"])
+    restore_code, restore_events = _run(
+        monkeypatch,
+        ["treatment-restore", "manifest.json", "--step", "all"],
+    )
+    status_code, status_events = _run(monkeypatch, ["treatment-status", "manifest.json"])
+
+    assert apply_code == restore_code == status_code == 0
+    assert called == [
+        ("treatment-apply", "manifest.json", None),
+        ("treatment-restore", "manifest.json", "all"),
+        ("treatment-status", "manifest.json", None),
+    ]
+    assert [event["type"] for event in apply_events] == ["result", "done"]
+    assert [event["type"] for event in restore_events] == ["result", "done"]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+
+
+def test_treatment_plan_malformed_doctor_json_is_invalid_input(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    doctor_json = tmp_path / "doctor.json"
+    doctor_json.write_text(
+        json.dumps(
+            {
+                "script_crashes": {"ranked_mods": [1], "findings": []},
+                "ui_crashes": {"findings": [1]},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code, events = _run(
+        monkeypatch,
+        ["treatment-plan", str(sims4), "--doctor-json", str(doctor_json)],
+    )
+
+    assert code == 2
+    assert events[-1]["type"] == "error"
+    assert events[-1]["code"] == "INVALID_INPUT"
+    assert "Doctor JSON" in events[-1]["message"]
 
 
 def test_unknown_command_argparse_exits(monkeypatch):

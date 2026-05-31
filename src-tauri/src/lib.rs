@@ -27,9 +27,31 @@ struct AnalysisOptions {
     recursive: bool,
     #[serde(default)]
     mods_path: Option<String>,
+    #[serde(default)]
+    doctor_json_path: Option<String>,
+    #[serde(default)]
+    save: bool,
+    #[serde(default)]
+    outcome: Option<String>,
+    #[serde(default)]
+    step: Option<String>,
 }
 fn default_true() -> bool {
     true
+}
+
+fn validate_treatment_outcome(outcome: &str) -> Result<(), String> {
+    match outcome {
+        "same_issue" | "issue_gone" | "different_issue" => Ok(()),
+        other => Err(format!("unsupported treatment outcome: {other}")),
+    }
+}
+
+fn validate_treatment_restore_step(step: &str) -> Result<(), String> {
+    match step {
+        "latest" | "all" => Ok(()),
+        other => Err(format!("unsupported treatment restore step: {other}")),
+    }
 }
 
 fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<String>, String> {
@@ -68,6 +90,49 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             if opts.recursive {
                 args.push("--recursive".into());
             }
+        }
+        "treatment-plan" => {
+            args.push("treatment-plan".into());
+            args.push(path.into());
+            if let Some(mods) = opts.mods_path.as_deref() {
+                args.push("--mods".into());
+                args.push(mods.into());
+            }
+            if let Some(doctor_json) = opts.doctor_json_path.as_deref() {
+                args.push("--doctor-json".into());
+                args.push(doctor_json.into());
+            }
+            if opts.save {
+                args.push("--save".into());
+            }
+        }
+        "treatment-apply" => {
+            args.push("treatment-apply".into());
+            args.push(path.into());
+        }
+        "treatment-outcome" => {
+            let outcome = opts
+                .outcome
+                .as_deref()
+                .ok_or("treatment-outcome requires options.outcome")?;
+            validate_treatment_outcome(outcome)?;
+            args.push("treatment-outcome".into());
+            args.push(path.into());
+            args.push("--outcome".into());
+            args.push(outcome.into());
+        }
+        "treatment-restore" => {
+            args.push("treatment-restore".into());
+            args.push(path.into());
+            if let Some(step) = opts.step.as_deref() {
+                validate_treatment_restore_step(step)?;
+                args.push("--step".into());
+                args.push(step.into());
+            }
+        }
+        "treatment-status" => {
+            args.push("treatment-status".into());
+            args.push(path.into());
         }
         other => return Err(format!("unknown analysis kind: {other}")),
     }
@@ -547,6 +612,128 @@ mod tests {
         };
         let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
         assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_treatment_plan_args_with_save_and_mods() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/Mods".into()),
+            save: true,
+            ..Default::default()
+        };
+        let args = build_args("treatment-plan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "treatment-plan",
+                "/Sims/The Sims 4",
+                "--mods",
+                "/Sims/Mods",
+                "--save",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_treatment_plan_args_with_doctor_json_without_save() {
+        let opts = AnalysisOptions {
+            doctor_json_path: Some("/Sims/doctor.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("treatment-plan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "treatment-plan",
+                "/Sims/The Sims 4",
+                "--doctor-json",
+                "/Sims/doctor.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_treatment_apply_args() {
+        let args = build_args(
+            "treatment-apply",
+            "/Sims/session.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["treatment-apply", "/Sims/session.json"]);
+    }
+
+    #[test]
+    fn builds_treatment_status_args() {
+        let args = build_args(
+            "treatment-status",
+            "/Sims/session.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["treatment-status", "/Sims/session.json"]);
+    }
+
+    #[test]
+    fn builds_treatment_outcome_args() {
+        let opts = AnalysisOptions {
+            outcome: Some("issue_gone".into()),
+            ..Default::default()
+        };
+        let args = build_args("treatment-outcome", "/Sims/session.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "treatment-outcome",
+                "/Sims/session.json",
+                "--outcome",
+                "issue_gone",
+            ]
+        );
+    }
+
+    #[test]
+    fn treatment_outcome_requires_outcome() {
+        let err = build_args(
+            "treatment-outcome",
+            "/Sims/session.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap_err();
+        assert!(err.contains("requires options.outcome"));
+    }
+
+    #[test]
+    fn treatment_outcome_rejects_unknown_outcome() {
+        let opts = AnalysisOptions {
+            outcome: Some("surprise".into()),
+            ..Default::default()
+        };
+        let err = build_args("treatment-outcome", "/Sims/session.json", &opts).unwrap_err();
+        assert!(err.contains("unsupported treatment outcome"));
+    }
+
+    #[test]
+    fn builds_treatment_restore_args_with_step() {
+        let opts = AnalysisOptions {
+            step: Some("all".into()),
+            ..Default::default()
+        };
+        let args = build_args("treatment-restore", "/Sims/session.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec!["treatment-restore", "/Sims/session.json", "--step", "all",]
+        );
+    }
+
+    #[test]
+    fn treatment_restore_rejects_unknown_step() {
+        let opts = AnalysisOptions {
+            step: Some("step-03".into()),
+            ..Default::default()
+        };
+        let err = build_args("treatment-restore", "/Sims/session.json", &opts).unwrap_err();
+        assert!(err.contains("unsupported treatment restore step"));
     }
 
     #[test]

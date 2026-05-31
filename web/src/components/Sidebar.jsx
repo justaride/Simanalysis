@@ -1,17 +1,39 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope } from 'lucide-react';
+import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope, Stethoscope } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+function isCompactViewport() {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+}
 
 function Sidebar() {
     const [collapsed, setCollapsed] = useState(() => {
         const saved = localStorage.getItem('sidebar-collapsed');
-        return saved ? JSON.parse(saved) : false;
+        return isCompactViewport() || (saved ? JSON.parse(saved) : false);
     });
 
     useEffect(() => {
-        localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
+        if (!isCompactViewport()) {
+            localStorage.setItem('sidebar-collapsed', JSON.stringify(collapsed));
+        }
     }, [collapsed]);
+
+    useEffect(() => {
+        const query = window.matchMedia('(max-width: 767px)');
+        const syncCompactState = (event) => {
+            if (event.matches) {
+                setCollapsed(true);
+                return;
+            }
+            const saved = localStorage.getItem('sidebar-collapsed');
+            setCollapsed(saved ? JSON.parse(saved) : false);
+        };
+
+        query.addEventListener('change', syncCompactState);
+        return () => query.removeEventListener('change', syncCompactState);
+    }, []);
 
     const navItems = [
         { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -20,6 +42,7 @@ function Sidebar() {
         { path: '/save-analyzer', icon: FileSearch, label: 'Save Analyzer' },
         { path: '/conflicts', icon: AlertTriangle, label: 'Conflicts' },
         { path: '/doctor', icon: Microscope, label: 'Doctor' },
+        { path: '/treatment', icon: Stethoscope, label: 'Treatment' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
 
