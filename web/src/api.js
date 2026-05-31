@@ -3,6 +3,9 @@
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
 
+const TREATMENT_OUTCOMES = new Set(['same_issue', 'issue_gone', 'different_issue']);
+const TREATMENT_RESTORE_STEPS = new Set(['latest', 'all']);
+
 function runAnalysis(kind, path, options, callbacks) {
   const taskId = crypto.randomUUID();
   const channel = new Channel();
@@ -37,6 +40,29 @@ function runAnalysis(kind, path, options, callbacks) {
   return { taskId, cancel, close: cancel };
 }
 
+function treatmentPlanOptions(modsPath, optionsOrSave) {
+  if (typeof optionsOrSave === 'object' && optionsOrSave !== null) {
+    return {
+      modsPath,
+      save: Boolean(optionsOrSave.save),
+      doctorJsonPath: optionsOrSave.doctorJsonPath,
+    };
+  }
+  return { modsPath, save: Boolean(optionsOrSave) };
+}
+
+function validateTreatmentOutcome(outcome) {
+  if (!TREATMENT_OUTCOMES.has(outcome)) {
+    throw new Error(`Unsupported treatment outcome: ${outcome}`);
+  }
+}
+
+function validateTreatmentRestoreStep(step) {
+  if (step != null && !TREATMENT_RESTORE_STEPS.has(step)) {
+    throw new Error(`Unsupported treatment restore step: ${step}`);
+  }
+}
+
 export const api = {
   health: () => invoke('health'),
   scanMods: (path, callbacks) =>
@@ -47,6 +73,25 @@ export const api = {
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
   scanDoctor: (sims4Path, modsPath, callbacks) =>
     runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  planTreatment: (sims4Path, modsPath, save, callbacks) =>
+    runAnalysis(
+      'treatment-plan',
+      sims4Path,
+      treatmentPlanOptions(modsPath, save),
+      callbacks,
+    ),
+  applyTreatment: (manifestPath, callbacks) =>
+    runAnalysis('treatment-apply', manifestPath, {}, callbacks),
+  recordTreatmentOutcome: (manifestPath, outcome, callbacks) => {
+    validateTreatmentOutcome(outcome);
+    return runAnalysis('treatment-outcome', manifestPath, { outcome }, callbacks);
+  },
+  restoreTreatment: (manifestPath, step, callbacks) => {
+    validateTreatmentRestoreStep(step);
+    return runAnalysis('treatment-restore', manifestPath, { step }, callbacks);
+  },
+  treatmentStatus: (manifestPath, callbacks) =>
+    runAnalysis('treatment-status', manifestPath, {}, callbacks),
 };
 
 export default api;
