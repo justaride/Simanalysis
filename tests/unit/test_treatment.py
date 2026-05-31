@@ -2,15 +2,19 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 
 import simanalysis.treatment as treatment
 from simanalysis.treatment import (
+    apply_next_step,
     assert_safe_unit_move,
     contains_symlink,
     create_plan,
     load_session,
+    record_outcome,
+    restore_session,
     unit_for_path,
 )
 
@@ -68,6 +72,55 @@ def _doctor_payload(ui_path: Path, script_name: str = "Active.ts4script") -> dic
             "index_errors": [],
         },
     }
+
+
+def _saved_bisect_session(tmp_path: Path, names: list[str]) -> tuple[Path, Path, Path]:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    for name in names:
+        unit = mods / name
+        unit.mkdir(parents=True)
+        (unit / f"{name}.package").write_bytes(name.encode())
+
+    candidates = [
+        {
+            "unit_path": str(mods / name),
+            "unit_name": name,
+            "unit_kind": "folder",
+            "evidence": [],
+            "rank": index,
+        }
+        for index, name in enumerate(names)
+    ]
+    now = treatment.utc_now().isoformat().replace("+00:00", "Z")
+    manifest_path = sims4 / "_Simanalysis_Treatment" / "bisect-test.json"
+    disabled_dir = sims4 / "_Disabled_Simanalysis_Bisect_test"
+    session: dict[str, object] = {
+        "version": 1,
+        "session_id": "bisect-test",
+        "created_at": now,
+        "updated_at": now,
+        "sims4_dir": str(sims4),
+        "mods_dir": str(mods),
+        "disabled_dir": str(disabled_dir),
+        "manifest_path": str(manifest_path),
+        "status": "planned",
+        "active_candidates": candidates,
+        "remaining_candidates": [candidate["unit_path"] for candidate in candidates],
+        "current_removed": [],
+        "next_batch": [str(mods / name) for name in names[: (len(names) + 1) // 2]],
+        "steps": [],
+        "warnings": [],
+        "blockers": [],
+    }
+    manifest = Path(cast(str, session["manifest_path"]))
+    manifest.parent.mkdir(parents=True)
+    manifest.write_text(json.dumps(session), encoding="utf-8")
+    return manifest, mods, disabled_dir
+
+
+def _allow_file_moves(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(treatment, "assert_sims_not_running", lambda: None)
 
 
 def test_unit_for_path_uses_top_level_mods_child(tmp_path: Path) -> None:
@@ -306,6 +359,16 @@ def test_load_session_rejects_missing_required_keys(tmp_path: Path) -> None:
         load_session(manifest)
 
 
+def test_load_session_rejects_missing_mutation_fields(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data.pop("current_removed")
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="current_removed"):
+        load_session(manifest)
+
+
 def test_load_session_rejects_unsupported_version(tmp_path: Path) -> None:
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
@@ -325,6 +388,394 @@ def test_load_session_rejects_unsupported_version(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unsupported treatment manifest version"):
         load_session(manifest)
+
+
+def test_load_session_rejects_non_string_path_fields(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["mods_dir"] = ["not", "a", "path"]
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="mods_dir must be a string"):
+        load_session(manifest)
+
+
+def test_load_session_rejects_non_list_candidate_fields(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["remaining_candidates"] = "not-a-list"
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="remaining_candidates must be a list"):
+        load_session(manifest)
+
+
+def test_load_session_rejects_unknown_status(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["status"] = "surprising"
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Unknown treatment session status"):
+        load_session(manifest)
+
+
+def test_load_session_rejects_non_list_steps(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["steps"] = {"step": "bad"}
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="steps must be a list"):
+        load_session(manifest)
+
+
+def test_load_session_rejects_mods_dir_outside_sims4(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    outside_mods = tmp_path / "Other Mods"
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["mods_dir"] = str(outside_mods)
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Sims 4 Mods folder"):
+        load_session(manifest)
+
+
+def test_load_session_rejects_disabled_dir_outside_sims4(tmp_path: Path) -> None:
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha"])
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["disabled_dir"] = str(tmp_path / "_Disabled_Simanalysis_Bisect_outside")
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Simanalysis bisect folder"):
+        load_session(manifest)
+
+
+def test_assert_sims_not_running_rejects_running_sims(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> treatment.subprocess.CompletedProcess[str]:
+        return treatment.subprocess.CompletedProcess(
+            args=["ps"],
+            returncode=0,
+            stdout="/Applications/The Sims 4.app\n",
+        )
+
+    monkeypatch.setattr(treatment.subprocess, "run", fake_run)
+
+    with pytest.raises(ValueError, match="The Sims 4 is running"):
+        treatment.assert_sims_not_running()
+
+
+def test_assert_sims_not_running_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_run(*args: object, **kwargs: object) -> treatment.subprocess.CompletedProcess[str]:
+        raise treatment.subprocess.CalledProcessError(1, ["ps"])
+
+    monkeypatch.setattr(treatment.subprocess, "run", fake_run)
+
+    with pytest.raises(ValueError, match="running processes could not be checked"):
+        treatment.assert_sims_not_running()
+
+
+def test_apply_next_step_moves_first_half_and_updates_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+
+    session = apply_next_step(manifest)
+
+    removed = [str(mods / "Alpha"), str(mods / "Beta")]
+    assert session["status"] == "awaiting_result"
+    assert session["steps"][0]["status"] == "applied"
+    assert session["current_removed"] == removed
+    assert session["next_batch"] == []
+    assert [record["status"] for record in session["steps"][0]["removed_units"]] == [
+        "moved",
+        "moved",
+    ]
+    assert not (mods / "Alpha").exists()
+    assert not (mods / "Beta").exists()
+    assert (disabled / "Alpha").is_dir()
+    assert (disabled / "Beta").is_dir()
+
+    saved = json.loads(manifest.read_text(encoding="utf-8"))
+    assert saved["status"] == "awaiting_result"
+    assert saved["steps"][0]["status"] == "applied"
+    assert saved["current_removed"] == removed
+
+
+def test_record_outcome_rejects_non_applied_latest_step(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["steps"][-1]["status"] = "awaiting_result"
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Latest treatment step is not applied"):
+        record_outcome(manifest, "same_issue")
+
+
+def test_record_same_issue_restores_removed_batch_and_narrows_to_other_half(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+
+    session = record_outcome(manifest, "same_issue")
+
+    assert session["status"] == "confirmed_candidate"
+    assert session["remaining_candidates"] == [str(mods / "Gamma")]
+    assert session["current_removed"] == []
+    assert session["next_batch"] == []
+    assert session["steps"][-1]["outcome"] == "same_issue"
+    assert (mods / "Alpha").is_dir()
+    assert (mods / "Beta").is_dir()
+    assert not (disabled / "Alpha").exists()
+    assert not (disabled / "Beta").exists()
+
+
+def test_same_issue_late_save_failure_keeps_narrowed_candidates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    real_write_session = treatment._write_session
+    calls = 0
+
+    def flaky_write_session(session: dict) -> dict:
+        nonlocal calls
+        calls += 1
+        if calls == 6:
+            raise OSError("disk full")
+        return real_write_session(session)
+
+    monkeypatch.setattr(treatment, "_write_session", flaky_write_session)
+
+    with pytest.raises(OSError, match="disk full"):
+        record_outcome(manifest, "same_issue")
+
+    saved = json.loads(manifest.read_text(encoding="utf-8"))
+    assert saved["remaining_candidates"] == [str(mods / "Gamma")]
+    assert saved["current_removed"] == []
+    assert saved["steps"][-1]["outcome"] == "same_issue"
+    assert saved["steps"][-1]["status"] == "restored"
+    assert (mods / "Alpha").is_dir()
+    assert (mods / "Beta").is_dir()
+    assert not (disabled / "Alpha").exists()
+    assert not (disabled / "Beta").exists()
+
+
+def test_same_issue_restore_retry_finalizes_after_collision_is_fixed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    (mods / "Beta").mkdir()
+
+    with pytest.raises(ValueError, match="Restore destination already exists"):
+        record_outcome(manifest, "same_issue")
+
+    saved = json.loads(manifest.read_text(encoding="utf-8"))
+    assert saved["status"] == "blocked"
+    assert saved["remaining_candidates"] == [str(mods / "Gamma")]
+    assert saved["current_removed"] == [str(mods / "Beta")]
+    assert saved["steps"][-1]["outcome"] == "same_issue"
+    assert (mods / "Alpha").is_dir()
+    assert (disabled / "Beta").is_dir()
+
+    (mods / "Beta").rmdir()
+    restored = restore_session(manifest)
+
+    assert restored["status"] == "confirmed_candidate"
+    assert restored["remaining_candidates"] == [str(mods / "Gamma")]
+    assert restored["current_removed"] == []
+    assert restored["steps"][-1]["status"] == "restored"
+    assert (mods / "Beta").is_dir()
+    assert not (disabled / "Beta").exists()
+
+
+def test_record_issue_gone_keeps_removed_batch_as_remaining(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+
+    session = record_outcome(manifest, "issue_gone")
+
+    removed = [str(mods / "Alpha"), str(mods / "Beta")]
+    assert session["status"] == "planned"
+    assert session["remaining_candidates"] == removed
+    assert session["current_removed"] == removed
+    assert session["next_batch"] == removed[:1]
+    assert [record["status"] for record in session["steps"][-1]["removed_units"]] == [
+        "kept_disabled",
+        "kept_disabled",
+    ]
+    assert not (mods / "Alpha").exists()
+    assert (disabled / "Alpha").is_dir()
+
+
+def test_apply_after_issue_gone_restores_held_batch_then_moves_next_half(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    record_outcome(manifest, "issue_gone")
+
+    session = apply_next_step(manifest)
+
+    assert session["status"] == "awaiting_result"
+    assert session["remaining_candidates"] == [str(mods / "Alpha"), str(mods / "Beta")]
+    assert session["current_removed"] == [str(mods / "Alpha")]
+    assert session["steps"][0]["status"] == "restored"
+    assert session["steps"][1]["status"] == "applied"
+    assert session["steps"][1]["removed_units"][0]["source"] == str(mods / "Alpha")
+    assert not (mods / "Alpha").exists()
+    assert (mods / "Beta").is_dir()
+    assert (disabled / "Alpha").is_dir()
+    assert not (disabled / "Beta").exists()
+
+
+def test_apply_save_failure_after_move_leaves_restorable_manifest(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    real_write_session = treatment._write_session
+    calls = 0
+
+    def flaky_write_session(session: dict) -> dict:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise OSError("disk full")
+        return real_write_session(session)
+
+    monkeypatch.setattr(treatment, "_write_session", flaky_write_session)
+
+    with pytest.raises(OSError, match="disk full"):
+        apply_next_step(manifest)
+
+    saved = json.loads(manifest.read_text(encoding="utf-8"))
+    records = saved["steps"][-1]["removed_units"]
+    assert saved["status"] == "blocked"
+    assert saved["current_removed"] == [str(mods / "Alpha")]
+    assert records[0]["status"] == "moved"
+    assert not (mods / "Alpha").exists()
+    assert (disabled / "Alpha").is_dir()
+
+    restored = restore_session(manifest)
+
+    assert restored["current_removed"] == []
+    assert (mods / "Alpha").is_dir()
+    assert not (disabled / "Alpha").exists()
+
+
+def test_restore_latest_step_moves_units_back(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+
+    session = restore_session(manifest)
+
+    assert session["status"] == "planned"
+    assert session["current_removed"] == []
+    assert session["next_batch"] == [str(mods / "Alpha"), str(mods / "Beta")]
+    assert [record["status"] for record in session["steps"][-1]["removed_units"]] == [
+        "restored",
+        "restored",
+    ]
+    assert session["steps"][-1]["status"] == "restored"
+    assert (mods / "Alpha").is_dir()
+    assert (mods / "Beta").is_dir()
+    assert not (disabled / "Alpha").exists()
+
+
+def test_restore_latest_step_rejects_nested_disabled_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    nested = disabled / "Nested"
+    nested.mkdir()
+    (disabled / "Alpha").rename(nested / "Alpha")
+    data = json.loads(manifest.read_text(encoding="utf-8"))
+    data["steps"][-1]["removed_units"][0]["destination"] = str(nested / "Alpha")
+    manifest.write_text(json.dumps(data), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="direct child of active disabled folder"):
+        restore_session(manifest)
+
+    assert not (mods / "Alpha").exists()
+    assert (nested / "Alpha").is_dir()
+
+
+def test_restore_latest_step_saves_partial_progress_and_blocks_on_later_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, disabled = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    (mods / "Beta").mkdir()
+
+    with pytest.raises(ValueError, match="Restore destination already exists"):
+        restore_session(manifest)
+
+    saved = json.loads(manifest.read_text(encoding="utf-8"))
+    records = saved["steps"][-1]["removed_units"]
+    assert saved["status"] == "blocked"
+    assert saved["steps"][-1]["status"] == "blocked"
+    assert saved["current_removed"] == [str(mods / "Beta")]
+    assert records[0]["status"] == "restored"
+    assert records[1]["status"] == "blocked"
+    assert (mods / "Alpha").is_dir()
+    assert not (disabled / "Alpha").exists()
+    assert (disabled / "Beta").is_dir()
+
+    (mods / "Beta").rmdir()
+    restored = restore_session(manifest)
+
+    assert restored["status"] == "planned"
+    assert restored["current_removed"] == []
+    assert restored["steps"][-1]["status"] == "restored"
+    assert restored["steps"][-1]["removed_units"][1]["status"] == "restored"
+    assert (mods / "Beta").is_dir()
+    assert not (disabled / "Beta").exists()
+
+
+def test_different_issue_marks_manual_review(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, _, _ = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+
+    session = record_outcome(manifest, "different_issue")
+
+    assert session["status"] == "manual_review"
+    assert session["steps"][-1]["outcome"] == "different_issue"
 
 
 def test_contains_symlink_detects_nested_symlink(tmp_path: Path) -> None:

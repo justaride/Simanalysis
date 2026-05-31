@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import subprocess
 import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -13,6 +15,16 @@ from typing import Any, cast
 SESSION_ROOT_NAME = "_Simanalysis_Treatment"
 DISABLED_PREFIX = "_Disabled_Simanalysis_Bisect_"
 VALID_OUTCOMES = {"same_issue", "issue_gone", "different_issue"}
+RESTORABLE_RECORD_STATUSES = {"moving", "moved", "kept_disabled"}
+VALID_SESSION_STATUSES = {
+    "planned",
+    "awaiting_result",
+    "confirmed_candidate",
+    "inconclusive",
+    "blocked",
+    "manual_review",
+}
+SIMS_PROCESS_NAMES = {"the sims 4", "the sims 4.app", "ts4_x64.exe", "ts4_dx9_x64.exe"}
 
 
 @dataclass(frozen=True)
@@ -290,6 +302,26 @@ def _write_session(session: dict[str, Any]) -> dict[str, Any]:
     return session
 
 
+def _require_string(data: dict[str, Any], key: str) -> None:
+    if not isinstance(data.get(key), str):
+        raise ValueError(f"Manifest field {key} must be a string")
+
+
+def _require_list(data: dict[str, Any], key: str) -> None:
+    if not isinstance(data.get(key), list):
+        raise ValueError(f"Manifest field {key} must be a list")
+
+
+def _validate_session_roots(data: dict[str, Any]) -> None:
+    sims4 = _logical_absolute(data["sims4_dir"])
+    mods = _logical_absolute(data["mods_dir"])
+    disabled = _logical_absolute(data["disabled_dir"])
+    if mods != sims4 / "Mods":
+        raise ValueError("Manifest Mods folder must be the Sims 4 Mods folder")
+    if disabled.parent != sims4 or not disabled.name.startswith(DISABLED_PREFIX):
+        raise ValueError("Manifest disabled folder must be a Simanalysis bisect folder")
+
+
 def load_session(manifest_path: str | Path) -> dict[str, Any]:
     path = Path(manifest_path).expanduser().resolve()
     if not path.exists() or not path.is_file():
@@ -311,14 +343,387 @@ def load_session(manifest_path: str | Path) -> dict[str, Any]:
         "mods_dir",
         "disabled_dir",
         "status",
+        "active_candidates",
+        "remaining_candidates",
+        "current_removed",
+        "next_batch",
         "steps",
+        "warnings",
+        "blockers",
     }
     missing = required - set(data)
     if missing:
         raise ValueError(f"Manifest is missing required keys: {', '.join(sorted(missing))}")
+    for key in ("session_id", "sims4_dir", "mods_dir", "disabled_dir"):
+        _require_string(data, key)
+    if "manifest_path" in data and data["manifest_path"] is not None:
+        _require_string(data, "manifest_path")
+    for key in (
+        "active_candidates",
+        "remaining_candidates",
+        "current_removed",
+        "next_batch",
+        "steps",
+        "warnings",
+        "blockers",
+    ):
+        if key in data:
+            _require_list(data, key)
+    if data["status"] not in VALID_SESSION_STATUSES:
+        raise ValueError(f"Unknown treatment session status: {data['status']}")
+    _validate_session_roots(data)
 
     data["manifest_path"] = str(path)
     return data
+
+
+def assert_sims_not_running() -> None:
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "comm="],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ValueError("Refusing to move files because running processes could not be checked") from exc
+
+    for line in result.stdout.splitlines():
+        name = Path(line.strip()).name.casefold()
+        if name in SIMS_PROCESS_NAMES:
+            raise ValueError("Refusing to move files while The Sims 4 is running")
+
+
+def _save_loaded(session: dict[str, Any]) -> dict[str, Any]:
+    session["updated_at"] = utc_now().isoformat().replace("+00:00", "Z")
+    return _write_session(session)
+
+
+def _candidate_by_path(session: dict[str, Any], unit_path: str) -> dict[str, Any]:
+    for candidate in session.get("active_candidates", []):
+        if isinstance(candidate, dict) and candidate.get("unit_path") == unit_path:
+            return cast(dict[str, Any], candidate)
+    raise ValueError(f"Candidate not found in treatment manifest: {unit_path}")
+
+
+def _next_batch(session: dict[str, Any]) -> list[str]:
+    remaining = session.get("remaining_candidates", [])
+    if not isinstance(remaining, list):
+        raise ValueError("Manifest field remaining_candidates must be a list")
+    if len(remaining) <= 1:
+        return []
+    batch_size = (len(remaining) + 1) // 2
+    return [str(path) for path in remaining[:batch_size]]
+
+
+def _move_records_for(session: dict[str, Any], unit_paths: list[str]) -> list[dict[str, Any]]:
+    disabled = Path(str(session["disabled_dir"]))
+    records: list[dict[str, Any]] = []
+    for unit_path in unit_paths:
+        candidate = _candidate_by_path(session, unit_path)
+        source = Path(unit_path)
+        destination = disabled / source.name
+        records.append(
+            {
+                "unit_path": unit_path,
+                "source": unit_path,
+                "destination": str(destination),
+                "unit_kind": str(candidate.get("unit_kind", "unknown")),
+                "status": "pending",
+            }
+        )
+    return records
+
+
+def apply_next_step(manifest_path: str | Path) -> dict[str, Any]:
+    assert_sims_not_running()
+    session = load_session(manifest_path)
+
+    batch = _next_batch(session)
+    if not batch:
+        session["status"] = "confirmed_candidate" if session["remaining_candidates"] else "inconclusive"
+        session["next_batch"] = []
+        return _save_loaded(session)
+
+    mods = Path(str(session["mods_dir"]))
+    disabled = Path(str(session["disabled_dir"]))
+    if session["current_removed"]:
+        if session["status"] != "planned":
+            raise ValueError("Current removed batch must be restored or recorded before applying another step")
+        current_removed = {str(path) for path in session["current_removed"]}
+        remaining = {str(path) for path in session["remaining_candidates"]}
+        if not current_removed.issubset(remaining):
+            raise ValueError("Current removed batch is inconsistent with remaining candidates")
+        _restore_current_removed_for_next_step(session, mods, disabled)
+
+    removed_units = _move_records_for(session, batch)
+    step: dict[str, Any] = {
+        "step_id": f"step-{len(session['steps']) + 1}",
+        "created_at": utc_now().isoformat().replace("+00:00", "Z"),
+        "status": "pending",
+        "reason": "bisect first half",
+        "removed_units": removed_units,
+        "outcome": None,
+    }
+    session["steps"].append(step)
+    _save_loaded(session)
+
+    disabled.mkdir(parents=True, exist_ok=True)
+
+    blocked_record: dict[str, Any] | None = None
+    try:
+        for record in removed_units:
+            blocked_record = record
+            source = Path(str(record["source"]))
+            destination = Path(str(record["destination"]))
+            assert_safe_unit_move(source, destination, mods, disabled)
+            record["status"] = "moving"
+            moved_unit = str(record["unit_path"])
+            if moved_unit not in session["current_removed"]:
+                session["current_removed"].append(moved_unit)
+            session["status"] = "awaiting_result"
+            _save_loaded(session)
+            shutil.move(str(source), str(destination))
+            record["status"] = "moved"
+            _save_loaded(session)
+    except Exception:
+        if blocked_record is not None:
+            destination = Path(str(blocked_record["destination"]))
+            source = Path(str(blocked_record["source"]))
+            if destination.exists() and not source.exists():
+                blocked_record["status"] = "moved"
+            else:
+                blocked_record["status"] = "blocked"
+                _remove_current_removed(
+                    session,
+                    str(blocked_record.get("unit_path") or blocked_record["source"]),
+                )
+        step["status"] = "blocked"
+        session["status"] = "blocked"
+        _save_loaded(session)
+        raise
+
+    step["status"] = "applied"
+    session["next_batch"] = []
+    return _save_loaded(session)
+
+
+def _restore_record(record: dict[str, Any], mods_dir: Path, disabled_dir: Path) -> None:
+    mods = _logical_absolute(mods_dir)
+    disabled = _logical_absolute(disabled_dir)
+    source = Path(str(record["destination"])).expanduser()
+    destination = Path(str(record["source"])).expanduser()
+    if not source.exists():
+        if record.get("status") == "moving" and destination.exists():
+            record["status"] = "restored"
+            return
+        raise ValueError(f"Restore source is missing: {source}")
+    if contains_symlink(source):
+        raise ValueError(f"Refusing to restore symlinked unit: {source}")
+    if destination.exists():
+        raise ValueError(f"Restore destination already exists: {destination}")
+    logical_source = _logical_absolute(source)
+    logical_destination = _logical_absolute(destination)
+    try:
+        logical_source.relative_to(disabled)
+    except ValueError as exc:
+        raise ValueError(f"Restore source is outside active disabled folder: {source}") from exc
+    if _logical_absolute(source.parent) != disabled:
+        raise ValueError(f"Restore source must be a direct child of active disabled folder: {source}")
+    try:
+        rel_destination = logical_destination.relative_to(mods)
+    except ValueError as exc:
+        raise ValueError(f"Restore destination is outside Mods folder: {destination}") from exc
+    if len(rel_destination.parts) != 1:
+        raise ValueError(f"Restore destination must be a direct child of Mods: {destination}")
+    if source.is_symlink() or source.parent.is_symlink():
+        raise ValueError(f"Restore source must not be a symlink: {source}")
+    shutil.move(str(source), str(destination))
+    record["status"] = "restored"
+
+
+def _remove_current_removed(session: dict[str, Any], unit_path: str) -> None:
+    session["current_removed"] = [
+        path for path in session.get("current_removed", []) if path != unit_path
+    ]
+
+
+def _record_unit_path(record: dict[str, Any]) -> str:
+    return str(record.get("unit_path") or record["source"])
+
+
+def _is_restorable_record(record: dict[str, Any], current_removed: set[str]) -> bool:
+    status = record.get("status")
+    if status in RESTORABLE_RECORD_STATUSES:
+        return True
+    if status != "blocked":
+        return False
+    unit_path = _record_unit_path(record)
+    if unit_path not in current_removed:
+        return False
+    return Path(str(record.get("destination", ""))).expanduser().exists()
+
+
+def _restore_current_removed_for_next_step(
+    session: dict[str, Any],
+    mods: Path,
+    disabled: Path,
+) -> None:
+    targets = {str(path) for path in session.get("current_removed", [])}
+    restored: set[str] = set()
+    blocked_step: dict[str, Any] | None = None
+    blocked_record: dict[str, Any] | None = None
+    try:
+        for restore_step in reversed(session.get("steps", [])):
+            if not isinstance(restore_step, dict):
+                continue
+            blocked_step = restore_step
+            step_restored = False
+            records = cast(list[dict[str, Any]], restore_step.get("removed_units", []))
+            for record in records:
+                unit_path = _record_unit_path(record)
+                if unit_path not in targets or not _is_restorable_record(record, targets):
+                    continue
+                blocked_record = record
+                _restore_record(record, mods, disabled)
+                _remove_current_removed(session, unit_path)
+                restored.add(unit_path)
+                step_restored = True
+                _save_loaded(session)
+                blocked_record = None
+            if step_restored:
+                restore_step["status"] = "restored"
+                _save_loaded(session)
+        missing = targets - restored
+        if missing:
+            raise ValueError(
+                "Could not find restorable records for current removed candidates: "
+                + ", ".join(sorted(missing))
+            )
+    except Exception:
+        if blocked_record is not None:
+            blocked_record["status"] = "blocked"
+        if blocked_step is not None:
+            blocked_step["status"] = "blocked"
+        session["status"] = "blocked"
+        _save_loaded(session)
+        raise
+
+
+def _latest_step(session: dict[str, Any]) -> dict[str, Any]:
+    steps = session.get("steps", [])
+    if not steps:
+        raise ValueError("Treatment session has no steps")
+    latest = steps[-1]
+    if not isinstance(latest, dict):
+        raise ValueError("Latest treatment step is invalid")
+    return cast(dict[str, Any], latest)
+
+
+def restore_session(manifest_path: str | Path, step: str = "latest") -> dict[str, Any]:
+    assert_sims_not_running()
+    session = load_session(manifest_path)
+    mods = Path(str(session["mods_dir"]))
+    disabled = Path(str(session["disabled_dir"]))
+    if step == "all":
+        steps = list(reversed(session["steps"]))
+    elif step == "latest":
+        steps = [_latest_step(session)]
+    else:
+        raise ValueError("Unsupported restore step selector")
+
+    blocked_step: dict[str, Any] | None = None
+    blocked_record: dict[str, Any] | None = None
+    current_removed = {str(path) for path in session.get("current_removed", [])}
+    try:
+        for restore_step in steps:
+            blocked_step = restore_step
+            records = cast(list[dict[str, Any]], restore_step.get("removed_units", []))
+            step_restored = False
+            for record in records:
+                if not _is_restorable_record(record, current_removed):
+                    continue
+                blocked_record = record
+                _restore_record(record, mods, disabled)
+                restored_unit = _record_unit_path(record)
+                _remove_current_removed(session, restored_unit)
+                current_removed.discard(restored_unit)
+                step_restored = True
+                _save_loaded(session)
+                blocked_record = None
+            if step_restored:
+                restore_step["status"] = "restored"
+                _save_loaded(session)
+    except Exception:
+        if blocked_record is not None:
+            blocked_record["status"] = "blocked"
+        if blocked_step is not None:
+            blocked_step["status"] = "blocked"
+        session["status"] = "blocked"
+        _save_loaded(session)
+        raise
+
+    if session["current_removed"]:
+        session["status"] = "blocked"
+        _save_loaded(session)
+        raise ValueError(
+            "Could not restore all current removed candidates: "
+            + ", ".join(sorted(str(path) for path in session["current_removed"]))
+        )
+
+    latest = _latest_step(session)
+    if latest.get("outcome") == "same_issue":
+        _finalize_status(session)
+    else:
+        session["status"] = "planned"
+        session["next_batch"] = _next_batch(session)
+    return _save_loaded(session)
+
+
+def _finalize_status(session: dict[str, Any]) -> None:
+    remaining = session["remaining_candidates"]
+    if len(remaining) == 1:
+        session["status"] = "confirmed_candidate"
+    elif not remaining:
+        session["status"] = "inconclusive"
+    else:
+        session["status"] = "planned"
+    session["next_batch"] = _next_batch(session)
+
+
+def record_outcome(manifest_path: str | Path, outcome: str) -> dict[str, Any]:
+    if outcome not in VALID_OUTCOMES:
+        raise ValueError(f"Unsupported treatment outcome: {outcome}")
+    assert_sims_not_running()
+    session = load_session(manifest_path)
+    latest = _latest_step(session)
+    if latest.get("status") != "applied":
+        raise ValueError("Latest treatment step is not applied")
+    latest["outcome"] = outcome
+
+    if outcome == "different_issue":
+        session["status"] = "manual_review"
+        return _save_loaded(session)
+
+    if outcome == "same_issue":
+        removed = list(session["current_removed"])
+        session["remaining_candidates"] = [
+            path for path in session["remaining_candidates"] if path not in removed
+        ]
+        _save_loaded(session)
+        session = restore_session(manifest_path)
+        latest = _latest_step(session)
+        latest["outcome"] = "same_issue"
+        session["current_removed"] = []
+        _finalize_status(session)
+        return _save_loaded(session)
+
+    for record in latest.get("removed_units", []):
+        if isinstance(record, dict) and record.get("status") == "moved":
+            record["status"] = "kept_disabled"
+    session["remaining_candidates"] = list(session["current_removed"])
+    _finalize_status(session)
+    return _save_loaded(session)
 
 
 def contains_symlink(path: Path) -> bool:
