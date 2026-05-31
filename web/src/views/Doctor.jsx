@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
     CheckCircle,
@@ -297,6 +298,7 @@ function FindingGroup({ title, description, icon: Icon, tone, groups }) {
 }
 
 function Doctor() {
+    const navigate = useNavigate();
     const [simsPath, setSimsPath] = useState(DEFAULT_SIMS_PATH);
     const [modsPath, setModsPath] = useState('');
     const [showSimsPicker, setShowSimsPicker] = useState(false);
@@ -371,13 +373,24 @@ function Doctor() {
                         </p>
                     </div>
                     {result && (
-                        <button
-                            onClick={handleExport}
-                            className="flex w-fit items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
-                        >
-                            <Download size={17} />
-                            Export JSON
-                        </button>
+                        <div className="flex flex-wrap gap-2">
+                            {activeTotal > 0 && (
+                                <button
+                                    onClick={() => navigate('/treatment', { state: { simsPath, modsPath } })}
+                                    className="flex w-fit items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-500"
+                                >
+                                    <ShieldCheck size={17} />
+                                    Open Treatment
+                                </button>
+                            )}
+                            <button
+                                onClick={handleExport}
+                                className="flex w-fit items-center gap-2 rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                            >
+                                <Download size={17} />
+                                Export JSON
+                            </button>
+                        </div>
                     )}
                 </motion.header>
 

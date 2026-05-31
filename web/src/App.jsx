@@ -8,6 +8,7 @@ const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
 const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
 const Doctor = lazy(() => import('./views/Doctor'));
+const Treatment = lazy(() => import('./views/Treatment'));
 const Settings = lazy(() => import('./views/Settings'));
 
 function LoadingFallback() {
@@ -29,6 +30,7 @@ function App() {
                     <Route path="/save-analyzer" element={<SaveAnalyzer />} />
                     <Route path="/conflicts" element={<Conflicts />} />
                     <Route path="/doctor" element={<Doctor />} />
+                    <Route path="/treatment" element={<Treatment />} />
                     <Route path="/settings" element={<Settings />} />
                 </Routes>
             </Suspense>
