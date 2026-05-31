@@ -18,10 +18,10 @@ fixture="/tmp/simanalysis-live-monitor-fixture"; rm -rf "$fixture"; mkdir -p "$f
 
 ## Results
 
-- Focused Live Monitoring and bridge tests: PASS; 41 passed in 0.08s.
-- Focused Treatment safety tests: PASS; 2 passed in 0.04s.
+- Focused Live Monitoring and bridge tests: PASS; 42 passed in 0.08s.
+- Focused Treatment safety tests: PASS; 2 passed in 0.03s.
 - Rust live monitor sidecar tests: PASS; 2 passed, 0 failed, 14 filtered out in `src-tauri` unit tests.
-- Full Python unit suite: PASS; 353 passed in 2.06s. Coverage output was produced by default pytest options.
+- Full Python unit suite: PASS; 354 passed in 1.44s. Coverage output was produced by default pytest options.
 - Bandit setup: PASS; Bandit was missing from the worktree virtualenv and `uv pip install "bandit[toml]"` installed `bandit==1.9.4` and `stevedore==5.8.0`.
 - Bandit: PASS; `No issues identified`, with 0 low, 0 medium, and 0 high severity findings. Bandit also reported comment-parsing warnings for non-test words in comments; these were warnings, not findings.
 - Synthetic bridge validation: PASS; command exited 0, emitted `recommended_next_action: "waiting"`, watched 1 log, had `changed_logs: []`, and `_Simanalysis_Treatment` was not created.
