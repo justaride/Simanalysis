@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
+import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 SESSION_ROOT_NAME = "_Simanalysis_Treatment"
 DISABLED_PREFIX = "_Disabled_Simanalysis_Bisect_"
@@ -250,6 +252,120 @@ def _base_plan(
     }
 
 
+def manifest_path_for(sims4_dir: Path, session_id: str) -> Path:
+    return sims4_dir / SESSION_ROOT_NAME / f"{session_id}.json"
+
+
+def _write_session(session: dict[str, Any]) -> dict[str, Any]:
+    path = Path(session["manifest_path"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w",
+            dir=path.parent,
+            encoding="utf-8",
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp_name = tmp.name
+            tmp.write(json.dumps(session, indent=2))
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_name, path)
+        tmp_name = None
+
+        try:
+            parent_fd = os.open(path.parent, os.O_RDONLY)
+        except OSError:
+            return session
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
+    return session
+
+
+def load_session(manifest_path: str | Path) -> dict[str, Any]:
+    path = Path(manifest_path).expanduser().resolve()
+    if not path.exists() or not path.is_file():
+        raise ValueError(f"Manifest not found: {manifest_path}")
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Manifest is not valid JSON: {manifest_path}") from exc
+
+    if not isinstance(parsed, dict):
+        raise ValueError("Manifest must be a JSON object")
+    data = cast(dict[str, Any], parsed)
+
+    if data.get("version") != 1:
+        raise ValueError("Unsupported treatment manifest version")
+    required = {
+        "session_id",
+        "sims4_dir",
+        "mods_dir",
+        "disabled_dir",
+        "status",
+        "steps",
+    }
+    missing = required - set(data)
+    if missing:
+        raise ValueError(f"Manifest is missing required keys: {', '.join(sorted(missing))}")
+
+    data["manifest_path"] = str(path)
+    return data
+
+
+def contains_symlink(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    if not path.is_dir():
+        return False
+    return any(child.is_symlink() for child in path.rglob("*"))
+
+
+def assert_safe_unit_move(
+    source: Path,
+    destination: Path,
+    mods_dir: Path,
+    disabled_dir: Path,
+) -> None:
+    source_path = Path(source).expanduser()
+    destination_path = Path(destination).expanduser()
+    mods = _logical_absolute(mods_dir)
+    disabled_path = Path(disabled_dir).expanduser()
+    disabled = _logical_absolute(disabled_path)
+
+    if contains_symlink(source_path):
+        raise ValueError(f"Refusing to move symlinked unit: {source}")
+    if not source_path.exists():
+        raise ValueError(f"Source path is missing: {source}")
+
+    logical_source = _logical_absolute(source_path)
+    try:
+        rel_source = logical_source.relative_to(mods)
+    except ValueError as exc:
+        raise ValueError(f"Source is outside Mods folder: {source}") from exc
+    if len(rel_source.parts) != 1:
+        raise ValueError(f"Source must be a direct child of Mods: {source}")
+
+    if destination_path.exists():
+        raise ValueError(f"Destination already exists: {destination}")
+
+    logical_destination_parent = _logical_absolute(destination_path.parent)
+    if logical_destination_parent != disabled:
+        raise ValueError(f"Destination must be inside active disabled folder: {destination}")
+    if not disabled_path.exists() or not disabled_path.is_dir():
+        raise ValueError(f"Disabled folder does not exist: {disabled_dir}")
+    if disabled_path.is_symlink() or destination_path.parent.is_symlink():
+        raise ValueError(f"Disabled folder must not be a symlink: {disabled_dir}")
+
+
 def create_plan(
     sims4_dir: str | Path,
     mods_dir: str | Path | None,
@@ -264,5 +380,7 @@ def create_plan(
     mods = Path(mods_dir).expanduser().resolve() if mods_dir else base / "Mods"
     plan = _base_plan(base, mods, doctor_payload, now=now or utc_now())
     if save:
-        raise NotImplementedError("saved treatment sessions are implemented in Task 2")
+        manifest = manifest_path_for(base, plan["session_id"])
+        plan["manifest_path"] = str(manifest)
+        return _write_session(plan)
     return plan
