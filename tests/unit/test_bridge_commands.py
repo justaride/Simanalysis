@@ -476,10 +476,8 @@ def test_live_monitor_once_emits_waiting_result(monkeypatch, tmp_path):
     assert events[2]["data"]["recommended_next_action"] == "waiting"
 
 
-def test_live_monitor_continuous_mode_sleeps_and_emits_only_changed_results(
-    monkeypatch, tmp_path
-):
-    class SentinelException(Exception):
+def test_live_monitor_continuous_mode_sleeps_and_emits_only_changed_results(monkeypatch, tmp_path):
+    class SentinelError(Exception):
         pass
 
     poll_calls = []
@@ -530,13 +528,13 @@ def test_live_monitor_continuous_mode_sleeps_and_emits_only_changed_results(
     def fake_sleep(interval):
         sleep_calls.append(interval)
         if len(sleep_calls) == 2:
-            raise SentinelException
+            raise SentinelError
 
     monkeypatch.setattr(commands.live_monitoring, "LiveMonitor", FakeLiveMonitor)
     monkeypatch.setattr(commands.time, "sleep", fake_sleep)
     buf = io.StringIO()
 
-    with pytest.raises(SentinelException):
+    with pytest.raises(SentinelError):
         commands.live_monitor(
             argparse.Namespace(path=str(tmp_path), mods=None, interval=0.2, once=False),
             Emitter(buf),

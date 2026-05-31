@@ -79,9 +79,7 @@ def changed_fingerprints(
     current: dict[str, LogFingerprint],
 ) -> list[LogFingerprint]:
     changed = [
-        fingerprint
-        for path, fingerprint in current.items()
-        if previous.get(path) != fingerprint
+        fingerprint for path, fingerprint in current.items() if previous.get(path) != fingerprint
     ]
     return sorted(changed, key=lambda item: (item.kind, item.name.casefold()))
 
@@ -136,7 +134,8 @@ def _recommended_action(
 ) -> str:
     if not changed:
         return "waiting"
-    if int(treatment.get("candidate_count", 0) or 0) > 0:
+    candidate_count = treatment.get("candidate_count", 0)
+    if isinstance(candidate_count, int) and candidate_count > 0:
         return "open_treatment"
     if _doctor_needs_review(doctor_summary):
         return "review_doctor"

@@ -183,6 +183,7 @@ def analyze(
     )
 
     # Run analysis with progress indication
+    bar: Any
     with click.progressbar(
         length=100,
         label="Scanning and analyzing",
