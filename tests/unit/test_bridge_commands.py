@@ -412,7 +412,9 @@ def test_treatment_plan_uses_doctor_json_when_provided(monkeypatch, tmp_path):
 
     buf = io.StringIO()
     commands.treatment_plan(
-        argparse.Namespace(path=str(sims4), mods=str(mods), doctor_json=str(doctor_json), save=False),
+        argparse.Namespace(
+            path=str(sims4), mods=str(mods), doctor_json=str(doctor_json), save=False
+        ),
         Emitter(buf),
     )
 
@@ -430,7 +432,9 @@ def test_treatment_plan_rejects_invalid_doctor_json(tmp_path):
 
     with pytest.raises(ValueError, match="Doctor JSON must contain script_crashes and ui_crashes"):
         commands.treatment_plan(
-            argparse.Namespace(path=str(sims4), mods=None, doctor_json=str(doctor_json), save=False),
+            argparse.Namespace(
+                path=str(sims4), mods=None, doctor_json=str(doctor_json), save=False
+            ),
             Emitter(io.StringIO()),
         )
 

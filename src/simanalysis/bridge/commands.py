@@ -237,7 +237,9 @@ def _validate_doctor_json_shape(data: dict[str, Any]) -> None:
     for index, finding in enumerate(ui_findings):
         report = finding.get("report")
         if report is not None and not isinstance(report, dict):
-            raise ValueError(f"Doctor JSON field ui_crashes.findings[{index}].report must be an object")
+            raise ValueError(
+                f"Doctor JSON field ui_crashes.findings[{index}].report must be an object"
+            )
         hits = finding.get("hits", [])
         if not isinstance(hits, list):
             raise ValueError(f"Doctor JSON field ui_crashes.findings[{index}].hits must be a list")

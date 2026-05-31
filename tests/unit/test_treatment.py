@@ -57,7 +57,9 @@ def _doctor_payload(ui_path: Path, script_name: str = "Active.ts4script") -> dic
                         {
                             "status": "disabled",
                             "package_name": "old.package",
-                            "package_path": str(ui_path.parent.parent / "_Disabled" / "old.package"),
+                            "package_path": str(
+                                ui_path.parent.parent / "_Disabled" / "old.package"
+                            ),
                         },
                     ],
                 },
@@ -232,8 +234,18 @@ def test_create_plan_ranks_script_candidates_from_finding_confidence(tmp_path: P
         "summary": {"script_active": 2, "ui_active": 0},
         "script_crashes": {
             "ranked_mods": [
-                {"mod": "Low.ts4script", "status": "active", "top_suspect_count": 1, "crash_count": 1},
-                {"mod": "High.ts4script", "status": "active", "top_suspect_count": 1, "crash_count": 1},
+                {
+                    "mod": "Low.ts4script",
+                    "status": "active",
+                    "top_suspect_count": 1,
+                    "crash_count": 1,
+                },
+                {
+                    "mod": "High.ts4script",
+                    "status": "active",
+                    "top_suspect_count": 1,
+                    "crash_count": 1,
+                },
             ],
             "findings": [
                 {"suspects": [{"mod": "Low.ts4script", "status": "active", "confidence": "low"}]},
@@ -247,7 +259,10 @@ def test_create_plan_ranks_script_candidates_from_finding_confidence(tmp_path: P
     plan = create_plan(sims4, mods, payload, save=False)
 
     assert [candidate["unit_name"] for candidate in plan["active_candidates"]] == ["Zulu", "Alpha"]
-    assert plan["active_candidates"][0]["evidence"][0]["reason"] == "active script suspect (high confidence)"
+    assert (
+        plan["active_candidates"][0]["evidence"][0]["reason"]
+        == "active script suspect (high confidence)"
+    )
 
 
 def test_create_plan_discovers_script_inside_symlinked_mod_unit(tmp_path: Path) -> None:
@@ -264,10 +279,19 @@ def test_create_plan_discovers_script_inside_symlinked_mod_unit(tmp_path: Path) 
         "summary": {"script_active": 1, "ui_active": 0},
         "script_crashes": {
             "ranked_mods": [
-                {"mod": "Active.ts4script", "status": "active", "top_suspect_count": 1, "crash_count": 1},
+                {
+                    "mod": "Active.ts4script",
+                    "status": "active",
+                    "top_suspect_count": 1,
+                    "crash_count": 1,
+                },
             ],
             "findings": [
-                {"suspects": [{"mod": "Active.ts4script", "status": "active", "confidence": "high"}]},
+                {
+                    "suspects": [
+                        {"mod": "Active.ts4script", "status": "active", "confidence": "high"}
+                    ]
+                },
             ],
             "parse_errors": [],
         },

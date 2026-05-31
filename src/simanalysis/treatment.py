@@ -195,7 +195,9 @@ def candidates_from_doctor(
                 unit,
                 Evidence(
                     source="ui",
-                    finding=str(report.get("source_file") or report.get("signature") or "ui finding"),
+                    finding=str(
+                        report.get("source_file") or report.get("signature") or "ui finding"
+                    ),
                     reason=str(finding.get("reason") or "active package hit"),
                     path=str(hit["package_path"]),
                 ),
@@ -387,7 +389,9 @@ def assert_sims_not_running() -> None:
             text=True,
         )
     except (OSError, subprocess.CalledProcessError) as exc:
-        raise ValueError("Refusing to move files because running processes could not be checked") from exc
+        raise ValueError(
+            "Refusing to move files because running processes could not be checked"
+        ) from exc
 
     for line in result.stdout.splitlines():
         name = Path(line.strip()).name.casefold()
@@ -442,7 +446,9 @@ def apply_next_step(manifest_path: str | Path) -> dict[str, Any]:
 
     batch = _next_batch(session)
     if not batch:
-        session["status"] = "confirmed_candidate" if session["remaining_candidates"] else "inconclusive"
+        session["status"] = (
+            "confirmed_candidate" if session["remaining_candidates"] else "inconclusive"
+        )
         session["next_batch"] = []
         return _save_loaded(session)
 
@@ -450,7 +456,9 @@ def apply_next_step(manifest_path: str | Path) -> dict[str, Any]:
     disabled = Path(str(session["disabled_dir"]))
     if session["current_removed"]:
         if session["status"] != "planned":
-            raise ValueError("Current removed batch must be restored or recorded before applying another step")
+            raise ValueError(
+                "Current removed batch must be restored or recorded before applying another step"
+            )
         current_removed = {str(path) for path in session["current_removed"]}
         remaining = {str(path) for path in session["remaining_candidates"]}
         if not current_removed.issubset(remaining):
@@ -533,7 +541,9 @@ def _restore_record(record: dict[str, Any], mods_dir: Path, disabled_dir: Path) 
     except ValueError as exc:
         raise ValueError(f"Restore source is outside active disabled folder: {source}") from exc
     if _logical_absolute(source.parent) != disabled:
-        raise ValueError(f"Restore source must be a direct child of active disabled folder: {source}")
+        raise ValueError(
+            f"Restore source must be a direct child of active disabled folder: {source}"
+        )
     try:
         rel_destination = logical_destination.relative_to(mods)
     except ValueError as exc:
