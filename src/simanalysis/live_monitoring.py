@@ -96,6 +96,55 @@ def _empty_treatment_summary() -> dict[str, object]:
     }
 
 
+def _doctor_has_evidence(summary: dict[str, Any]) -> bool:
+    return any(
+        int(summary.get(key, 0) or 0) > 0
+        for key in (
+            "script_reports",
+            "script_disabled",
+            "script_not_installed",
+            "script_base_game_only",
+            "ui_findings",
+            "ui_disabled",
+            "ui_not_found",
+            "ui_no_key",
+        )
+    )
+
+
+def _doctor_needs_review(summary: dict[str, Any]) -> bool:
+    return any(
+        int(summary.get(key, 0) or 0) > 0
+        for key in ("script_active", "ui_active", "parse_errors", "index_errors")
+    )
+
+
+def _treatment_summary(plan: dict[str, Any]) -> dict[str, object]:
+    return {
+        "candidate_count": len(plan.get("active_candidates", [])),
+        "first_batch_count": len(plan.get("next_batch", [])),
+        "manifest_path": plan.get("manifest_path"),
+        "warnings": list(plan.get("warnings", [])),
+        "blockers": list(plan.get("blockers", [])),
+    }
+
+
+def _recommended_action(
+    changed: list[LogFingerprint],
+    doctor_summary: dict[str, Any],
+    treatment: dict[str, object],
+) -> str:
+    if not changed:
+        return "waiting"
+    if int(treatment.get("candidate_count", 0) or 0) > 0:
+        return "open_treatment"
+    if _doctor_needs_review(doctor_summary):
+        return "review_doctor"
+    if _doctor_has_evidence(doctor_summary):
+        return "no_movable_candidates"
+    return "review_doctor"
+
+
 class LiveMonitor:
     def __init__(
         self,
@@ -137,11 +186,25 @@ class LiveMonitor:
                 "warnings": all_warnings,
             }
 
+        doctor_payload = doctor_builder(self.sims4_dir, self.mods_dir, False)
+        doctor_summary = dict(doctor_payload.get("summary", {}))
+        try:
+            plan = treatment_planner(
+                self.sims4_dir,
+                self.mods_dir,
+                doctor_payload,
+                save=False,
+            )
+            treatment = _treatment_summary(plan)
+        except Exception as exc:
+            treatment = _empty_treatment_summary()
+            treatment["warnings"] = [f"Treatment planning failed: {exc}"]
+
         return {
             "changed_logs": [fingerprint.to_event() for fingerprint in changed],
             "watched_log_count": len(current),
-            "doctor_summary": {},
-            "treatment": _empty_treatment_summary(),
-            "recommended_next_action": "review_doctor",
+            "doctor_summary": doctor_summary,
+            "treatment": treatment,
+            "recommended_next_action": _recommended_action(changed, doctor_summary, treatment),
             "warnings": all_warnings,
         }
