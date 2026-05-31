@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import tempfile
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
@@ -25,6 +25,7 @@ VALID_SESSION_STATUSES = {
     "manual_review",
 }
 SIMS_PROCESS_NAMES = {"the sims 4", "the sims 4.app", "ts4_x64.exe", "ts4_dx9_x64.exe"}
+PS_COMMAND = "/bin/ps"
 
 
 @dataclass(frozen=True)
@@ -380,7 +381,7 @@ def load_session(manifest_path: str | Path) -> dict[str, Any]:
 def assert_sims_not_running() -> None:
     try:
         result = subprocess.run(
-            ["ps", "-axo", "comm="],
+            [PS_COMMAND, "-axo", "comm="],  # nosec B603
             check=True,
             capture_output=True,
             text=True,
@@ -509,7 +510,10 @@ def apply_next_step(manifest_path: str | Path) -> dict[str, Any]:
 
 
 def _restore_record(record: dict[str, Any], mods_dir: Path, disabled_dir: Path) -> None:
-    mods = _logical_absolute(mods_dir)
+    mods_root = Path(mods_dir).expanduser()
+    if mods_root.is_symlink():
+        raise ValueError(f"Mods folder must not be a symlink: {mods_dir}")
+    mods = _logical_absolute(mods_root)
     disabled = _logical_absolute(disabled_dir)
     source = Path(str(record["destination"])).expanduser()
     destination = Path(str(record["source"])).expanduser()
@@ -742,7 +746,10 @@ def assert_safe_unit_move(
 ) -> None:
     source_path = Path(source).expanduser()
     destination_path = Path(destination).expanduser()
-    mods = _logical_absolute(mods_dir)
+    mods_path = Path(mods_dir).expanduser()
+    if mods_path.is_symlink():
+        raise ValueError(f"Mods folder must not be a symlink: {mods_dir}")
+    mods = _logical_absolute(mods_path)
     disabled_path = Path(disabled_dir).expanduser()
     disabled = _logical_absolute(disabled_path)
 

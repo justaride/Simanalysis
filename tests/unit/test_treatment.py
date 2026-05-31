@@ -475,6 +475,21 @@ def test_assert_sims_not_running_fails_closed(monkeypatch: pytest.MonkeyPatch) -
         treatment.assert_sims_not_running()
 
 
+def test_assert_safe_unit_move_rejects_symlinked_mods_root(tmp_path: Path) -> None:
+    real_mods = tmp_path / "real-mods"
+    real_mods.mkdir()
+    mods = tmp_path / "The Sims 4" / "Mods"
+    mods.parent.mkdir()
+    mods.symlink_to(real_mods, target_is_directory=True)
+    source = mods / "Creator"
+    source.mkdir()
+    disabled = tmp_path / "The Sims 4" / "_Disabled_Simanalysis_Bisect_test"
+    disabled.mkdir()
+
+    with pytest.raises(ValueError, match="Mods folder must not be a symlink"):
+        assert_safe_unit_move(source, disabled / "Creator", mods, disabled)
+
+
 def test_apply_next_step_moves_first_half_and_updates_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
