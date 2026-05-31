@@ -439,6 +439,130 @@ def test_treatment_plan_rejects_invalid_doctor_json(tmp_path):
         )
 
 
+def test_live_monitor_once_emits_waiting_result(monkeypatch, tmp_path):
+    class FakeLiveMonitor:
+        def __init__(self, base, mods_dir):
+            self.base = base
+            self.mods_dir = mods_dir
+
+        def poll(self, doctor_builder, treatment_planner):
+            return {
+                "changed_logs": [],
+                "watched_log_count": 0,
+                "doctor_summary": {},
+                "treatment": {
+                    "candidate_count": 0,
+                    "first_batch_count": 0,
+                    "manifest_path": None,
+                    "warnings": [],
+                    "blockers": [],
+                },
+                "recommended_next_action": "waiting",
+                "warnings": [],
+            }
+
+    monkeypatch.setattr(commands.live_monitoring, "LiveMonitor", FakeLiveMonitor)
+    buf = io.StringIO()
+
+    commands.live_monitor(
+        argparse.Namespace(path=str(tmp_path), mods=None, interval=0.2, once=True),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "progress", "result", "done"]
+    assert events[0]["task"] == "live-monitor"
+    assert events[1]["stage"] == "waiting"
+    assert events[2]["data"]["recommended_next_action"] == "waiting"
+
+
+def test_live_monitor_continuous_mode_sleeps_and_emits_only_changed_results(monkeypatch, tmp_path):
+    class SentinelError(Exception):
+        pass
+
+    poll_calls = []
+    sleep_calls = []
+
+    class FakeLiveMonitor:
+        def __init__(self, base, mods_dir):
+            self.base = base
+            self.mods_dir = mods_dir
+
+        def poll(self, doctor_builder, treatment_planner):
+            poll_calls.append((doctor_builder, treatment_planner))
+            if len(poll_calls) == 1:
+                return {
+                    "changed_logs": [],
+                    "watched_log_count": 1,
+                    "doctor_summary": {},
+                    "treatment": {
+                        "candidate_count": 0,
+                        "first_batch_count": 0,
+                        "manifest_path": None,
+                        "warnings": [],
+                        "blockers": [],
+                    },
+                    "recommended_next_action": "waiting",
+                    "warnings": [],
+                }
+            return {
+                "changed_logs": [
+                    {
+                        "name": "lastException.txt",
+                        "path": str(tmp_path / "lastException.txt"),
+                    }
+                ],
+                "watched_log_count": 1,
+                "doctor_summary": {},
+                "treatment": {
+                    "candidate_count": 1,
+                    "first_batch_count": 1,
+                    "manifest_path": None,
+                    "warnings": [],
+                    "blockers": [],
+                },
+                "recommended_next_action": "open_treatment",
+                "warnings": [],
+            }
+
+    def fake_sleep(interval):
+        sleep_calls.append(interval)
+        if len(sleep_calls) == 2:
+            raise SentinelError
+
+    monkeypatch.setattr(commands.live_monitoring, "LiveMonitor", FakeLiveMonitor)
+    monkeypatch.setattr(commands.time, "sleep", fake_sleep)
+    buf = io.StringIO()
+
+    with pytest.raises(SentinelError):
+        commands.live_monitor(
+            argparse.Namespace(path=str(tmp_path), mods=None, interval=0.2, once=False),
+            Emitter(buf),
+        )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert len(poll_calls) == 2
+    assert sleep_calls == [0.2, 0.2]
+    assert [event["type"] for event in events] == ["start", "progress", "progress", "result"]
+    assert [event.get("stage") for event in events if event["type"] == "progress"] == [
+        "waiting",
+        "open_treatment",
+    ]
+
+    results = [event["data"] for event in events if event["type"] == "result"]
+    assert len(results) == 1
+    assert results[0]["recommended_next_action"] == "open_treatment"
+    assert results[0]["changed_logs"][0]["name"] == "lastException.txt"
+
+
+def test_live_monitor_rejects_non_positive_interval(tmp_path):
+    with pytest.raises(ValueError, match="Live monitor interval must be greater than zero"):
+        commands.live_monitor(
+            argparse.Namespace(path=str(tmp_path), mods=None, interval=0, once=True),
+            Emitter(io.StringIO()),
+        )
+
+
 def test_treatment_apply_emits_treatment_result(monkeypatch):
     calls = {}
 

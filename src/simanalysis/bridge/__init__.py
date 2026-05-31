@@ -59,6 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_treatment_status = sub.add_parser("treatment-status")
     p_treatment_status.add_argument("manifest_path")
 
+    p_live_monitor = sub.add_parser("live-monitor")
+    p_live_monitor.add_argument("path")
+    p_live_monitor.add_argument("--mods", default=None)
+    p_live_monitor.add_argument("--interval", type=float, default=2.0)
+    p_live_monitor.add_argument("--once", action="store_true")
+
     return parser
 
 
