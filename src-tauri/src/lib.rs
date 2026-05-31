@@ -28,6 +28,10 @@ struct AnalysisOptions {
     #[serde(default)]
     mods_path: Option<String>,
     #[serde(default)]
+    interval: Option<f64>,
+    #[serde(default)]
+    once: bool,
+    #[serde(default)]
     doctor_json_path: Option<String>,
     #[serde(default)]
     save: bool,
@@ -89,6 +93,24 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             }
             if opts.recursive {
                 args.push("--recursive".into());
+            }
+        }
+        "live-monitor" => {
+            args.push("live-monitor".into());
+            args.push(path.into());
+            if let Some(mods) = opts.mods_path.as_deref() {
+                args.push("--mods".into());
+                args.push(mods.into());
+            }
+            if let Some(interval) = opts.interval {
+                if interval <= 0.0 {
+                    return Err("live-monitor interval must be greater than zero".into());
+                }
+                args.push("--interval".into());
+                args.push(interval.to_string());
+            }
+            if opts.once {
+                args.push("--once".into());
             }
         }
         "treatment-plan" => {
@@ -612,6 +634,39 @@ mod tests {
         };
         let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
         assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_live_monitor_args_with_mods_interval_and_once() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/Mods".into()),
+            interval: Some(0.25),
+            once: true,
+            ..Default::default()
+        };
+        let args = build_args("live-monitor", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "live-monitor",
+                "/Sims/The Sims 4",
+                "--mods",
+                "/Sims/Mods",
+                "--interval",
+                "0.25",
+                "--once",
+            ]
+        );
+    }
+
+    #[test]
+    fn live_monitor_rejects_non_positive_interval() {
+        let opts = AnalysisOptions {
+            interval: Some(0.0),
+            ..Default::default()
+        };
+        let err = build_args("live-monitor", "/Sims/The Sims 4", &opts).unwrap_err();
+        assert!(err.contains("interval must be greater than zero"));
     }
 
     #[test]
