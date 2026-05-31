@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
+from typing import Any, Callable, cast
 
-from simanalysis import serialization
+from simanalysis import serialization, treatment
 from simanalysis.analyzers.crash_analyzer import CrashAnalyzer, _is_disabled_name
 from simanalysis.analyzers.mod_analyzer import ModAnalyzer
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
@@ -99,13 +101,13 @@ def _doctor_summary(script_payload: dict, ui_payload: dict) -> dict[str, int]:
     }
 
 
-def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
-    base = _require_dir(args.path)
-    mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
-
-    emit.start("doctor-scan", total=2)
-
-    pattern = "**/lastException*.txt" if args.recursive else "lastException*.txt"
+def _build_doctor_payload(
+    base: Path,
+    mods_dir: Path,
+    recursive: bool,
+    progress_callback: Callable[[str], None] | None = None,
+) -> dict[str, Any]:
+    pattern = "**/lastException*.txt" if recursive else "lastException*.txt"
     crash_reports = []
     crash_parse_errors = []
     seen = set()
@@ -125,9 +127,10 @@ def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
     crash_result = crash_analyzer.analyze(crash_reports, module_index)
     crash_result.parse_errors = crash_parse_errors
     crash_payload = serialization.crash_result_to_dict(crash_result)
-    emit.progress(1, 2, stage="script-crashes", force=True)
+    if progress_callback:
+        progress_callback("script-crashes")
 
-    ui_pattern = "**/lastUIException*.txt" if args.recursive else "lastUIException*.txt"
+    ui_pattern = "**/lastUIException*.txt" if recursive else "lastUIException*.txt"
     ui_reports = []
     ui_parse_errors = []
     for log_file in sorted(base.glob(ui_pattern)):
@@ -149,15 +152,151 @@ def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
     ui_result = ui_analyzer.analyze(ui_reports, resource_index)
     ui_result.parse_errors = ui_parse_errors
     ui_payload = serialization.ui_result_to_dict(ui_result)
-    emit.progress(2, 2, stage="ui-crashes", force=True)
+    if progress_callback:
+        progress_callback("ui-crashes")
 
-    emit.result(
-        {
-            "summary": _doctor_summary(crash_payload, ui_payload),
-            "script_crashes": crash_payload,
-            "ui_crashes": ui_payload,
-        }
+    return {
+        "summary": _doctor_summary(crash_payload, ui_payload),
+        "script_crashes": crash_payload,
+        "ui_crashes": ui_payload,
+    }
+
+
+def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
+    base = _require_dir(args.path)
+    mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
+
+    emit.start("doctor-scan", total=2)
+    progress_count = 0
+
+    def emit_doctor_progress(stage: str) -> None:
+        nonlocal progress_count
+        progress_count += 1
+        emit.progress(progress_count, 2, stage=stage, force=True)
+
+    payload = _build_doctor_payload(base, mods_dir, args.recursive, emit_doctor_progress)
+    emit.result(payload)
+    emit.done()
+
+
+def _require_doctor_json_list(section: dict[str, Any], key: str, label: str) -> list[Any]:
+    value = section.get(key, [])
+    if not isinstance(value, list):
+        raise ValueError(f"Doctor JSON field {label} must be a list")
+    return value
+
+
+def _require_doctor_json_object_list(
+    section: dict[str, Any],
+    key: str,
+    label: str,
+) -> list[dict[str, Any]]:
+    value = _require_doctor_json_list(section, key, label)
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError(f"Doctor JSON field {label} must contain objects")
+    return cast(list[dict[str, Any]], value)
+
+
+def _validate_doctor_json_shape(data: dict[str, Any]) -> None:
+    if not isinstance(data.get("script_crashes"), dict) or not isinstance(
+        data.get("ui_crashes"), dict
+    ):
+        raise ValueError("Doctor JSON must contain script_crashes and ui_crashes")
+
+    script = cast(dict[str, Any], data["script_crashes"])
+    ui = cast(dict[str, Any], data["ui_crashes"])
+    if "summary" in script and not isinstance(script["summary"], dict):
+        raise ValueError("Doctor JSON field script_crashes.summary must be an object")
+    if "summary" in ui and not isinstance(ui["summary"], dict):
+        raise ValueError("Doctor JSON field ui_crashes.summary must be an object")
+
+    _require_doctor_json_object_list(script, "ranked_mods", "script_crashes.ranked_mods")
+    script_findings = _require_doctor_json_object_list(
+        script,
+        "findings",
+        "script_crashes.findings",
     )
+    _require_doctor_json_list(script, "parse_errors", "script_crashes.parse_errors")
+    for index, finding in enumerate(script_findings):
+        suspects = finding.get("suspects", [])
+        if not isinstance(suspects, list):
+            raise ValueError(
+                f"Doctor JSON field script_crashes.findings[{index}].suspects must be a list"
+            )
+        for suspect in suspects:
+            if not isinstance(suspect, dict):
+                raise ValueError(
+                    f"Doctor JSON field script_crashes.findings[{index}].suspects "
+                    "must contain objects"
+                )
+
+    ui_findings = _require_doctor_json_object_list(ui, "findings", "ui_crashes.findings")
+    _require_doctor_json_list(ui, "parse_errors", "ui_crashes.parse_errors")
+    _require_doctor_json_list(ui, "index_errors", "ui_crashes.index_errors")
+    for index, finding in enumerate(ui_findings):
+        report = finding.get("report")
+        if report is not None and not isinstance(report, dict):
+            raise ValueError(f"Doctor JSON field ui_crashes.findings[{index}].report must be an object")
+        hits = finding.get("hits", [])
+        if not isinstance(hits, list):
+            raise ValueError(f"Doctor JSON field ui_crashes.findings[{index}].hits must be a list")
+        for hit in hits:
+            if not isinstance(hit, dict):
+                raise ValueError(
+                    f"Doctor JSON field ui_crashes.findings[{index}].hits must contain objects"
+                )
+
+
+def _load_doctor_json(path: str | Path) -> dict[str, Any]:
+    doctor_path = Path(path).expanduser().resolve()
+    if not doctor_path.exists() or not doctor_path.is_file():
+        raise ValueError(f"Doctor JSON not found: {path}")
+    try:
+        parsed = json.loads(doctor_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Doctor JSON is not valid JSON: {path}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Doctor JSON must be a JSON object")
+    _validate_doctor_json_shape(parsed)
+    return parsed
+
+
+def treatment_plan(args: argparse.Namespace, emit: Emitter) -> None:
+    base = _require_dir(args.path)
+    mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
+
+    emit.start("treatment-plan")
+    doctor_payload = (
+        _load_doctor_json(args.doctor_json)
+        if args.doctor_json
+        else _build_doctor_payload(base, mods_dir, recursive=False)
+    )
+    emit.result(treatment.create_plan(base, mods_dir, doctor_payload, save=args.save))
+    emit.done()
+
+
+def treatment_apply(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("treatment-apply")
+    emit.result(treatment.apply_next_step(args.manifest_path))
+    emit.done()
+
+
+def treatment_outcome(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("treatment-outcome")
+    emit.result(treatment.record_outcome(args.manifest_path, args.outcome))
+    emit.done()
+
+
+def treatment_restore(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("treatment-restore")
+    emit.result(treatment.restore_session(args.manifest_path, step=args.step))
+    emit.done()
+
+
+def treatment_status(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("treatment-status")
+    emit.result(treatment.load_session(args.manifest_path))
     emit.done()
 
 
@@ -167,4 +306,9 @@ DISPATCH = {
     "analyze-save": analyze_save,
     "thumbnail": thumbnail,
     "doctor-scan": doctor_scan,
+    "treatment-plan": treatment_plan,
+    "treatment-apply": treatment_apply,
+    "treatment-outcome": treatment_outcome,
+    "treatment-restore": treatment_restore,
+    "treatment-status": treatment_status,
 }

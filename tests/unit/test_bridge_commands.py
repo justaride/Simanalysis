@@ -1,6 +1,8 @@
+# mypy: disable-error-code="no-untyped-def"
 import argparse
 import io
 import json
+from typing import Any
 
 import pytest
 
@@ -144,6 +146,8 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
     ui_log = sims4 / "lastUIException.txt"
     crash_log.write_text("crash", encoding="utf-8")
     ui_log.write_text("ui", encoding="utf-8")
+    buf = io.StringIO()
+    progress_seen_before_ui = {"value": False}
 
     class FakeCrashAnalyzer:
         def build_module_index(self, mods_dir, extra_roots=()):
@@ -180,6 +184,11 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
         def analyze(self, reports, index):
             assert reports == [ui_report]
             assert index == {123: ["hit"]}
+            events_so_far = [json.loads(line) for line in buf.getvalue().splitlines()]
+            progress_seen_before_ui["value"] = any(
+                event["type"] == "progress" and event.get("stage") == "script-crashes"
+                for event in events_so_far
+            )
             return type(
                 "UIResult",
                 (),
@@ -220,7 +229,6 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
         },
     )
 
-    buf = io.StringIO()
     commands.doctor_scan(
         argparse.Namespace(path=str(sims4), mods=None, recursive=False),
         Emitter(buf),
@@ -234,6 +242,7 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
         "result",
         "done",
     ]
+    assert progress_seen_before_ui["value"] is True
     data = next(event["data"] for event in events if event["type"] == "result")
     assert data["summary"] == {
         "script_reports": 1,
@@ -341,3 +350,165 @@ def test_doctor_scan_rejects_explicit_missing_mods_dir(tmp_path):
     args = argparse.Namespace(path=str(sims4), mods=str(tmp_path / "missing-mods"), recursive=False)
     with pytest.raises(ValueError, match="Invalid directory path"):
         commands.doctor_scan(args, Emitter(io.StringIO()))
+
+
+def test_treatment_plan_builds_doctor_payload_and_emits_plan(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    payload: dict[str, Any] = {
+        "script_crashes": {"findings": []},
+        "ui_crashes": {"findings": []},
+    }
+    plan = {"status": "planned", "manifest_path": None}
+    calls: dict[str, Any] = {}
+
+    def fake_build_doctor_payload(base, mods_dir, recursive):
+        calls["doctor"] = (base, mods_dir, recursive)
+        return payload
+
+    def fake_create_plan(base, mods_dir, doctor_payload, *, save=False):
+        calls["plan"] = (base, mods_dir, doctor_payload, save)
+        return plan
+
+    monkeypatch.setattr(commands, "_build_doctor_payload", fake_build_doctor_payload)
+    monkeypatch.setattr(commands.treatment, "create_plan", fake_create_plan)
+
+    buf = io.StringIO()
+    commands.treatment_plan(
+        argparse.Namespace(path=str(sims4), mods=None, doctor_json=None, save=True),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-plan"
+    assert events[1]["data"] == plan
+    assert calls["doctor"] == (sims4.resolve(), (sims4 / "Mods").resolve(), False)
+    assert calls["plan"] == (sims4.resolve(), (sims4 / "Mods").resolve(), payload, True)
+
+
+def test_treatment_plan_uses_doctor_json_when_provided(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    doctor_json = tmp_path / "doctor.json"
+    payload: dict[str, Any] = {
+        "script_crashes": {"findings": []},
+        "ui_crashes": {"findings": []},
+    }
+    doctor_json.write_text(json.dumps(payload), encoding="utf-8")
+    calls: dict[str, Any] = {}
+
+    def fail_build_doctor_payload(base, mods_dir, recursive):
+        raise AssertionError("doctor payload should be loaded from JSON")
+
+    def fake_create_plan(base, mods_dir, doctor_payload, *, save=False):
+        calls["plan"] = (base, mods_dir, doctor_payload, save)
+        return {"loaded": True}
+
+    monkeypatch.setattr(commands, "_build_doctor_payload", fail_build_doctor_payload)
+    monkeypatch.setattr(commands.treatment, "create_plan", fake_create_plan)
+
+    buf = io.StringIO()
+    commands.treatment_plan(
+        argparse.Namespace(path=str(sims4), mods=str(mods), doctor_json=str(doctor_json), save=False),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"] == {"loaded": True}
+    assert calls["plan"] == (sims4.resolve(), mods.resolve(), payload, False)
+
+
+def test_treatment_plan_rejects_invalid_doctor_json(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    doctor_json = tmp_path / "doctor.json"
+    doctor_json.write_text(json.dumps({"script_crashes": {}}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Doctor JSON must contain script_crashes and ui_crashes"):
+        commands.treatment_plan(
+            argparse.Namespace(path=str(sims4), mods=None, doctor_json=str(doctor_json), save=False),
+            Emitter(io.StringIO()),
+        )
+
+
+def test_treatment_apply_emits_treatment_result(monkeypatch):
+    calls = {}
+
+    def fake_apply_next_step(manifest_path):
+        calls["manifest_path"] = manifest_path
+        return {"status": "awaiting_result"}
+
+    monkeypatch.setattr(commands.treatment, "apply_next_step", fake_apply_next_step)
+
+    buf = io.StringIO()
+    commands.treatment_apply(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-apply"
+    assert events[1]["data"] == {"status": "awaiting_result"}
+    assert calls == {"manifest_path": "manifest.json"}
+
+
+def test_treatment_outcome_emits_recorded_session(monkeypatch):
+    calls = {}
+
+    def fake_record_outcome(manifest_path, outcome):
+        calls["record"] = (manifest_path, outcome)
+        return {"status": "confirmed_candidate"}
+
+    monkeypatch.setattr(commands.treatment, "record_outcome", fake_record_outcome)
+
+    buf = io.StringIO()
+    commands.treatment_outcome(
+        argparse.Namespace(manifest_path="manifest.json", outcome="issue_gone"),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-outcome"
+    assert events[1]["data"] == {"status": "confirmed_candidate"}
+    assert calls == {"record": ("manifest.json", "issue_gone")}
+
+
+def test_treatment_status_emits_loaded_session(monkeypatch):
+    monkeypatch.setattr(
+        commands.treatment,
+        "load_session",
+        lambda manifest_path: {"manifest_path": manifest_path, "status": "planned"},
+    )
+
+    buf = io.StringIO()
+    commands.treatment_status(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-status"
+    assert events[1]["data"] == {"manifest_path": "manifest.json", "status": "planned"}
+
+
+def test_treatment_restore_emits_restored_session(monkeypatch):
+    calls = {}
+
+    def fake_restore_session(manifest_path, step="latest"):
+        calls["restore"] = (manifest_path, step)
+        return {"status": "planned"}
+
+    monkeypatch.setattr(commands.treatment, "restore_session", fake_restore_session)
+
+    buf = io.StringIO()
+    commands.treatment_restore(
+        argparse.Namespace(manifest_path="manifest.json", step="all"),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-restore"
+    assert events[1]["data"] == {"status": "planned"}
+    assert calls == {"restore": ("manifest.json", "all")}
