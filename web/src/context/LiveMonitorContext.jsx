@@ -15,6 +15,7 @@ function nextStatusFromResult(data) {
 
 export function LiveMonitorProvider({ children }) {
     const handleRef = useRef(null);
+    const runIdRef = useRef(0);
     const [simsPath, setSimsPath] = useState(DEFAULT_SIMS_PATH);
     const [modsPath, setModsPath] = useState('');
     const [status, setStatus] = useState('idle');
@@ -24,6 +25,7 @@ export function LiveMonitorProvider({ children }) {
     const [error, setError] = useState(null);
 
     const stop = useCallback(() => {
+        runIdRef.current += 1;
         handleRef.current?.cancel?.();
         handleRef.current = null;
         setStatus('stopped');
@@ -36,6 +38,8 @@ export function LiveMonitorProvider({ children }) {
             return;
         }
 
+        runIdRef.current += 1;
+        const runId = runIdRef.current;
         handleRef.current?.cancel?.();
         setError(null);
         setProgress(null);
@@ -44,12 +48,17 @@ export function LiveMonitorProvider({ children }) {
         setStatus('watching');
 
         handleRef.current = api.monitorLive(simsPath.trim(), modsPath.trim() || null, DEFAULT_INTERVAL, {
-            onStart: () => setStatus('watching'),
+            onStart: () => {
+                if (runIdRef.current !== runId) return;
+                setStatus('watching');
+            },
             onProgress: (nextProgress) => {
+                if (runIdRef.current !== runId) return;
                 setProgress(nextProgress);
                 setStatus((current) => (current === 'error' ? current : 'watching'));
             },
             onResult: (data) => {
+                if (runIdRef.current !== runId) return;
                 setProgress(null);
                 setStatus(nextStatusFromResult(data));
                 if (!shouldRecordMonitorEvent(data)) return;
@@ -62,12 +71,14 @@ export function LiveMonitorProvider({ children }) {
                 setHistory((items) => [event, ...items].slice(0, 20));
             },
             onError: (message) => {
+                if (runIdRef.current !== runId) return;
                 setError(message);
                 setProgress(null);
                 setStatus('error');
                 handleRef.current = null;
             },
             onDone: () => {
+                if (runIdRef.current !== runId) return;
                 handleRef.current = null;
                 setStatus((current) => (current === 'error' ? current : 'stopped'));
             },
@@ -75,6 +86,7 @@ export function LiveMonitorProvider({ children }) {
     }, [modsPath, simsPath]);
 
     useEffect(() => () => {
+        runIdRef.current += 1;
         handleRef.current?.cancel?.();
         handleRef.current = null;
     }, []);
