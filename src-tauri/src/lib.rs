@@ -170,14 +170,20 @@ fn drain_complete_lines(buf: &mut Vec<u8>) -> Vec<Vec<u8>> {
     out
 }
 
-fn is_terminal_bridge_event(value: &Value) -> bool {
-    matches!(
-        value.get("type").and_then(|t| t.as_str()),
-        Some("result" | "error")
-    )
+fn is_terminal_bridge_event(kind: &str, value: &Value) -> bool {
+    let event_type = value.get("type").and_then(|t| t.as_str());
+    match (kind, event_type) {
+        ("live-monitor", Some("result")) => false,
+        (_, Some("result" | "error")) => true,
+        _ => false,
+    }
 }
 
-fn forward_line(on_event: &Channel<Value>, line: &[u8]) -> bool {
+fn should_emit_crash_error(code: i32, saw_terminal_event: bool, was_cancelled: bool) -> bool {
+    code != 0 && !saw_terminal_event && !was_cancelled
+}
+
+fn forward_line(kind: &str, on_event: &Channel<Value>, line: &[u8]) -> bool {
     let text = match std::str::from_utf8(line) {
         Ok(t) => t.trim(),
         Err(_) => return false,
@@ -187,7 +193,7 @@ fn forward_line(on_event: &Channel<Value>, line: &[u8]) -> bool {
     }
     match serde_json::from_str::<Value>(text) {
         Ok(value) => {
-            let is_terminal = is_terminal_bridge_event(&value);
+            let is_terminal = is_terminal_bridge_event(kind, &value);
             let _ = on_event.send(value);
             is_terminal
         }
@@ -232,7 +238,7 @@ async fn start_analysis(
                 CommandEvent::Stdout(bytes) => {
                     buf.extend_from_slice(&bytes);
                     for line in drain_complete_lines(&mut buf) {
-                        if forward_line(&on_event, &line) {
+                        if forward_line(&kind, &on_event, &line) {
                             saw_terminal_event = true;
                         }
                     }
@@ -253,13 +259,19 @@ async fn start_analysis(
                 }
                 CommandEvent::Terminated(payload) => {
                     if !buf.is_empty() {
-                        if forward_line(&on_event, &buf) {
+                        if forward_line(&kind, &on_event, &buf) {
                             saw_terminal_event = true;
                         }
                         buf.clear();
                     }
                     let code = payload.code.unwrap_or(-1);
-                    if code != 0 && !saw_terminal_event {
+                    let was_cancelled = !reader_app
+                        .state::<ChildRegistry>()
+                        .0
+                        .lock()
+                        .unwrap()
+                        .contains_key(&task_id);
+                    if should_emit_crash_error(code, saw_terminal_event, was_cancelled) {
                         let _ = on_event.send(serde_json::json!({
                             "v": 1, "type": "error", "code": "CRASHED",
                             "message": format!("analyzer exited with code {code}; see logs")
@@ -583,7 +595,10 @@ pub fn run() {
 
 #[cfg(test)]
 mod tests {
-    use super::{build_args, drain_complete_lines, is_terminal_bridge_event, AnalysisOptions};
+    use super::{
+        build_args, drain_complete_lines, is_terminal_bridge_event, should_emit_crash_error,
+        AnalysisOptions,
+    };
     use serde_json::json;
 
     #[test]
@@ -793,8 +808,43 @@ mod tests {
 
     #[test]
     fn bridge_error_event_counts_as_terminal_output() {
-        assert!(is_terminal_bridge_event(&json!({"type": "error"})));
-        assert!(is_terminal_bridge_event(&json!({"type": "result"})));
-        assert!(!is_terminal_bridge_event(&json!({"type": "progress"})));
+        assert!(is_terminal_bridge_event(
+            "doctor-scan",
+            &json!({"type": "error"})
+        ));
+        assert!(is_terminal_bridge_event(
+            "doctor-scan",
+            &json!({"type": "result"})
+        ));
+        assert!(!is_terminal_bridge_event(
+            "doctor-scan",
+            &json!({"type": "progress"})
+        ));
+    }
+
+    #[test]
+    fn live_monitor_result_event_is_not_terminal_output() {
+        assert!(!is_terminal_bridge_event(
+            "live-monitor",
+            &json!({"type": "result"})
+        ));
+        assert!(is_terminal_bridge_event(
+            "live-monitor",
+            &json!({"type": "error"})
+        ));
+        assert!(!is_terminal_bridge_event(
+            "live-monitor",
+            &json!({"type": "progress"})
+        ));
+    }
+
+    #[test]
+    fn cancelled_task_does_not_emit_crash_error() {
+        assert!(!should_emit_crash_error(1, false, true));
+    }
+
+    #[test]
+    fn non_cancelled_nonzero_exit_without_terminal_event_emits_crash_error() {
+        assert!(should_emit_crash_error(1, false, false));
     }
 }

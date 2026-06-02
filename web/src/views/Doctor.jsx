@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
     CheckCircle,
@@ -298,9 +298,10 @@ function FindingGroup({ title, description, icon: Icon, tone, groups }) {
 }
 
 function Doctor() {
+    const location = useLocation();
     const navigate = useNavigate();
-    const [simsPath, setSimsPath] = useState(DEFAULT_SIMS_PATH);
-    const [modsPath, setModsPath] = useState('');
+    const [simsPath, setSimsPath] = useState(location.state?.simsPath || DEFAULT_SIMS_PATH);
+    const [modsPath, setModsPath] = useState(location.state?.modsPath || '');
     const [showSimsPicker, setShowSimsPicker] = useState(false);
     const [showModsPicker, setShowModsPicker] = useState(false);
     const [isScanning, setIsScanning] = useState(false);

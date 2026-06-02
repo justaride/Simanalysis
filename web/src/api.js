@@ -24,12 +24,15 @@ function runAnalysis(kind, path, options, callbacks) {
         });
         break;
       case 'result':
+        callbacks?.onResult?.(msg.data);
         callbacks?.onComplete?.(msg.data);
+        break;
+      case 'done':
+        callbacks?.onDone?.();
         break;
       case 'error':
         callbacks?.onError?.(msg.message ?? 'Analysis failed');
         break;
-      // 'done': completion is signalled by 'result'; no extra UI action.
     }
   };
 
@@ -73,6 +76,13 @@ export const api = {
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
   scanDoctor: (sims4Path, modsPath, callbacks) =>
     runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  monitorLive: (sims4Path, modsPath, interval, callbacks) =>
+    runAnalysis(
+      'live-monitor',
+      sims4Path,
+      { modsPath, interval, once: false },
+      callbacks,
+    ),
   planTreatment: (sims4Path, modsPath, save, callbacks) =>
     runAnalysis(
       'treatment-plan',
