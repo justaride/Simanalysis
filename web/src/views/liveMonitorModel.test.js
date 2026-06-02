@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     describeRecommendation,
+    recommendationActionLabel,
     summarizeMonitorEvent,
     shouldRecordMonitorEvent,
     statusText,
@@ -42,6 +43,12 @@ test('unknown recommendation falls back to doctor review', () => {
     });
 });
 
+test('recommendation actions map to user-facing buttons', () => {
+    assert.equal(recommendationActionLabel('open_treatment'), 'Open Treatment');
+    assert.equal(recommendationActionLabel('review_doctor'), 'Review Doctor');
+    assert.equal(recommendationActionLabel(null), null);
+});
+
 test('summarize monitor event extracts stable counts', () => {
     const summary = summarizeMonitorEvent({
         changed_logs: [{ name: 'lastUIException.txt' }],
@@ -71,7 +78,26 @@ test('summarize monitor event extracts stable counts', () => {
         firstBatchCount: 2,
         manifestPath: null,
         recommendation: 'open_treatment',
+        warnings: [],
+        blockers: [],
     });
+});
+
+test('summarize monitor event preserves warnings and blockers', () => {
+    const summary = summarizeMonitorEvent({
+        changed_logs: [{ name: 'lastException.txt' }],
+        warnings: ['Doctor evidence was partial'],
+        treatment: {
+            warnings: ['Treatment dry-run skipped one package'],
+            blockers: ['No movable candidates met safety rules'],
+        },
+    });
+
+    assert.deepEqual(summary.warnings, [
+        'Doctor evidence was partial',
+        'Treatment dry-run skipped one package',
+    ]);
+    assert.deepEqual(summary.blockers, ['No movable candidates met safety rules']);
 });
 
 test('status text is plain and low-jargon', () => {

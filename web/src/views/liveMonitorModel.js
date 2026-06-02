@@ -38,6 +38,13 @@ export function describeRecommendation(action) {
     return RECOMMENDATIONS[action] || RECOMMENDATIONS.review_doctor;
 }
 
+export function recommendationActionLabel(primaryAction) {
+    return {
+        open_treatment: 'Open Treatment',
+        review_doctor: 'Review Doctor',
+    }[primaryAction] || null;
+}
+
 export function shouldRecordMonitorEvent(data) {
     return (data?.changed_logs || []).length > 0;
 }
@@ -45,6 +52,10 @@ export function shouldRecordMonitorEvent(data) {
 export function summarizeMonitorEvent(data = {}) {
     const doctor = data.doctor_summary || {};
     const treatment = data.treatment || {};
+    const warnings = [
+        ...(data.warnings || []),
+        ...(treatment.warnings || []),
+    ];
     return {
         changedLogNames: (data.changed_logs || []).map((log) => log.name || log.path || 'crash log'),
         watchedLogCount: data.watched_log_count || 0,
@@ -56,6 +67,8 @@ export function summarizeMonitorEvent(data = {}) {
         firstBatchCount: treatment.first_batch_count || 0,
         manifestPath: treatment.manifest_path || null,
         recommendation: data.recommended_next_action || 'waiting',
+        warnings,
+        blockers: treatment.blockers || [],
     };
 }
 

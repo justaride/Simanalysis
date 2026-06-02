@@ -7,6 +7,7 @@ import {
     FolderOpen,
     History,
     Loader2,
+    Microscope,
     RadioTower,
     ShieldCheck,
     Square,
@@ -14,7 +15,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import FilePicker from '../components/FilePicker';
 import { useLiveMonitor } from '../context/LiveMonitorContext';
-import { describeRecommendation, statusText, summarizeMonitorEvent } from './liveMonitorModel';
+import { describeRecommendation, recommendationActionLabel, statusText, summarizeMonitorEvent } from './liveMonitorModel';
 
 function toneClasses(tone) {
     return {
@@ -43,7 +44,7 @@ function StatTile({ label, value, tone = 'gray' }) {
     );
 }
 
-function EventCard({ event, onOpenTreatment }) {
+function EventCard({ event, onOpenTreatment, onReviewDoctor }) {
     if (!event) {
         return (
             <section className="flex min-h-[360px] flex-col items-center justify-center rounded-xl border border-dashed border-gray-700 bg-gray-900/40 p-8 text-center">
@@ -58,6 +59,12 @@ function EventCard({ event, onOpenTreatment }) {
 
     const summary = summarizeMonitorEvent(event.data);
     const recommendation = describeRecommendation(summary.recommendation);
+    const actionLabel = recommendationActionLabel(recommendation.primaryAction);
+    const handlePrimaryAction = recommendation.primaryAction === 'open_treatment' ? onOpenTreatment : onReviewDoctor;
+    const ActionIcon = recommendation.primaryAction === 'open_treatment' ? ShieldCheck : Microscope;
+    const actionClasses = recommendation.primaryAction === 'open_treatment'
+        ? 'bg-emerald-600 hover:bg-emerald-500'
+        : 'bg-amber-600 hover:bg-amber-500';
 
     return (
         <motion.section
@@ -74,13 +81,13 @@ function EventCard({ event, onOpenTreatment }) {
                     <h2 className="mt-3 text-xl font-semibold text-white">{recommendation.title}</h2>
                     <p className="mt-2 max-w-3xl text-sm opacity-90">{recommendation.body}</p>
                 </div>
-                {recommendation.primaryAction === 'open_treatment' && (
+                {actionLabel && (
                     <button
-                        onClick={onOpenTreatment}
-                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition-colors hover:bg-emerald-500 sm:w-auto"
+                        onClick={handlePrimaryAction}
+                        className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium text-white transition-colors sm:w-auto ${actionClasses}`}
                     >
-                        <ShieldCheck size={17} />
-                        Open Treatment
+                        <ActionIcon size={17} />
+                        {actionLabel}
                     </button>
                 )}
             </div>
@@ -113,6 +120,27 @@ function EventCard({ event, onOpenTreatment }) {
                     ))}
                 </div>
             </div>
+
+            {(summary.warnings.length > 0 || summary.blockers.length > 0) && (
+                <div className="mt-5 border-t border-white/10 pt-4 text-sm">
+                    <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider opacity-80">
+                        <AlertTriangle size={14} />
+                        Monitor notes
+                    </p>
+                    <ul className="space-y-1.5 text-gray-200">
+                        {summary.blockers.map((message, index) => (
+                            <li key={`blocker-${index}-${message}`} className="break-words text-red-100">
+                                Blocker: {message}
+                            </li>
+                        ))}
+                        {summary.warnings.map((message, index) => (
+                            <li key={`warning-${index}-${message}`} className="break-words">
+                                Warning: {message}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
         </motion.section>
     );
 }
@@ -169,6 +197,11 @@ function LiveMonitor() {
 
     const openTreatment = () => {
         navigate('/treatment', {
+            state: { simsPath: monitor.simsPath, modsPath: monitor.modsPath },
+        });
+    };
+    const reviewDoctor = () => {
+        navigate('/doctor', {
             state: { simsPath: monitor.simsPath, modsPath: monitor.modsPath },
         });
     };
@@ -294,7 +327,7 @@ function LiveMonitor() {
                     <StatTile label="Session Events" value={monitor.history.length} tone={monitor.history.length ? 'emerald' : 'gray'} />
                 </section>
 
-                <EventCard event={monitor.latestEvent} onOpenTreatment={openTreatment} />
+                <EventCard event={monitor.latestEvent} onOpenTreatment={openTreatment} onReviewDoctor={reviewDoctor} />
 
                 <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
                     <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
