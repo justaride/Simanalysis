@@ -28,6 +28,7 @@ export function LiveMonitorProvider({ children }) {
         runIdRef.current += 1;
         handleRef.current?.cancel?.();
         handleRef.current = null;
+        setProgress(null);
         setStatus('stopped');
     }, []);
 
@@ -80,6 +81,7 @@ export function LiveMonitorProvider({ children }) {
             onDone: () => {
                 if (runIdRef.current !== runId) return;
                 handleRef.current = null;
+                setProgress(null);
                 setStatus((current) => (current === 'error' ? current : 'stopped'));
             },
         });

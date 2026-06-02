@@ -195,9 +195,12 @@ function LiveMonitor() {
                 <section className="glass-card min-w-0 p-5">
                     <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
                         <div className="min-w-0">
-                            <label className="mb-2 block text-sm font-medium text-gray-300">Sims 4 Folder</label>
+                            <label htmlFor="live-monitor-sims-path" className="mb-2 block text-sm font-medium text-gray-300">
+                                Sims 4 Folder
+                            </label>
                             <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
                                 <input
+                                    id="live-monitor-sims-path"
                                     value={monitor.simsPath}
                                     onChange={(event) => monitor.setSimsPath(event.target.value)}
                                     disabled={monitor.isWatching}
@@ -208,15 +211,19 @@ function LiveMonitor() {
                                     disabled={monitor.isWatching}
                                     className="flex h-[42px] w-11 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     title="Browse for Sims 4 folder"
+                                    aria-label="Browse for Sims 4 folder"
                                 >
                                     <FolderOpen size={18} />
                                 </button>
                             </div>
                         </div>
                         <div className="min-w-0">
-                            <label className="mb-2 block text-sm font-medium text-gray-300">Mods Folder</label>
+                            <label htmlFor="live-monitor-mods-path" className="mb-2 block text-sm font-medium text-gray-300">
+                                Mods Folder
+                            </label>
                             <div className="grid grid-cols-[minmax(0,1fr)_44px] gap-2">
                                 <input
+                                    id="live-monitor-mods-path"
                                     value={monitor.modsPath}
                                     onChange={(event) => monitor.setModsPath(event.target.value)}
                                     disabled={monitor.isWatching}
@@ -228,6 +235,7 @@ function LiveMonitor() {
                                     disabled={monitor.isWatching}
                                     className="flex h-[42px] w-11 items-center justify-center rounded-lg border border-gray-700 bg-gray-800 text-gray-200 hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     title="Browse for Mods folder"
+                                    aria-label="Browse for Mods folder"
                                 >
                                     <FolderOpen size={18} />
                                 </button>
