@@ -166,6 +166,14 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("master-baseline-status".into());
             args.push(path.into());
         }
+        "master-update-template" => {
+            args.push("master-update-template".into());
+            args.push(path.into());
+        }
+        "master-update-status" => {
+            args.push("master-update-status".into());
+            args.push(path.into());
+        }
         "live-monitor" => {
             args.push("live-monitor".into());
             args.push(path.into());

@@ -2,9 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
     baselineChangeCount,
+    summarizeUpdateRegistryStatus,
     summarizeBaselineStatus,
     summarizeMasterPlan,
     topCreatorProfiles,
+    updateRegistryActionCount,
+    updateRegistryAttentionEntries,
 } from './masterPlanModel.js';
 
 test('summarizeMasterPlan handles empty initial state', () => {
@@ -107,4 +110,75 @@ test('baselineChangeCount counts actionable changes', () => {
         }),
         6,
     );
+});
+
+test('summarizeUpdateRegistryStatus handles missing registry state', () => {
+    assert.deepEqual(summarizeUpdateRegistryStatus(null), {
+        catalogEntries: 0,
+        current: 0,
+        missingSources: 0,
+        needsCheck: 0,
+        noInstalledVersion: 0,
+        outdated: 0,
+        registryExists: false,
+        registryPath: null,
+        retiredEntries: 0,
+        trackedSources: 0,
+        warnings: 0,
+    });
+});
+
+test('summarizeUpdateRegistryStatus maps backend summary keys', () => {
+    assert.deepEqual(
+        summarizeUpdateRegistryStatus({
+            registry_exists: true,
+            registry_path: '/tmp/update-registry.json',
+            summary: {
+                catalog_entries: 10,
+                tracked_sources: 7,
+                missing_sources: 3,
+                outdated: 2,
+                current: 4,
+                needs_check: 1,
+                no_installed_version: 1,
+                retired_entries: 5,
+                warnings: 1,
+            },
+        }),
+        {
+            catalogEntries: 10,
+            current: 4,
+            missingSources: 3,
+            needsCheck: 1,
+            noInstalledVersion: 1,
+            outdated: 2,
+            registryExists: true,
+            registryPath: '/tmp/update-registry.json',
+            retiredEntries: 5,
+            trackedSources: 7,
+            warnings: 1,
+        },
+    );
+});
+
+test('update registry helpers expose actionable rows', () => {
+    const data = {
+        summary: {
+            missing_sources: 3,
+            needs_check: 1,
+            no_installed_version: 1,
+            outdated: 2,
+        },
+        entries: [
+            { unit_name: 'Current', status: 'current' },
+            { unit_name: 'Outdated', status: 'outdated' },
+            { unit_name: 'Missing', status: 'missing_source' },
+        ],
+    };
+
+    assert.equal(updateRegistryActionCount(data), 7);
+    assert.deepEqual(updateRegistryAttentionEntries(data, 2).map((entry) => entry.unit_name), [
+        'Outdated',
+        'Missing',
+    ]);
 });

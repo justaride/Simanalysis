@@ -211,7 +211,11 @@ def test_master_baseline_commands_emit_results(monkeypatch, tmp_path):
     monkeypatch.setattr(
         commands,
         "save_master_baseline",
-        lambda path, label=None: {"kind": "master_catalog_baseline", "label": label, "sims4_dir": str(path)},
+        lambda path, label=None: {
+            "kind": "master_catalog_baseline",
+            "label": label,
+            "sims4_dir": str(path),
+        },
     )
     monkeypatch.setattr(
         commands,
@@ -239,7 +243,9 @@ def test_master_baseline_commands_emit_results(monkeypatch, tmp_path):
         Emitter(diff_buf),
     )
     status_buf = io.StringIO()
-    commands.master_baseline_status_command(argparse.Namespace(path=str(sims4)), Emitter(status_buf))
+    commands.master_baseline_status_command(
+        argparse.Namespace(path=str(sims4)), Emitter(status_buf)
+    )
 
     save_events = [json.loads(line) for line in save_buf.getvalue().splitlines()]
     diff_events = [json.loads(line) for line in diff_buf.getvalue().splitlines()]
@@ -248,6 +254,33 @@ def test_master_baseline_commands_emit_results(monkeypatch, tmp_path):
     assert save_events[1]["data"]["label"] == "initial"
     assert diff_events[1]["data"]["baseline_path"] == "baseline.json"
     assert status_events[1]["data"]["baseline_exists"] is False
+
+
+def test_master_update_registry_commands_emit_results(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "save_update_registry_template",
+        lambda path: {"kind": "master_update_registry", "sims4_dir": str(path)},
+    )
+    monkeypatch.setattr(
+        commands,
+        "master_update_registry_status",
+        lambda path: {"registry_exists": True, "sims4_dir": str(path)},
+    )
+
+    template_buf = io.StringIO()
+    commands.master_update_template(argparse.Namespace(path=str(sims4)), Emitter(template_buf))
+    status_buf = io.StringIO()
+    commands.master_update_status_command(argparse.Namespace(path=str(sims4)), Emitter(status_buf))
+
+    template_events = [json.loads(line) for line in template_buf.getvalue().splitlines()]
+    status_events = [json.loads(line) for line in status_buf.getvalue().splitlines()]
+    assert [event["type"] for event in template_events] == ["start", "result", "done"]
+    assert template_events[1]["data"]["kind"] == "master_update_registry"
+    assert status_events[1]["data"]["registry_exists"] is True
 
 
 def test_fix_apply_cache_cleanup_emits_session(monkeypatch, tmp_path):

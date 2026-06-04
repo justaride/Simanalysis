@@ -1,4 +1,4 @@
-# World Model v1, Fix Plan v1, Safe Cache Fix, Master Plan, and Catalog Baseline validation
+# World Model v1, Fix Plan v1, Safe Cache Fix, Master Plan, Catalog Baseline, and Update Registry validation
 
 Date: 2026-06-04
 Branch: `codex/world-model-v1`
@@ -44,12 +44,22 @@ Catalog Baseline adds local snapshot and change detection:
 - no duplicate/package/script/shadow-copy move, quarantine, delete, or live mod mutation
 - no live baseline save was executed during validation
 
+Update Registry adds a local update-tracking template:
+
+- bridge commands: `master-update-template` and `master-update-status`
+- Tauri command routing for template save and status refresh
+- desktop controls on `/master-plan` for Save Template and Refresh Status
+- registry manifests are Simanalysis-owned JSON files under `_Simanalysis_MasterPlan/update-registry.json`
+- user-maintained fields such as `source_url`, `latest_version`, `last_checked_at`, and `notes` are preserved when the template is refreshed
+- status compares local installed version signals with user-recorded latest versions; it does not perform network lookups
+- no live update registry template was saved during validation
+
 ## Verification
 
-- `.venv/bin/python -m pytest -q` -> 393 passed
+- `.venv/bin/python -m pytest -q` -> 398 passed
 - `.venv/bin/ruff check .` -> passed
 - `.venv/bin/mypy src/simanalysis` -> passed across 47 source files
-- `node --test web/src/views/masterPlanModel.test.js web/src/views/fixPlanModel.test.js web/src/views/worldModel.test.js web/src/views/liveMonitorModel.test.js` -> 21 passed
+- `node --test web/src/views/masterPlanModel.test.js web/src/views/fixPlanModel.test.js web/src/views/worldModel.test.js web/src/views/liveMonitorModel.test.js` -> 24 passed
 - `npm run lint` in `web/` -> passed
 - `npm run build` in `web/` -> passed
 - `scripts/build-sidecar.sh` -> passed and staged `src-tauri/binaries/simanalysis-bridge-aarch64-apple-darwin`
@@ -58,6 +68,7 @@ Catalog Baseline adds local snapshot and change detection:
 - packaged sidecar temp smoke: `fix-apply`, `fix-session-status`, and `fix-restore` moved and restored `/tmp/.../The Sims 4/localthumbcache.package`
 - packaged sidecar temp smoke: `master-plan` produced one catalog entry and inferred creator `Creator`
 - packaged sidecar temp smoke: `master-baseline-save`, `master-baseline-status`, and `master-baseline-diff` reported `added: 1`, `changed: 1`, `removed: 1`, `unchanged: 0` from a temp Sims fixture
+- packaged sidecar temp smoke: `master-update-template` and `master-update-status` reported one outdated unit, one current unit, and one missing-source unit from a temp Sims fixture
 
 ## Live Read-Only Smoke
 
@@ -148,6 +159,35 @@ Result summary:
 
 This was status-only. It did not create `_Simanalysis_MasterPlan` in the live Sims folder.
 
+Command:
+
+```bash
+src-tauri/binaries/simanalysis-bridge-aarch64-apple-darwin master-update-status "/Users/gabrielfreeman/Documents/Electronic Arts/The Sims 4"
+```
+
+Result summary:
+
+```json
+{
+  "registry_exists": false,
+  "registry_path": null,
+  "summary": {
+    "catalog_entries": 1285,
+    "tracked_sources": 0,
+    "missing_sources": 1285,
+    "outdated": 0,
+    "current": 0,
+    "needs_check": 0,
+    "no_installed_version": 0,
+    "retired_entries": 0,
+    "warnings": 0
+  },
+  "blockers": ["No update registry found"]
+}
+```
+
+This was status-only. It did not create `_Simanalysis_MasterPlan/update-registry.json` in the live Sims folder.
+
 Browser QA:
 
 - opened `http://127.0.0.1:5174/world`
@@ -159,5 +199,6 @@ Browser QA:
 - opened `http://127.0.0.1:5174/master-plan`
 - confirmed `Master Plan` heading, `Build Plan` button, path input, read-only notice, and empty state rendered
 - confirmed `Catalog Baseline` section rendered with Added, Changed, Removed, Unchanged counters and Save Baseline, Compare, Refresh controls
+- confirmed `Local Update Registry` section rendered with Tracked Sources, Missing Sources, Outdated, Needs Check counters and Save Template, Refresh Status controls
 - confirmed no current-server console errors
 - screenshot capture through the browser backend timed out during QA, so visual evidence is DOM and console based for this pass

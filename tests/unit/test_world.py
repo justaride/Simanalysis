@@ -57,8 +57,16 @@ def test_scan_world_indexes_active_disabled_archive_and_game_state(tmp_path: Pat
         "warnings": 0,
     }
     assert world["game_state"]["logs"] == [
-        {"kind": "script", "name": "lastException.txt", "path": str((sims4 / "lastException.txt").resolve())},
-        {"kind": "ui", "name": "lastUIException.txt", "path": str((sims4 / "lastUIException.txt").resolve())},
+        {
+            "kind": "script",
+            "name": "lastException.txt",
+            "path": str((sims4 / "lastException.txt").resolve()),
+        },
+        {
+            "kind": "ui",
+            "name": "lastUIException.txt",
+            "path": str((sims4 / "lastUIException.txt").resolve()),
+        },
     ]
     assert [unit["name"] for unit in world["units"]] == [
         "CreatorPack",

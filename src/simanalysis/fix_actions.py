@@ -190,7 +190,9 @@ def _assert_safe_cache_restore(
     if source.parent != backup_dir:
         raise ValueError(f"Restore source must be a direct child of backup folder: {source}")
     if destination.parent != base:
-        raise ValueError(f"Restore destination must be a direct child of Sims 4 folder: {destination}")
+        raise ValueError(
+            f"Restore destination must be a direct child of Sims 4 folder: {destination}"
+        )
 
 
 def _require_sims_dir(path: str | Path) -> Path:

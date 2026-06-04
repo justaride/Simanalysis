@@ -2,10 +2,12 @@ import { useMemo, useState } from 'react';
 import {
     AlertTriangle,
     BrainCircuit,
+    ClipboardList,
     FolderOpen,
     Gauge,
     GitCompare,
     Loader2,
+    RefreshCw,
     Save,
     Search,
     ShieldCheck,
@@ -18,7 +20,10 @@ import {
     baselineChangeCount,
     summarizeBaselineStatus,
     summarizeMasterPlan,
+    summarizeUpdateRegistryStatus,
     topCreatorProfiles,
+    updateRegistryActionCount,
+    updateRegistryAttentionEntries,
 } from './masterPlanModel';
 import { formatBytes } from './worldModel';
 
@@ -65,10 +70,14 @@ function MasterPlan() {
     const [baselineError, setBaselineError] = useState(null);
     const [baselineStatus, setBaselineStatus] = useState(null);
     const [baselineDiff, setBaselineDiff] = useState(null);
+    const [updateRegistryError, setUpdateRegistryError] = useState(null);
+    const [updateRegistryStatus, setUpdateRegistryStatus] = useState(null);
     const [isScanning, setIsScanning] = useState(false);
     const [isSavingBaseline, setIsSavingBaseline] = useState(false);
     const [isDiffingBaseline, setIsDiffingBaseline] = useState(false);
     const [isRefreshingBaseline, setIsRefreshingBaseline] = useState(false);
+    const [isSavingUpdateTemplate, setIsSavingUpdateTemplate] = useState(false);
+    const [isRefreshingUpdateRegistry, setIsRefreshingUpdateRegistry] = useState(false);
 
     const summary = useMemo(() => summarizeMasterPlan(result), [result]);
     const baselineSummary = useMemo(
@@ -78,6 +87,18 @@ function MasterPlan() {
     const baselineChanges = useMemo(
         () => baselineChangeCount(baselineDiff || baselineStatus),
         [baselineDiff, baselineStatus],
+    );
+    const updateRegistrySummary = useMemo(
+        () => summarizeUpdateRegistryStatus(updateRegistryStatus),
+        [updateRegistryStatus],
+    );
+    const updateRegistryActions = useMemo(
+        () => updateRegistryActionCount(updateRegistryStatus),
+        [updateRegistryStatus],
+    );
+    const updateRegistryRows = useMemo(
+        () => updateRegistryAttentionEntries(updateRegistryStatus, 8),
+        [updateRegistryStatus],
     );
     const creators = useMemo(() => topCreatorProfiles(result, 10), [result]);
     const updateCandidates = result?.updates?.candidates || [];
@@ -163,6 +184,41 @@ function MasterPlan() {
                 setIsRefreshingBaseline(false);
             },
             onDone: () => setIsRefreshingBaseline(false),
+        });
+    };
+
+    const handleSaveUpdateTemplate = () => {
+        setUpdateRegistryError(null);
+        setIsSavingUpdateTemplate(true);
+        api.saveMasterUpdateTemplate(simsPath, {
+            onComplete: (data) => {
+                setUpdateRegistryStatus({
+                    ...data,
+                    registry_exists: true,
+                });
+                setIsSavingUpdateTemplate(false);
+            },
+            onError: (message) => {
+                setUpdateRegistryError(message);
+                setIsSavingUpdateTemplate(false);
+            },
+            onDone: () => setIsSavingUpdateTemplate(false),
+        });
+    };
+
+    const handleRefreshUpdateRegistry = () => {
+        setUpdateRegistryError(null);
+        setIsRefreshingUpdateRegistry(true);
+        api.masterUpdateStatus(simsPath, {
+            onComplete: (data) => {
+                setUpdateRegistryStatus(data);
+                setIsRefreshingUpdateRegistry(false);
+            },
+            onError: (message) => {
+                setUpdateRegistryError(message);
+                setIsRefreshingUpdateRegistry(false);
+            },
+            onDone: () => setIsRefreshingUpdateRegistry(false),
         });
     };
 
@@ -325,6 +381,87 @@ function MasterPlan() {
                             <div key={`removed-${entry.unit_id}`} className="rounded-lg border border-red-500/25 bg-red-950/10 p-3">
                                 <p className="text-xs uppercase text-red-200">Removed</p>
                                 <p className="mt-2 break-words text-sm font-medium text-white">{entry.unit_name}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </section>
+
+            <section className="rounded-xl border border-gray-800 bg-gray-900/35 p-4">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                            <ClipboardList size={18} className="text-cyan-200" />
+                            <h2 className="text-sm font-semibold uppercase tracking-wider text-white">
+                                Local Update Registry
+                            </h2>
+                        </div>
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-400">
+                            This registry is a local template for source links and latest-version notes. It does not check the internet or modify installed mods.
+                        </p>
+                        <div className="mt-4 grid gap-3 md:grid-cols-4">
+                            <StatTile label="Tracked Sources" value={updateRegistrySummary.trackedSources} tone="cyan" />
+                            <StatTile label="Missing Sources" value={updateRegistrySummary.missingSources} tone={updateRegistrySummary.missingSources ? 'amber' : 'emerald'} />
+                            <StatTile label="Outdated" value={updateRegistrySummary.outdated} tone={updateRegistrySummary.outdated ? 'red' : 'emerald'} />
+                            <StatTile label="Needs Check" value={updateRegistrySummary.needsCheck + updateRegistrySummary.noInstalledVersion} tone={updateRegistrySummary.needsCheck || updateRegistrySummary.noInstalledVersion ? 'amber' : 'emerald'} />
+                        </div>
+                        {updateRegistrySummary.registryPath ? (
+                            <p className="mt-3 break-all rounded bg-black/30 px-3 py-2 font-mono text-xs text-gray-500">
+                                {updateRegistrySummary.registryPath}
+                            </p>
+                        ) : (
+                            <p className="mt-3 text-sm text-gray-500">No update registry template found.</p>
+                        )}
+                        {updateRegistryActions > 0 && (
+                            <p className="mt-3 text-sm text-amber-200">
+                                {updateRegistryActions} update tracking item(s) need source, version, or review data.
+                            </p>
+                        )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            onClick={handleSaveUpdateTemplate}
+                            disabled={isSavingUpdateTemplate || !simsPath.trim()}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-cyan-500 px-3 py-2 text-sm font-medium text-gray-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {isSavingUpdateTemplate ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                            Save Template
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleRefreshUpdateRegistry}
+                            disabled={isRefreshingUpdateRegistry || !simsPath.trim()}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm font-medium text-gray-200 transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {isRefreshingUpdateRegistry ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                            Refresh Status
+                        </button>
+                    </div>
+                </div>
+                <AnimatePresence>
+                    {updateRegistryError && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -6 }}
+                            className="mt-4 rounded-lg border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-200"
+                        >
+                            {updateRegistryError}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+                {updateRegistryRows.length > 0 && (
+                    <div className="mt-4 grid gap-3 xl:grid-cols-4">
+                        {updateRegistryRows.map((entry) => (
+                            <div key={`${entry.status}-${entry.relative_path}`} className="rounded-lg border border-amber-500/25 bg-amber-950/10 p-3">
+                                <p className="text-xs uppercase text-amber-200">
+                                    {entry.status.replaceAll('_', ' ')}
+                                </p>
+                                <p className="mt-2 break-words text-sm font-medium text-white">{entry.unit_name}</p>
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Installed {entry.installed_version || 'unknown'} - Latest {entry.latest_version || 'not recorded'}
+                                </p>
                             </div>
                         ))}
                     </div>

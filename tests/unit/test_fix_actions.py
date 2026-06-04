@@ -83,7 +83,9 @@ def test_apply_cache_cleanup_refuses_when_sims_process_guard_blocks(
     monkeypatch.setattr(
         fix_actions,
         "assert_sims_not_running",
-        lambda: (_ for _ in ()).throw(ValueError("Refusing to move files while The Sims 4 is running")),
+        lambda: (_ for _ in ()).throw(
+            ValueError("Refusing to move files while The Sims 4 is running")
+        ),
     )
 
     with pytest.raises(ValueError, match="The Sims 4 is running"):

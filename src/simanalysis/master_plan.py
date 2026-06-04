@@ -15,6 +15,7 @@ from simanalysis.world import scan_world
 
 MASTER_ROOT_NAME = "_Simanalysis_MasterPlan"
 LATEST_BASELINE_NAME = "latest-catalog-baseline.json"
+UPDATE_REGISTRY_NAME = "update-registry.json"
 HEAVY_UNIT_BYTES = 2 * 1024 * 1024
 SCRIPT_PRESSURE_COUNT = 100
 PACKAGE_PRESSURE_COUNT = 10_000
@@ -199,12 +200,107 @@ def master_baseline_status(sims4_dir: str | Path) -> dict[str, Any]:
     }
 
 
+def save_update_registry_template(sims4_dir: str | Path) -> dict[str, Any]:
+    """Write or refresh the local update registry template."""
+    base = _require_sims_dir(sims4_dir)
+    plan = create_master_plan(base)
+    registry_path = base / MASTER_ROOT_NAME / UPDATE_REGISTRY_NAME
+    existing = load_update_registry(base, required=False)
+    existing_entries = {str(entry["relative_path"]): entry for entry in existing.get("entries", [])}
+    active_paths: set[str] = set()
+    entries: list[dict[str, Any]] = []
+    for catalog_entry in plan["catalog"]["entries"]:
+        relative_path = str(catalog_entry["relative_path"])
+        active_paths.add(relative_path)
+        previous = existing_entries.get(relative_path, {})
+        entries.append(_update_registry_template_entry(catalog_entry, previous))
+
+    retired_entries = [
+        {
+            **entry,
+            "active": False,
+        }
+        for key, entry in sorted(existing_entries.items(), key=lambda item: item[0].casefold())
+        if key not in active_paths
+    ]
+
+    registry = {
+        "schema_version": 1,
+        "kind": "master_update_registry",
+        "updated_at": utc_now().isoformat().replace("+00:00", "Z"),
+        "sims4_dir": str(base),
+        "registry_path": str(registry_path),
+        "summary": _update_registry_template_summary(entries, retired_entries, plan["warnings"]),
+        "entries": entries,
+        "retired_entries": retired_entries,
+        "warnings": plan["warnings"],
+        "blockers": plan["blockers"],
+    }
+    _write_json_atomic(registry_path, registry)
+    return registry
+
+
+def master_update_registry_status(sims4_dir: str | Path) -> dict[str, Any]:
+    """Return local update registry status without writing a registry if it is absent."""
+    base = _require_sims_dir(sims4_dir)
+    registry_path = base / MASTER_ROOT_NAME / UPDATE_REGISTRY_NAME
+    plan = create_master_plan(base)
+    if not registry_path.exists():
+        return {
+            "schema_version": 1,
+            "sims4_dir": str(base),
+            "registry_exists": False,
+            "registry_path": None,
+            "summary": {
+                "catalog_entries": len(plan["catalog"]["entries"]),
+                "tracked_sources": 0,
+                "missing_sources": len(plan["catalog"]["entries"]),
+                "outdated": 0,
+                "current": 0,
+                "needs_check": 0,
+                "no_installed_version": 0,
+                "retired_entries": 0,
+                "warnings": len(plan["warnings"]),
+            },
+            "entries": [],
+            "warnings": plan["warnings"],
+            "blockers": ["No update registry found"],
+        }
+
+    registry = load_update_registry(base)
+    saved_by_path = {str(entry["relative_path"]): entry for entry in registry["entries"]}
+    status_entries = [
+        _update_registry_status_entry(
+            catalog_entry, saved_by_path.get(str(catalog_entry["relative_path"]))
+        )
+        for catalog_entry in plan["catalog"]["entries"]
+    ]
+    status_entries.sort(key=_update_registry_status_sort_key)
+    retired_entries = registry.get("retired_entries", [])
+    summary = _update_registry_status_summary(status_entries, retired_entries, plan["warnings"])
+    return {
+        "schema_version": 1,
+        "sims4_dir": str(base),
+        "registry_exists": True,
+        "registry_path": str(registry_path),
+        "summary": summary,
+        "entries": status_entries,
+        "retired_entries": retired_entries,
+        "warnings": [*registry.get("warnings", []), *plan["warnings"]],
+        "blockers": plan["blockers"],
+    }
+
+
 def load_master_baseline(
     sims4_dir: str | Path,
     baseline_path: str | Path | None = None,
 ) -> dict[str, Any]:
     base = _require_sims_dir(sims4_dir)
-    path = Path(baseline_path).expanduser() if baseline_path else base / MASTER_ROOT_NAME / LATEST_BASELINE_NAME
+    path = (
+        Path(baseline_path).expanduser()
+        if baseline_path
+        else base / MASTER_ROOT_NAME / LATEST_BASELINE_NAME
+    )
     path = path.resolve()
     if not path.exists() or not path.is_file():
         raise ValueError(f"Master baseline not found: {path}")
@@ -217,6 +313,25 @@ def load_master_baseline(
     data = parsed
     _validate_baseline(data)
     data["baseline_path"] = str(path)
+    return data
+
+
+def load_update_registry(sims4_dir: str | Path, *, required: bool = True) -> dict[str, Any]:
+    base = _require_sims_dir(sims4_dir)
+    path = (base / MASTER_ROOT_NAME / UPDATE_REGISTRY_NAME).resolve()
+    if not path.exists():
+        if required:
+            raise ValueError(f"Update registry not found: {path}")
+        return {"entries": [], "retired_entries": [], "warnings": []}
+    try:
+        parsed = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Update registry is not valid JSON: {path}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("Update registry must be a JSON object")
+    data = parsed
+    _validate_update_registry(data)
+    data["registry_path"] = str(path)
     return data
 
 
@@ -275,7 +390,9 @@ def _performance_lane(world: dict[str, Any], active_units: list[dict[str, Any]])
         for unit in active_units
         if int(unit["total_size_bytes"]) >= HEAVY_UNIT_BYTES
     ]
-    heavy_units.sort(key=lambda item: (-int(item["total_size_bytes"]), str(item["unit_name"]).casefold()))
+    heavy_units.sort(
+        key=lambda item: (-int(item["total_size_bytes"]), str(item["unit_name"]).casefold())
+    )
 
     summary = world["summary"]
     actions: list[dict[str, Any]] = []
@@ -404,12 +521,153 @@ def _unit_source_name(name: str) -> str:
 
 def _change_reasons(baseline: dict[str, Any], current: dict[str, Any]) -> list[str]:
     reasons: list[str] = []
-    for key in ("version_signal", "package_count", "script_count", "file_count", "total_size_bytes"):
+    for key in (
+        "version_signal",
+        "package_count",
+        "script_count",
+        "file_count",
+        "total_size_bytes",
+    ):
         if baseline.get(key) != current.get(key):
             reasons.append(key)
     if not reasons:
         reasons.append("identity")
     return reasons
+
+
+def _update_registry_template_entry(
+    catalog_entry: dict[str, Any],
+    previous: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "relative_path": catalog_entry["relative_path"],
+        "unit_id": catalog_entry["unit_id"],
+        "unit_name": catalog_entry["unit_name"],
+        "creator": catalog_entry["creator"],
+        "installed_version": catalog_entry["version_signal"],
+        "source_url": _optional_text(previous.get("source_url")),
+        "latest_version": _optional_text(previous.get("latest_version")),
+        "last_checked_at": _optional_text(previous.get("last_checked_at")),
+        "notes": _optional_text(previous.get("notes")),
+    }
+
+
+def _update_registry_status_entry(
+    catalog_entry: dict[str, Any],
+    saved: dict[str, Any] | None,
+) -> dict[str, Any]:
+    source_url = _optional_text(saved.get("source_url") if saved else None)
+    latest_version = _optional_text(saved.get("latest_version") if saved else None)
+    installed_version = _optional_text(catalog_entry.get("version_signal"))
+    status = _update_registry_status(source_url, installed_version, latest_version)
+    return {
+        "relative_path": catalog_entry["relative_path"],
+        "unit_id": catalog_entry["unit_id"],
+        "unit_name": catalog_entry["unit_name"],
+        "creator": catalog_entry["creator"],
+        "installed_version": installed_version,
+        "latest_version": latest_version,
+        "source_url": source_url,
+        "last_checked_at": _optional_text(saved.get("last_checked_at") if saved else None),
+        "notes": _optional_text(saved.get("notes") if saved else None),
+        "status": status,
+    }
+
+
+def _update_registry_status(
+    source_url: str | None,
+    installed_version: str | None,
+    latest_version: str | None,
+) -> str:
+    if not source_url:
+        return "missing_source"
+    if not latest_version:
+        return "needs_check"
+    if not installed_version:
+        return "no_installed_version"
+    comparison = _compare_versions(installed_version, latest_version)
+    if comparison is None:
+        return "needs_check"
+    if comparison < 0:
+        return "outdated"
+    if comparison > 0:
+        return "installed_newer"
+    return "current"
+
+
+def _compare_versions(installed: str, latest: str) -> int | None:
+    installed_parts = _version_parts(installed)
+    latest_parts = _version_parts(latest)
+    if not installed_parts or not latest_parts:
+        return None
+    width = max(len(installed_parts), len(latest_parts))
+    installed_parts.extend([0] * (width - len(installed_parts)))
+    latest_parts.extend([0] * (width - len(latest_parts)))
+    if installed_parts < latest_parts:
+        return -1
+    if installed_parts > latest_parts:
+        return 1
+    return 0
+
+
+def _version_parts(value: str) -> list[int]:
+    return [int(part) for part in re.findall(r"\d+", value)]
+
+
+def _optional_text(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _update_registry_template_summary(
+    entries: list[dict[str, Any]],
+    retired_entries: list[dict[str, Any]],
+    warnings: list[Any],
+) -> dict[str, int]:
+    tracked = sum(1 for entry in entries if entry.get("source_url"))
+    return {
+        "catalog_entries": len(entries),
+        "tracked_sources": tracked,
+        "missing_sources": len(entries) - tracked,
+        "retired_entries": len(retired_entries),
+        "warnings": len(warnings),
+    }
+
+
+def _update_registry_status_summary(
+    entries: list[dict[str, Any]],
+    retired_entries: list[dict[str, Any]],
+    warnings: list[Any],
+) -> dict[str, int]:
+    return {
+        "catalog_entries": len(entries),
+        "tracked_sources": sum(1 for entry in entries if entry.get("source_url")),
+        "missing_sources": sum(1 for entry in entries if entry["status"] == "missing_source"),
+        "outdated": sum(1 for entry in entries if entry["status"] == "outdated"),
+        "current": sum(1 for entry in entries if entry["status"] == "current"),
+        "needs_check": sum(
+            1 for entry in entries if entry["status"] in {"needs_check", "installed_newer"}
+        ),
+        "no_installed_version": sum(
+            1 for entry in entries if entry["status"] == "no_installed_version"
+        ),
+        "retired_entries": len(retired_entries),
+        "warnings": len(warnings),
+    }
+
+
+def _update_registry_status_sort_key(entry: dict[str, Any]) -> tuple[int, str]:
+    priority = {
+        "outdated": 0,
+        "missing_source": 1,
+        "needs_check": 2,
+        "no_installed_version": 3,
+        "installed_newer": 4,
+        "current": 5,
+    }
+    return (priority.get(str(entry["status"]), 9), str(entry["unit_name"]).casefold())
 
 
 def _validate_baseline(data: dict[str, Any]) -> None:
@@ -426,6 +684,24 @@ def _validate_baseline(data: dict[str, Any]) -> None:
     for key in ("warnings", "blockers"):
         if not isinstance(data.get(key), list):
             raise ValueError(f"Master baseline field {key} must be a list")
+
+
+def _validate_update_registry(data: dict[str, Any]) -> None:
+    if data.get("schema_version") != 1:
+        raise ValueError("Unsupported update registry schema version")
+    if data.get("kind") != "master_update_registry":
+        raise ValueError("Unsupported update registry kind")
+    for key in ("updated_at", "sims4_dir", "registry_path"):
+        if not isinstance(data.get(key), str):
+            raise ValueError(f"Update registry field {key} must be a string")
+    for key in ("entries", "retired_entries", "warnings", "blockers"):
+        if not isinstance(data.get(key), list):
+            raise ValueError(f"Update registry field {key} must be a list")
+    for entry in data["entries"]:
+        if not isinstance(entry, dict):
+            raise ValueError("Update registry entries must be objects")
+        if not isinstance(entry.get("relative_path"), str):
+            raise ValueError("Update registry entries need relative_path strings")
 
 
 def _require_sims_dir(path: str | Path) -> Path:

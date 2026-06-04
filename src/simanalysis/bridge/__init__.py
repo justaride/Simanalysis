@@ -69,6 +69,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_master_baseline_status = sub.add_parser("master-baseline-status")
     p_master_baseline_status.add_argument("path")
 
+    p_master_update_template = sub.add_parser("master-update-template")
+    p_master_update_template.add_argument("path")
+
+    p_master_update_status = sub.add_parser("master-update-status")
+    p_master_update_status.add_argument("path")
+
     p_doctor = sub.add_parser("doctor-scan")
     p_doctor.add_argument("path")
     p_doctor.add_argument("--mods", default=None)

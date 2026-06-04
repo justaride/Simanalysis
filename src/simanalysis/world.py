@@ -110,8 +110,7 @@ def _discover_units(base: Path) -> list[dict[str, Any]]:
                 units.append(_build_unit(base, child, "active"))
             elif child.is_dir():
                 status = _status_for_named_root(child.name, default="active")
-                assert status is not None
-                if _contains_mod_files(child):
+                if status is not None and _contains_mod_files(child):
                     units.append(_build_unit(base, child, status))
 
     for child in _sorted_children(base):
@@ -232,7 +231,9 @@ def _iter_save_files(saves_dir: Path) -> Iterable[Path]:
         return []
     return (
         path.resolve()
-        for path in sorted(saves_dir.rglob("*"), key=lambda item: _relative_sort_key(saves_dir, item))
+        for path in sorted(
+            saves_dir.rglob("*"), key=lambda item: _relative_sort_key(saves_dir, item)
+        )
         if path.is_file() and ".save" in path.name.casefold()
     )
 

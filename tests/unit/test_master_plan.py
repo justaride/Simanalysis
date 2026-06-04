@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from simanalysis.master_plan import (
@@ -7,7 +8,9 @@ from simanalysis.master_plan import (
     diff_master_baseline,
     master_baseline_status,
     master_status,
+    master_update_registry_status,
     save_master_baseline,
+    save_update_registry_template,
 )
 
 
@@ -158,3 +161,117 @@ def test_master_baseline_status_reports_missing_baseline_without_writing(tmp_pat
         "blockers": ["No master baseline found"],
     }
     assert not (sims4 / "_Simanalysis_MasterPlan").exists()
+
+
+def test_update_registry_status_reports_missing_registry_without_writing(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    unit = mods / "Creator_Gameplay_v1.0"
+    unit.mkdir()
+    (unit / "creator_gameplay.package").write_bytes(b"package")
+
+    status = master_update_registry_status(sims4)
+
+    assert status == {
+        "schema_version": 1,
+        "sims4_dir": str(sims4.resolve()),
+        "registry_exists": False,
+        "registry_path": None,
+        "summary": {
+            "catalog_entries": 1,
+            "tracked_sources": 0,
+            "missing_sources": 1,
+            "outdated": 0,
+            "current": 0,
+            "needs_check": 0,
+            "no_installed_version": 0,
+            "retired_entries": 0,
+            "warnings": 0,
+        },
+        "entries": [],
+        "warnings": [],
+        "blockers": ["No update registry found"],
+    }
+    assert not (sims4 / "_Simanalysis_MasterPlan").exists()
+
+
+def test_save_update_registry_template_preserves_user_source_fields(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    tracked = mods / "Creator_Gameplay_v1.0"
+    tracked.mkdir(parents=True)
+    (tracked / "creator_gameplay.package").write_bytes(b"package")
+
+    initial = save_update_registry_template(sims4)
+    registry_path = Path(initial["registry_path"])
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    registry["entries"][0]["source_url"] = "https://creator.example/gameplay"
+    registry["entries"][0]["latest_version"] = "1.1"
+    registry["entries"][0]["last_checked_at"] = "2026-06-04"
+    registry["entries"][0]["notes"] = "manual source"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    added = mods / "OtherCreator_CAS_v2.0"
+    added.mkdir()
+    (added / "other.package").write_bytes(b"package")
+
+    refreshed = save_update_registry_template(sims4)
+
+    entries = {entry["relative_path"]: entry for entry in refreshed["entries"]}
+    tracked_entry = entries["Mods/Creator_Gameplay_v1.0"]
+    assert refreshed["kind"] == "master_update_registry"
+    assert registry_path == sims4 / "_Simanalysis_MasterPlan" / "update-registry.json"
+    assert tracked_entry["source_url"] == "https://creator.example/gameplay"
+    assert tracked_entry["latest_version"] == "1.1"
+    assert tracked_entry["last_checked_at"] == "2026-06-04"
+    assert tracked_entry["notes"] == "manual source"
+    assert entries["Mods/OtherCreator_CAS_v2.0"]["source_url"] is None
+    assert (tracked / "creator_gameplay.package").is_file()
+
+
+def test_update_registry_status_flags_outdated_current_and_missing_sources(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    outdated = mods / "Creator_Gameplay_v1.0"
+    current = mods / "Creator_UI_v2.0"
+    missing = mods / "NoSource_Script_v3.0"
+    outdated.mkdir(parents=True)
+    current.mkdir()
+    missing.mkdir()
+    (outdated / "gameplay.package").write_bytes(b"package")
+    (current / "ui.package").write_bytes(b"package")
+    (missing / "script.ts4script").write_bytes(b"script")
+
+    template = save_update_registry_template(sims4)
+    registry_path = Path(template["registry_path"])
+    registry = json.loads(registry_path.read_text(encoding="utf-8"))
+    for entry in registry["entries"]:
+        if entry["relative_path"] == "Mods/Creator_Gameplay_v1.0":
+            entry["source_url"] = "https://creator.example/gameplay"
+            entry["latest_version"] = "1.2"
+        if entry["relative_path"] == "Mods/Creator_UI_v2.0":
+            entry["source_url"] = "https://creator.example/ui"
+            entry["latest_version"] = "2.0"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    status = master_update_registry_status(sims4)
+
+    assert status["registry_exists"] is True
+    assert status["summary"] == {
+        "catalog_entries": 3,
+        "tracked_sources": 2,
+        "missing_sources": 1,
+        "outdated": 1,
+        "current": 1,
+        "needs_check": 0,
+        "no_installed_version": 0,
+        "retired_entries": 0,
+        "warnings": 0,
+    }
+    statuses = {entry["relative_path"]: entry["status"] for entry in status["entries"]}
+    assert statuses == {
+        "Mods/Creator_Gameplay_v1.0": "outdated",
+        "Mods/Creator_UI_v2.0": "current",
+        "Mods/NoSource_Script_v3.0": "missing_source",
+    }

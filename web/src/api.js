@@ -100,6 +100,10 @@ export const api = {
     runAnalysis('master-baseline-diff', sims4Path, { baselinePath }, callbacks),
   masterBaselineStatus: (sims4Path, callbacks) =>
     runAnalysis('master-baseline-status', sims4Path, {}, callbacks),
+  saveMasterUpdateTemplate: (sims4Path, callbacks) =>
+    runAnalysis('master-update-template', sims4Path, {}, callbacks),
+  masterUpdateStatus: (sims4Path, callbacks) =>
+    runAnalysis('master-update-status', sims4Path, {}, callbacks),
   monitorLive: (sims4Path, modsPath, interval, callbacks) =>
     runAnalysis(
       'live-monitor',

@@ -22,7 +22,9 @@ from simanalysis.master_plan import (
     diff_master_baseline,
     master_baseline_status,
     master_status,
+    master_update_registry_status,
     save_master_baseline,
+    save_update_registry_template,
 )
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
@@ -172,6 +174,20 @@ def master_baseline_status_command(args: argparse.Namespace, emit: Emitter) -> N
     path = _require_dir(args.path)
     emit.start("master-baseline-status")
     emit.result(master_baseline_status(path))
+    emit.done()
+
+
+def master_update_template(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-update-template")
+    emit.result(save_update_registry_template(path))
+    emit.done()
+
+
+def master_update_status_command(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-update-status")
+    emit.result(master_update_registry_status(path))
     emit.done()
 
 
@@ -439,6 +455,8 @@ DISPATCH = {
     "master-baseline-save": master_baseline_save,
     "master-baseline-diff": master_baseline_diff,
     "master-baseline-status": master_baseline_status_command,
+    "master-update-template": master_update_template,
+    "master-update-status": master_update_status_command,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,
     "live-monitor": live_monitor,

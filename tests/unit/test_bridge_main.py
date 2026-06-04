@@ -272,11 +272,41 @@ def test_master_baseline_commands_are_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in status_events] == ["result", "done"]
 
 
+def test_master_update_registry_commands_are_dispatched(monkeypatch, tmp_path):
+    called = []
+
+    def fake_handler(args, emit):
+        called.append((args.command, args.path))
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "master-update-template", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "master-update-status", fake_handler)
+
+    template_code, template_events = _run(monkeypatch, ["master-update-template", str(tmp_path)])
+    status_code, status_events = _run(monkeypatch, ["master-update-status", str(tmp_path)])
+
+    assert template_code == status_code == 0
+    assert called == [
+        ("master-update-template", str(tmp_path)),
+        ("master-update-status", str(tmp_path)),
+    ]
+    assert [event["type"] for event in template_events] == ["result", "done"]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+
+
 def test_fix_apply_restore_status_commands_are_dispatched(monkeypatch, tmp_path):
     called = []
 
     def fake_handler(args, emit):
-        called.append((args.command, getattr(args, "path", None), getattr(args, "manifest_path", None), getattr(args, "kind", None)))
+        called.append(
+            (
+                args.command,
+                getattr(args, "path", None),
+                getattr(args, "manifest_path", None),
+                getattr(args, "kind", None),
+            )
+        )
         emit.result({"ok": True})
         emit.done()
 
