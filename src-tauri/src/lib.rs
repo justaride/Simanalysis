@@ -36,6 +36,10 @@ struct AnalysisOptions {
     #[serde(default)]
     save: bool,
     #[serde(default)]
+    db_path: Option<String>,
+    #[serde(default)]
+    export_path: Option<String>,
+    #[serde(default)]
     outcome: Option<String>,
     #[serde(default)]
     step: Option<String>,
@@ -111,6 +115,18 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             }
             if opts.once {
                 args.push("--once".into());
+            }
+        }
+        "inventory-scan" => {
+            args.push("inventory-scan".into());
+            args.push(path.into());
+            if let Some(db_path) = opts.db_path.as_deref() {
+                args.push("--db-path".into());
+                args.push(db_path.into());
+            }
+            if let Some(export_path) = opts.export_path.as_deref() {
+                args.push("--export".into());
+                args.push(export_path.into());
             }
         }
         "treatment-plan" => {
@@ -670,6 +686,34 @@ mod tests {
                 "--interval",
                 "0.25",
                 "--once",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_inventory_scan_args() {
+        let opts = AnalysisOptions::default();
+        let args = build_args("inventory-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(args, vec!["inventory-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_inventory_scan_args_with_db_and_export() {
+        let opts = AnalysisOptions {
+            db_path: Some("/tmp/inventory.sqlite3".into()),
+            export_path: Some("/tmp/snapshot.json".into()),
+            ..AnalysisOptions::default()
+        };
+        let args = build_args("inventory-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-scan",
+                "/Sims/The Sims 4",
+                "--db-path",
+                "/tmp/inventory.sqlite3",
+                "--export",
+                "/tmp/snapshot.json",
             ]
         );
     }
