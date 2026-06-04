@@ -65,6 +65,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_live_monitor.add_argument("--interval", type=float, default=2.0)
     p_live_monitor.add_argument("--once", action="store_true")
 
+    p_inventory = sub.add_parser("inventory-scan")
+    p_inventory.add_argument("path")
+    p_inventory.add_argument("--db-path", default=None)
+    p_inventory.add_argument("--export", default=None)
+
     return parser
 
 

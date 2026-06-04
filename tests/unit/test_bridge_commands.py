@@ -352,6 +352,28 @@ def test_doctor_scan_rejects_explicit_missing_mods_dir(tmp_path):
         commands.doctor_scan(args, Emitter(io.StringIO()))
 
 
+def test_inventory_scan_drives_emitter_in_order(monkeypatch, tmp_path):
+    def fake_run_inventory_scan(path, db_path=None, export_path=None):
+        assert path == tmp_path
+        assert db_path == tmp_path / "inventory.sqlite3"
+        assert export_path == tmp_path / "snapshot.json"
+        return {"summary": {"file_count": 0}}
+
+    monkeypatch.setattr(commands.inventory, "run_inventory_scan", fake_run_inventory_scan)
+
+    buf = io.StringIO()
+    args = argparse.Namespace(
+        path=str(tmp_path),
+        db_path=str(tmp_path / "inventory.sqlite3"),
+        export=str(tmp_path / "snapshot.json"),
+    )
+    commands.inventory_scan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "inventory-scan"
+
+
 def test_treatment_plan_builds_doctor_payload_and_emits_plan(monkeypatch, tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

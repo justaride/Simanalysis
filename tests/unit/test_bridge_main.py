@@ -175,6 +175,35 @@ def test_live_monitor_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_inventory_scan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_inventory_scan(args, emit):
+        called["args"] = args
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "inventory-scan", fake_inventory_scan)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "inventory-scan",
+            str(tmp_path),
+            "--db-path",
+            str(tmp_path / "inventory.sqlite3"),
+            "--export",
+            str(tmp_path / "snapshot.json"),
+        ],
+    )
+
+    assert code == 0
+    assert called["args"].path == str(tmp_path)
+    assert called["args"].db_path == str(tmp_path / "inventory.sqlite3")
+    assert called["args"].export == str(tmp_path / "snapshot.json")
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_treatment_plan_malformed_doctor_json_is_invalid_input(monkeypatch, tmp_path):
     sims4 = tmp_path / "The Sims 4"
     sims4.mkdir()

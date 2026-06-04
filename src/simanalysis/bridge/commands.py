@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, cast
 
-from simanalysis import live_monitoring, serialization, treatment
+from simanalysis import inventory, live_monitoring, serialization, treatment
 from simanalysis.analyzers.crash_analyzer import CrashAnalyzer, _is_disabled_name
 from simanalysis.analyzers.mod_analyzer import ModAnalyzer
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
@@ -304,6 +304,15 @@ def live_monitor(args: argparse.Namespace, emit: Emitter) -> None:
         time.sleep(args.interval)
 
 
+def inventory_scan(args: argparse.Namespace, emit: Emitter) -> None:
+    root = _require_dir(args.path)
+    db_path = Path(args.db_path).expanduser().resolve() if args.db_path else None
+    export_path = Path(args.export).expanduser().resolve() if args.export else None
+    emit.start("inventory-scan")
+    emit.result(inventory.run_inventory_scan(root, db_path=db_path, export_path=export_path))
+    emit.done()
+
+
 def treatment_apply(args: argparse.Namespace, emit: Emitter) -> None:
     emit.start("treatment-apply")
     emit.result(treatment.apply_next_step(args.manifest_path))
@@ -336,6 +345,7 @@ DISPATCH = {
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,
     "live-monitor": live_monitor,
+    "inventory-scan": inventory_scan,
     "treatment-apply": treatment_apply,
     "treatment-outcome": treatment_outcome,
     "treatment-restore": treatment_restore,
