@@ -22,6 +22,8 @@ import api from '../api';
 import FilePicker from '../components/FilePicker';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
+const EMPTY_SUMMARY = {};
+const EMPTY_WARNINGS = [];
 
 function formatNumber(value) {
     return new Intl.NumberFormat().format(Number(value || 0));
@@ -155,8 +157,8 @@ function Inventory() {
     const [error, setError] = useState('');
     const [activeRun, setActiveRun] = useState(null);
 
-    const summary = result?.summary || {};
-    const warnings = result?.warnings || [];
+    const summary = result?.summary || EMPTY_SUMMARY;
+    const warnings = result?.warnings || EMPTY_WARNINGS;
     const canStart = simsPath.trim() && status !== 'running';
     const statusLabel = {
         idle: 'Idle',
