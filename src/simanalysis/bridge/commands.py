@@ -15,9 +15,19 @@ from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.bridge.protocol import Emitter
+from simanalysis.fix_actions import apply_cache_cleanup, load_fix_session, restore_fix_session
+from simanalysis.fix_planner import create_fix_plan, fix_status
+from simanalysis.master_plan import (
+    create_master_plan,
+    diff_master_baseline,
+    master_baseline_status,
+    master_status,
+    save_master_baseline,
+)
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 from simanalysis.services.thumbnail_service import ThumbnailService
+from simanalysis.world import scan_world, world_status
 
 
 def _require_dir(path: str) -> Path:
@@ -78,6 +88,90 @@ def thumbnail(args: argparse.Namespace, emit: Emitter) -> None:
         emit.result({"found": True, "b64": base64.b64encode(data).decode("ascii")})
     else:
         emit.result({"found": False, "b64": None})
+    emit.done()
+
+
+def world_scan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("world-scan")
+    emit.result(scan_world(path))
+    emit.done()
+
+
+def world_status_command(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("world-status")
+    emit.result(world_status(path))
+    emit.done()
+
+
+def fix_plan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("fix-plan")
+    emit.result(create_fix_plan(path))
+    emit.done()
+
+
+def fix_status_command(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("fix-status")
+    emit.result(fix_status(path))
+    emit.done()
+
+
+def fix_apply(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    if args.kind != "cache_cleanup":
+        raise ValueError(f"Unsupported fix kind: {args.kind}")
+    emit.start("fix-apply")
+    emit.result(apply_cache_cleanup(path))
+    emit.done()
+
+
+def fix_restore(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("fix-restore")
+    emit.result(restore_fix_session(args.manifest_path))
+    emit.done()
+
+
+def fix_session_status(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("fix-session-status")
+    emit.result(load_fix_session(args.manifest_path))
+    emit.done()
+
+
+def master_plan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-plan")
+    emit.result(create_master_plan(path))
+    emit.done()
+
+
+def master_status_command(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-status")
+    emit.result(master_status(path))
+    emit.done()
+
+
+def master_baseline_save(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-baseline-save")
+    emit.result(save_master_baseline(path, label=args.label))
+    emit.done()
+
+
+def master_baseline_diff(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-baseline-diff")
+    emit.result(diff_master_baseline(path, baseline_path=args.baseline))
+    emit.done()
+
+
+def master_baseline_status_command(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("master-baseline-status")
+    emit.result(master_baseline_status(path))
     emit.done()
 
 
@@ -333,6 +427,18 @@ DISPATCH = {
     "scan-tray": scan_tray,
     "analyze-save": analyze_save,
     "thumbnail": thumbnail,
+    "world-scan": world_scan,
+    "world-status": world_status_command,
+    "fix-plan": fix_plan,
+    "fix-status": fix_status_command,
+    "fix-apply": fix_apply,
+    "fix-restore": fix_restore,
+    "fix-session-status": fix_session_status,
+    "master-plan": master_plan,
+    "master-status": master_status_command,
+    "master-baseline-save": master_baseline_save,
+    "master-baseline-diff": master_baseline_diff,
+    "master-baseline-status": master_baseline_status_command,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,
     "live-monitor": live_monitor,

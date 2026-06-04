@@ -7,6 +7,9 @@ const ModManager = lazy(() => import('./views/ModManager'));
 const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
 const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
+const World = lazy(() => import('./views/World'));
+const Fixes = lazy(() => import('./views/Fixes'));
+const MasterPlan = lazy(() => import('./views/MasterPlan'));
 const Doctor = lazy(() => import('./views/Doctor'));
 const LiveMonitor = lazy(() => import('./views/LiveMonitor'));
 const Treatment = lazy(() => import('./views/Treatment'));
@@ -30,6 +33,9 @@ function App() {
                     <Route path="/tray" element={<TrayOrganizer />} />
                     <Route path="/save-analyzer" element={<SaveAnalyzer />} />
                     <Route path="/conflicts" element={<Conflicts />} />
+                    <Route path="/world" element={<World />} />
+                    <Route path="/fixes" element={<Fixes />} />
+                    <Route path="/master-plan" element={<MasterPlan />} />
                     <Route path="/doctor" element={<Doctor />} />
                     <Route path="/live-monitor" element={<LiveMonitor />} />
                     <Route path="/treatment" element={<Treatment />} />

@@ -36,9 +36,15 @@ struct AnalysisOptions {
     #[serde(default)]
     save: bool,
     #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
     outcome: Option<String>,
     #[serde(default)]
     step: Option<String>,
+    #[serde(default)]
+    label: Option<String>,
+    #[serde(default)]
+    baseline_path: Option<String>,
 }
 fn default_true() -> bool {
     true
@@ -94,6 +100,71 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             if opts.recursive {
                 args.push("--recursive".into());
             }
+        }
+        "world-scan" => {
+            args.push("world-scan".into());
+            args.push(path.into());
+        }
+        "world-status" => {
+            args.push("world-status".into());
+            args.push(path.into());
+        }
+        "fix-plan" => {
+            args.push("fix-plan".into());
+            args.push(path.into());
+        }
+        "fix-status" => {
+            args.push("fix-status".into());
+            args.push(path.into());
+        }
+        "fix-apply" => {
+            let kind = opts
+                .kind
+                .as_deref()
+                .ok_or("fix-apply requires options.kind")?;
+            if kind != "cache_cleanup" {
+                return Err(format!("unsupported fix kind: {kind}"));
+            }
+            args.push("fix-apply".into());
+            args.push(path.into());
+            args.push("--kind".into());
+            args.push(kind.into());
+        }
+        "fix-restore" => {
+            args.push("fix-restore".into());
+            args.push(path.into());
+        }
+        "fix-session-status" => {
+            args.push("fix-session-status".into());
+            args.push(path.into());
+        }
+        "master-plan" => {
+            args.push("master-plan".into());
+            args.push(path.into());
+        }
+        "master-status" => {
+            args.push("master-status".into());
+            args.push(path.into());
+        }
+        "master-baseline-save" => {
+            args.push("master-baseline-save".into());
+            args.push(path.into());
+            if let Some(label) = opts.label.as_deref() {
+                args.push("--label".into());
+                args.push(label.into());
+            }
+        }
+        "master-baseline-diff" => {
+            args.push("master-baseline-diff".into());
+            args.push(path.into());
+            if let Some(baseline) = opts.baseline_path.as_deref() {
+                args.push("--baseline".into());
+                args.push(baseline.into());
+            }
+        }
+        "master-baseline-status" => {
+            args.push("master-baseline-status".into());
+            args.push(path.into());
         }
         "live-monitor" => {
             args.push("live-monitor".into());

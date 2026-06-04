@@ -175,6 +175,133 @@ def test_live_monitor_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_world_scan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_world_scan(args, emit):
+        called["path"] = args.path
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "world-scan", fake_world_scan)
+
+    code, events = _run(monkeypatch, ["world-scan", str(tmp_path)])
+
+    assert code == 0
+    assert called == {"path": str(tmp_path)}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_fix_plan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_fix_plan(args, emit):
+        called["path"] = args.path
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "fix-plan", fake_fix_plan)
+
+    code, events = _run(monkeypatch, ["fix-plan", str(tmp_path)])
+
+    assert code == 0
+    assert called == {"path": str(tmp_path)}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_master_plan_status_commands_are_dispatched(monkeypatch, tmp_path):
+    called = []
+
+    def fake_handler(args, emit):
+        called.append((args.command, args.path))
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "master-plan", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "master-status", fake_handler)
+
+    plan_code, plan_events = _run(monkeypatch, ["master-plan", str(tmp_path)])
+    status_code, status_events = _run(monkeypatch, ["master-status", str(tmp_path)])
+
+    assert plan_code == status_code == 0
+    assert called == [
+        ("master-plan", str(tmp_path)),
+        ("master-status", str(tmp_path)),
+    ]
+    assert [event["type"] for event in plan_events] == ["result", "done"]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+
+
+def test_master_baseline_commands_are_dispatched(monkeypatch, tmp_path):
+    called = []
+
+    def fake_handler(args, emit):
+        called.append(
+            (
+                args.command,
+                args.path,
+                getattr(args, "label", None),
+                getattr(args, "baseline", None),
+            )
+        )
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "master-baseline-save", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "master-baseline-diff", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "master-baseline-status", fake_handler)
+
+    save_code, save_events = _run(
+        monkeypatch,
+        ["master-baseline-save", str(tmp_path), "--label", "initial"],
+    )
+    diff_code, diff_events = _run(
+        monkeypatch,
+        ["master-baseline-diff", str(tmp_path), "--baseline", "baseline.json"],
+    )
+    status_code, status_events = _run(monkeypatch, ["master-baseline-status", str(tmp_path)])
+
+    assert save_code == diff_code == status_code == 0
+    assert called == [
+        ("master-baseline-save", str(tmp_path), "initial", None),
+        ("master-baseline-diff", str(tmp_path), None, "baseline.json"),
+        ("master-baseline-status", str(tmp_path), None, None),
+    ]
+    assert [event["type"] for event in save_events] == ["result", "done"]
+    assert [event["type"] for event in diff_events] == ["result", "done"]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+
+
+def test_fix_apply_restore_status_commands_are_dispatched(monkeypatch, tmp_path):
+    called = []
+
+    def fake_handler(args, emit):
+        called.append((args.command, getattr(args, "path", None), getattr(args, "manifest_path", None), getattr(args, "kind", None)))
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "fix-apply", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "fix-restore", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "fix-session-status", fake_handler)
+
+    apply_code, apply_events = _run(
+        monkeypatch,
+        ["fix-apply", str(tmp_path), "--kind", "cache_cleanup"],
+    )
+    restore_code, restore_events = _run(monkeypatch, ["fix-restore", "manifest.json"])
+    status_code, status_events = _run(monkeypatch, ["fix-session-status", "manifest.json"])
+
+    assert apply_code == restore_code == status_code == 0
+    assert called == [
+        ("fix-apply", str(tmp_path), None, "cache_cleanup"),
+        ("fix-restore", None, "manifest.json", None),
+        ("fix-session-status", None, "manifest.json", None),
+    ]
+    assert [event["type"] for event in apply_events] == ["result", "done"]
+    assert [event["type"] for event in restore_events] == ["result", "done"]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+
+
 def test_treatment_plan_malformed_doctor_json_is_invalid_input(monkeypatch, tmp_path):
     sims4 = tmp_path / "The Sims 4"
     sims4.mkdir()

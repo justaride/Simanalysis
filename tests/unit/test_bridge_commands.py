@@ -138,6 +138,155 @@ def test_thumbnail_missing(monkeypatch, tmp_path):
     assert res["data"]["found"] is False
 
 
+def test_world_scan_emits_inventory(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "scan_world",
+        lambda path: {"schema_version": 1, "sims4_dir": str(path), "units": []},
+    )
+
+    buf = io.StringIO()
+    commands.world_scan(argparse.Namespace(path=str(sims4)), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"] == {
+        "schema_version": 1,
+        "sims4_dir": str(sims4.resolve()),
+        "units": [],
+    }
+
+
+def test_fix_plan_emits_read_only_plan(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "create_fix_plan",
+        lambda path: {"schema_version": 1, "sims4_dir": str(path), "actions": []},
+    )
+
+    buf = io.StringIO()
+    commands.fix_plan(argparse.Namespace(path=str(sims4)), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"] == {
+        "schema_version": 1,
+        "sims4_dir": str(sims4.resolve()),
+        "actions": [],
+    }
+
+
+def test_master_plan_emits_intelligence_plan(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "create_master_plan",
+        lambda path: {"schema_version": 1, "sims4_dir": str(path), "updates": {}},
+    )
+
+    buf = io.StringIO()
+    commands.master_plan(argparse.Namespace(path=str(sims4)), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"] == {
+        "schema_version": 1,
+        "sims4_dir": str(sims4.resolve()),
+        "updates": {},
+    }
+
+
+def test_master_baseline_commands_emit_results(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "save_master_baseline",
+        lambda path, label=None: {"kind": "master_catalog_baseline", "label": label, "sims4_dir": str(path)},
+    )
+    monkeypatch.setattr(
+        commands,
+        "diff_master_baseline",
+        lambda path, baseline_path=None: {
+            "baseline_path": baseline_path,
+            "sims4_dir": str(path),
+            "summary": {"changed": 0},
+        },
+    )
+    monkeypatch.setattr(
+        commands,
+        "master_baseline_status",
+        lambda path: {"baseline_exists": False, "sims4_dir": str(path)},
+    )
+
+    save_buf = io.StringIO()
+    commands.master_baseline_save(
+        argparse.Namespace(path=str(sims4), label="initial"),
+        Emitter(save_buf),
+    )
+    diff_buf = io.StringIO()
+    commands.master_baseline_diff(
+        argparse.Namespace(path=str(sims4), baseline="baseline.json"),
+        Emitter(diff_buf),
+    )
+    status_buf = io.StringIO()
+    commands.master_baseline_status_command(argparse.Namespace(path=str(sims4)), Emitter(status_buf))
+
+    save_events = [json.loads(line) for line in save_buf.getvalue().splitlines()]
+    diff_events = [json.loads(line) for line in diff_buf.getvalue().splitlines()]
+    status_events = [json.loads(line) for line in status_buf.getvalue().splitlines()]
+    assert [event["type"] for event in save_events] == ["start", "result", "done"]
+    assert save_events[1]["data"]["label"] == "initial"
+    assert diff_events[1]["data"]["baseline_path"] == "baseline.json"
+    assert status_events[1]["data"]["baseline_exists"] is False
+
+
+def test_fix_apply_cache_cleanup_emits_session(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+
+    monkeypatch.setattr(
+        commands,
+        "apply_cache_cleanup",
+        lambda path: {"version": 1, "kind": "cache_cleanup", "sims4_dir": str(path)},
+    )
+
+    buf = io.StringIO()
+    commands.fix_apply(argparse.Namespace(path=str(sims4), kind="cache_cleanup"), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"] == {
+        "version": 1,
+        "kind": "cache_cleanup",
+        "sims4_dir": str(sims4.resolve()),
+    }
+
+
+def test_fix_restore_emits_restored_session(monkeypatch):
+    monkeypatch.setattr(
+        commands,
+        "restore_fix_session",
+        lambda path: {"version": 1, "status": "restored", "manifest_path": path},
+    )
+
+    buf = io.StringIO()
+    commands.fix_restore(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[1]["data"]["status"] == "restored"
+
+
 def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
     sims4 = tmp_path / "The Sims 4"
     sims4.mkdir()

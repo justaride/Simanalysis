@@ -30,6 +30,45 @@ def build_parser() -> argparse.ArgumentParser:
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 
+    p_world_scan = sub.add_parser("world-scan")
+    p_world_scan.add_argument("path")
+
+    p_world_status = sub.add_parser("world-status")
+    p_world_status.add_argument("path")
+
+    p_fix_plan = sub.add_parser("fix-plan")
+    p_fix_plan.add_argument("path")
+
+    p_fix_status = sub.add_parser("fix-status")
+    p_fix_status.add_argument("path")
+
+    p_fix_apply = sub.add_parser("fix-apply")
+    p_fix_apply.add_argument("path")
+    p_fix_apply.add_argument("--kind", required=True, choices=("cache_cleanup",))
+
+    p_fix_restore = sub.add_parser("fix-restore")
+    p_fix_restore.add_argument("manifest_path")
+
+    p_fix_session_status = sub.add_parser("fix-session-status")
+    p_fix_session_status.add_argument("manifest_path")
+
+    p_master_plan = sub.add_parser("master-plan")
+    p_master_plan.add_argument("path")
+
+    p_master_status = sub.add_parser("master-status")
+    p_master_status.add_argument("path")
+
+    p_master_baseline_save = sub.add_parser("master-baseline-save")
+    p_master_baseline_save.add_argument("path")
+    p_master_baseline_save.add_argument("--label", default=None)
+
+    p_master_baseline_diff = sub.add_parser("master-baseline-diff")
+    p_master_baseline_diff.add_argument("path")
+    p_master_baseline_diff.add_argument("--baseline", default=None)
+
+    p_master_baseline_status = sub.add_parser("master-baseline-status")
+    p_master_baseline_status.add_argument("path")
+
     p_doctor = sub.add_parser("doctor-scan")
     p_doctor.add_argument("path")
     p_doctor.add_argument("--mods", default=None)

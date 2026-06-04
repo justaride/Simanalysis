@@ -76,6 +76,30 @@ export const api = {
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
   scanDoctor: (sims4Path, modsPath, callbacks) =>
     runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  scanWorld: (sims4Path, callbacks) =>
+    runAnalysis('world-scan', sims4Path, {}, callbacks),
+  worldStatus: (sims4Path, callbacks) =>
+    runAnalysis('world-status', sims4Path, {}, callbacks),
+  planFixes: (sims4Path, callbacks) =>
+    runAnalysis('fix-plan', sims4Path, {}, callbacks),
+  fixStatus: (sims4Path, callbacks) =>
+    runAnalysis('fix-status', sims4Path, {}, callbacks),
+  applyFix: (sims4Path, kind, callbacks) =>
+    runAnalysis('fix-apply', sims4Path, { kind }, callbacks),
+  restoreFix: (manifestPath, callbacks) =>
+    runAnalysis('fix-restore', manifestPath, {}, callbacks),
+  fixSessionStatus: (manifestPath, callbacks) =>
+    runAnalysis('fix-session-status', manifestPath, {}, callbacks),
+  planMaster: (sims4Path, callbacks) =>
+    runAnalysis('master-plan', sims4Path, {}, callbacks),
+  masterStatus: (sims4Path, callbacks) =>
+    runAnalysis('master-status', sims4Path, {}, callbacks),
+  saveMasterBaseline: (sims4Path, label, callbacks) =>
+    runAnalysis('master-baseline-save', sims4Path, { label }, callbacks),
+  diffMasterBaseline: (sims4Path, baselinePath, callbacks) =>
+    runAnalysis('master-baseline-diff', sims4Path, { baselinePath }, callbacks),
+  masterBaselineStatus: (sims4Path, callbacks) =>
+    runAnalysis('master-baseline-status', sims4Path, {}, callbacks),
   monitorLive: (sims4Path, modsPath, interval, callbacks) =>
     runAnalysis(
       'live-monitor',
