@@ -69,6 +69,7 @@ def test_second_identical_inventory_scan_reports_unchanged(tmp_path: Path) -> No
     assert result["summary"]["removed_count"] == 0
     assert result["summary"]["moved_count"] == 0
     assert result["summary"]["unchanged_count"] == 1
+    assert result["events"] == []
 
 
 def test_inventory_scan_detects_add_remove_modify_and_move(tmp_path: Path) -> None:
@@ -136,3 +137,18 @@ def test_inventory_scan_skips_app_owned_generated_folders(tmp_path: Path) -> Non
 
     assert result["summary"]["file_count"] == 1
     assert [file["rel_path"] for file in result["files"]] == ["Mods/A.ts4script"]
+
+
+def test_inventory_scan_skips_symlinked_files(tmp_path: Path) -> None:
+    sims = tmp_path / "The Sims 4"
+    mods = sims / "Mods"
+    mods.mkdir(parents=True)
+    outside = tmp_path / "outside.package"
+    outside.write_bytes(b"outside")
+    (mods / "linked.package").symlink_to(outside)
+
+    result = run_inventory_scan(sims, db_path=tmp_path / "inventory.sqlite3")
+
+    assert result["summary"]["file_count"] == 0
+    assert result["files"] == []
+    assert result["warnings"] == ["Mods/linked.package: symlink skipped"]

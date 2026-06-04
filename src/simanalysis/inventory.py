@@ -108,6 +108,10 @@ def _collect_files(root: Path, warnings: list[str]) -> list[FileFact]:
         current = Path(current_root)
         for filename in sorted(file_names):
             path = current / filename
+            rel_path = _rel_path(root, path)
+            if path.is_symlink():
+                warnings.append(f"{rel_path}: symlink skipped")
+                continue
             try:
                 stat = path.stat()
                 if not path.is_file():
@@ -115,7 +119,7 @@ def _collect_files(root: Path, warnings: list[str]) -> list[FileFact]:
                 facts.append(
                     FileFact(
                         abs_path=path.resolve(),
-                        rel_path=_rel_path(root, path.resolve()),
+                        rel_path=rel_path,
                         filename=path.name,
                         extension=path.suffix.lower(),
                         size_bytes=stat.st_size,
@@ -124,7 +128,7 @@ def _collect_files(root: Path, warnings: list[str]) -> list[FileFact]:
                     )
                 )
             except OSError as exc:
-                warnings.append(f"{_rel_path(root, path)}: {exc}")
+                warnings.append(f"{rel_path}: {exc}")
     return sorted(facts, key=lambda fact: fact.rel_path)
 
 
@@ -493,6 +497,7 @@ def _summary(
     events: list[dict[str, Any]],
     packages: list[dict[str, Any]],
     resources: list[dict[str, Any]],
+    statuses: dict[str, str],
 ) -> dict[str, Any]:
     extensions = [fact.extension for fact in facts]
     event_counts = {
@@ -506,6 +511,9 @@ def _summary(
         key = f"{event['event_type']}_count"
         if key in event_counts:
             event_counts[key] += 1
+    event_counts["unchanged_count"] = sum(
+        1 for fact in facts if statuses.get(fact.rel_path) == "unchanged"
+    )
 
     return {
         "root_path": str(root),
@@ -710,21 +718,7 @@ def run_inventory_scan(
             elif fact.extension != ".package":
                 _delete_package_details(conn, file_id)
 
-        events.extend(
-            _record_event(
-                conn,
-                root_id,
-                scan_id,
-                "unchanged",
-                fact.rel_path,
-                fact.sha256,
-                file_id=current_file_ids[fact.rel_path],
-            )
-            for fact in facts
-            if current_statuses.get(fact.rel_path) == "unchanged"
-        )
-
-        summary = _summary(root, facts, events, package_payloads, resource_payloads)
+        summary = _summary(root, facts, events, package_payloads, resource_payloads, current_statuses)
         snapshot_id = _snapshot(conn, root_id, scan_id, summary)
         _finish_scan(conn, scan_id, len(facts), warnings)
 

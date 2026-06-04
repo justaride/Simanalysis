@@ -2,19 +2,20 @@
 
 **Date:** 2026-06-04
 **Branch:** `codex/local-inventory-v1`
-**Head:** `91e3f59`
 **Base:** `github/main` at `3a38398`
 
 ## Commit Range
 
 ```text
-91e3f59 fix: stabilize inventory summary state
-f555150 feat: add local inventory desktop view
-53db15b feat: map inventory scan through tauri
-90d3dfc feat: expose inventory bridge command
-9c8c456 feat: add local inventory service
-06163c7 docs: plan local inventory v1
-187dd16 docs: design local inventory v1
+fix: harden inventory scan safety
+docs: validate local inventory v1
+fix: stabilize inventory summary state
+feat: add local inventory desktop view
+feat: map inventory scan through tauri
+feat: expose inventory bridge command
+feat: add local inventory service
+docs: plan local inventory v1
+docs: design local inventory v1
 ```
 
 ## Automated Checks
@@ -23,7 +24,7 @@ f555150 feat: add local inventory desktop view
 uv run pytest tests/unit/test_inventory.py tests/unit/test_bridge_main.py tests/unit/test_bridge_commands.py tests/unit/scanners/test_mod_scanner.py -q
 ```
 
-Result: PASS, `64 passed in 1.10s`.
+Result: PASS, `65 passed in 1.18s`.
 
 ```bash
 cargo test --manifest-path src-tauri/Cargo.toml builds_inventory_scan_args
@@ -99,6 +100,15 @@ Observed summary:
 ```
 
 The explicit JSON export existed and contained `files[0].rel_path = "Mods/Core.ts4script"`.
+
+## Review Fix Validation
+
+During local review, two persistence/safety risks were tightened:
+
+- unchanged files are counted in the scan summary without writing one `file_events` row per unchanged file
+- symlinked files are skipped with a warning, preventing the inventory scanner from following links outside the selected Sims 4 root
+
+These behaviors are covered by `tests/unit/test_inventory.py`.
 
 ## Real Folder Smoke
 
