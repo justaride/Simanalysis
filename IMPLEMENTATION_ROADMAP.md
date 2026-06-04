@@ -1,683 +1,499 @@
-# Simanalysis Implementation Roadmap
+# Simanalysis Masterplan
 
-**Project:** Simanalysis v2.0
-**Status:** Architecture Complete, Ready for Implementation
-**Timeline:** 6 weeks to v1.0 release
-
----
-
-## Executive Summary
-
-This roadmap provides a sprint-by-sprint implementation plan for completing Simanalysis. The project is now fully architected with:
-
-✅ Complete technical specification
-✅ Project structure designed
-✅ Build system configured
-✅ CI/CD pipeline ready
-✅ Testing infrastructure prepared
-✅ Documentation framework established
-
-**Current State:** Architecture phase complete
-**Next Phase:** Implementation (Sprint 1 begins)
-**Critical Path:** DBPF parser → Conflict detection → Analysis features
+**Project:** Simanalysis
+**Status:** Active development, safety-first Sims Doctor foundation
+**Masterplan date:** 2026-06-04
+**Current shipped baseline:** Through Live Monitoring UI, PR #15
 
 ---
 
-## Sprint Overview
+## 1. Product Direction
 
-| Sprint | Duration | Focus | Can Start? | Blocker |
-|--------|----------|-------|------------|---------|
-| Sprint 1 | Week 1 | Core Parsers | ✅ Yes | None |
-| Sprint 2 | Week 2 | Conflict Detection | ✅ Yes | None |
-| Sprint 3 | Week 3 | Analysis Features | ✅ Yes | None |
-| Sprint 4 | Week 4 | Testing & Validation | ⚠️ Partial | Need mod files |
-| Sprint 5 | Week 5 | Polish & Documentation | ✅ Yes | None |
-| Sprint 6 | Week 6 | Release Preparation | ⚠️ Partial | Need testing |
+Simanalysis is evolving from a static conflict scanner into a local Sims 4 Doctor:
+a desktop tool that reads the user's Sims 4 folder, explains mod and CC risk, helps
+test likely culprits, and performs only reversible actions.
 
----
+The long-term ambition is an "ultimate Sims 4 modder tool", but the project should
+not jump straight to cloud, AI, automatic updates, or a Rust rewrite. The correct
+path is to strengthen local truth first:
 
-## Sprint 1: Core Parsers (Week 1)
+1. Know what files exist.
+2. Know what changed.
+3. Know what resources each package contains.
+4. Explain conflicts and crash evidence.
+5. Stage every action.
+6. Mutate only with explicit user intent.
+7. Keep rollback possible.
 
-**Goal:** Implement file format parsers
+The core operating sentence is:
 
-### Day 1-2: DBPF Package Parser
-
-**File:** `src/simanalysis/parsers/dbpf.py`
-
-**Tasks:**
-- [ ] Implement `DBPFHeader` dataclass
-- [ ] Implement `DBPFResource` dataclass
-- [ ] Implement `DBPFReader` class
-  - [ ] `read_header()` - Parse 96-byte header
-  - [ ] `read_index()` - Parse resource index table
-  - [ ] `get_resource()` - Extract individual resource
-  - [ ] `get_resources_by_type()` - Filter by type
-- [ ] Add resource type constants
-- [ ] Handle compressed resources (zlib)
-- [ ] Write unit tests (`tests/unit/parsers/test_dbpf_parser.py`)
-
-**Estimated Effort:** 12-16 hours
-
-**Resources Needed:**
-- DBPF format documentation (available)
-- Sample .package files (create mock for testing)
-
-**Deliverable:** Working DBPF parser with 90%+ test coverage
+> Analyze first, stage second, mutate third, rollback always.
 
 ---
 
-### Day 3-4: XML Tuning Parser
+## 2. Current Product State
 
-**File:** `src/simanalysis/parsers/tuning.py`
+### Shipped foundation
 
-**Tasks:**
-- [ ] Implement `TuningData` dataclass
-- [ ] Implement `TuningParser` class
-  - [ ] `parse()` - Parse XML tuning file
-  - [ ] `get_instance_id()` - Extract tuning ID
-  - [ ] `extract_modifications()` - Find modified attributes
-  - [ ] `find_references()` - Detect referenced tunings
-  - [ ] `detect_pack_requirements()` - Identify required packs
-- [ ] Add pack prefix constants
-- [ ] Handle malformed XML gracefully
-- [ ] Write unit tests (`tests/unit/parsers/test_tuning_parser.py`)
+The following features are already part of the current product baseline and should
+not be re-planned as future first-time work:
 
-**Estimated Effort:** 10-12 hours
+- Tauri desktop shell with a Python sidecar bridge.
+- React desktop UI routes for Dashboard, Mods, Tray, Saves, Conflicts, Doctor,
+  Treatment, Live Monitor, and Settings.
+- DBPF package reader with Sims 4 index flag handling, resource keys, and zlib
+  resource extraction.
+- `.package` and `.ts4script` scanning with SHA-256 hashing.
+- Resource and tuning conflict detection.
+- Crash Autopsy for `lastException*.txt` script traces.
+- Status-aware attribution for active, disabled, quarantined, and not-installed
+  suspects.
+- UI Crash Autopsy for `lastUIException*.txt` resource-key attribution.
+- Desktop Doctor scan that combines script and UI evidence.
+- Treatment + Auto-Bisect with dry-run planning, manifest-first moves, restore,
+  outcome recording, Sims-process guard, and symlink/path guards.
+- Read-only Live Monitoring backend that watches crash logs and runs Doctor plus
+  Treatment planning with `save=false`.
+- Live Monitoring UI with manual start/stop, event cards, Doctor review handoff,
+  and Treatment handoff.
 
-**Resources Needed:**
-- Sample XML tuning files (can create mock)
-- Tuning structure documentation (available in Sims modding wikis)
+### Partially present but not complete
 
-**Deliverable:** Working XML tuning parser with 90%+ test coverage
+- Save analysis exists, but Save Protector does not yet protect launch workflows
+  or bind saves to profiles.
+- Update checking exists for the application itself, but not for user mods.
+- Thumbnail and config services exist, but there is no full local inventory
+  database.
+- Conflict detection exists, but it is not yet profile-aware, patch-aware, or
+  backed by scan history.
+- Treatment has reversible session moves, but there is no general action engine
+  for cleanup, quarantine, profile activation, or cache reset.
 
----
+### Missing foundation
 
-### Day 5: TS4Script Analyzer
-
-**File:** `src/simanalysis/parsers/script.py`
-
-**Tasks:**
-- [ ] Implement `ScriptMetadata` dataclass
-- [ ] Implement `ScriptModule` dataclass
-- [ ] Implement `ScriptAnalyzer` class
-  - [ ] `extract_metadata()` - Read metadata from archive
-  - [ ] `list_modules()` - List all Python modules
-  - [ ] `analyze_module()` - Parse Python code with AST
-  - [ ] `detect_hooks()` - Find game injection points
-  - [ ] `calculate_complexity()` - Compute cyclomatic complexity
-- [ ] Add hook pattern constants
-- [ ] Write unit tests (`tests/unit/parsers/test_script_parser.py`)
-
-**Estimated Effort:** 8-10 hours
-
-**Resources Needed:**
-- Sample .ts4script files (can create mock zip archives)
-- Python AST documentation (stdlib)
-
-**Deliverable:** Working script analyzer with 85%+ test coverage
-
----
-
-### Day 6-7: Integration & Documentation
-
-**Tasks:**
-- [ ] Create `src/simanalysis/parsers/__init__.py` with exports
-- [ ] Create `src/simanalysis/parsers/constants.py` with all constants
-- [ ] Write parser integration tests (`tests/integration/test_parsers.py`)
-- [ ] Document parser APIs (`docs/api_reference/parsers.md`)
-- [ ] Create usage examples (`docs/examples/parser_usage.py`)
-- [ ] Code review and refactoring
-- [ ] Performance profiling
-
-**Estimated Effort:** 8-10 hours
-
-**Deliverable:** Complete parser layer with documentation
+- Persistent local SQLite inventory.
+- Scan snapshots and event log.
+- General backup/quarantine/restore engine.
+- Cleanup planner for duplicates, archives, misplaced files, and clutter.
+- Profile manager.
+- Patch Day Shield.
+- Classification confidence model.
+- Cache Doctor.
+- Performance Doctor.
+- Static script security risk scanner.
+- Safe mod update staging.
+- Creator Mode.
+- Cloud compatibility layer.
+- AI Doctor explanation layer.
 
 ---
 
-## Sprint 2: Conflict Detection (Week 2)
-
-**Goal:** Implement conflict detection algorithms
-
-### Day 1: Base Detector Framework
-
-**File:** `src/simanalysis/detectors/base.py`
-
-**Tasks:**
-- [ ] Implement `ConflictDetector` abstract base class
-- [ ] Define severity calculation methods
-- [ ] Create severity constants (CRITICAL, HIGH, MEDIUM, LOW)
-- [ ] Implement common utility methods
-- [ ] Write base detector tests
-
-**Estimated Effort:** 4-6 hours
-
----
-
-### Day 2-3: Tuning Conflict Detector
-
-**File:** `src/simanalysis/detectors/tuning_conflicts.py`
-
-**Tasks:**
-- [ ] Implement `TuningConflictDetector` class
-- [ ] Build tuning ID index
-- [ ] Detect duplicate tuning IDs
-- [ ] Classify tuning types
-- [ ] Calculate conflict severity
-- [ ] Generate resolution recommendations
-- [ ] Write comprehensive tests
-
-**Estimated Effort:** 10-12 hours
-
-**Test Cases:**
-- Two mods with same tuning ID
-- Multiple mods with overlapping IDs
-- Intentional overrides (EA default replacements)
-- Different severity levels
-
----
-
-### Day 4: Resource Conflict Detector
-
-**File:** `src/simanalysis/detectors/resource_conflicts.py`
-
-**Tasks:**
-- [ ] Implement `ResourceConflictDetector` class
-- [ ] Index by (Type, Group, Instance) tuple
-- [ ] Detect exact duplicates
-- [ ] Identify intentional overrides
-- [ ] Classify by resource type
-- [ ] Calculate severity by type
-- [ ] Write tests
-
-**Estimated Effort:** 8-10 hours
-
----
-
-### Day 5-6: Script Conflict Detector
-
-**File:** `src/simanalysis/detectors/script_conflicts.py`
-
-**Tasks:**
-- [ ] Implement `ScriptConflictDetector` class
-- [ ] Check injection point compatibility
-- [ ] Verify library version conflicts
-- [ ] Detect namespace collisions
-- [ ] Analyze import conflicts
-- [ ] Check Python version compatibility
-- [ ] Write tests
-
-**Estimated Effort:** 10-12 hours
-
-**Complexity:** This is the most complex detector
-
----
-
-### Day 7: Integration & Testing
-
-**Tasks:**
-- [ ] Create `src/simanalysis/detectors/__init__.py`
-- [ ] Write integration tests with multiple detectors
-- [ ] Test with various conflict scenarios
-- [ ] Document detector APIs
-- [ ] Create conflict type guide (`docs/development/conflict_types.md`)
-
----
-
-## Sprint 3: Analysis Features (Week 3)
-
-**Goal:** Implement higher-level analysis
-
-### Day 1-2: Dependency Mapper
-
-**File:** `src/simanalysis/analyzers/dependencies.py`
-
-**Tasks:**
-- [ ] Implement `DependencyGraph` class
-- [ ] Implement `DependencyMapper` class
-  - [ ] `build_graph()` - Create dependency graph with NetworkX
-  - [ ] `find_missing()` - Detect missing dependencies
-  - [ ] `find_circular()` - Detect circular dependencies
-  - [ ] `get_load_order()` - Topological sort
-- [ ] Implement graph visualization
-- [ ] Write tests
-
-**Estimated Effort:** 10-12 hours
-
-**Dependencies:** NetworkX library
-
----
-
-### Day 3-4: Performance Profiler
-
-**File:** `src/simanalysis/analyzers/performance.py`
-
-**Tasks:**
-- [ ] Implement `LoadImpact` dataclass
-- [ ] Implement `MemoryEstimate` dataclass
-- [ ] Implement `PerformanceProfiler` class
-  - [ ] `calculate_load_impact()` - Estimate load time
-  - [ ] `estimate_memory_usage()` - Estimate memory
-  - [ ] `calculate_complexity_score()` - Overall score
-- [ ] Create performance metrics
-- [ ] Write tests
-
-**Estimated Effort:** 8-10 hours
-
----
-
-### Day 5: Report Generators
-
-**Files:**
-- `src/simanalysis/reports/json_report.py`
-- `src/simanalysis/reports/markdown_report.py`
-
-**Tasks:**
-- [ ] Implement `JSONReportGenerator`
-- [ ] Implement `MarkdownReportGenerator`
-- [ ] Create report templates
-- [ ] Add timestamp and metadata
-- [ ] Write tests for both formats
-
-**Estimated Effort:** 6-8 hours
-
----
-
-### Day 6: HTML Report Generator
-
-**File:** `src/simanalysis/reports/html_report.py`
-
-**Tasks:**
-- [ ] Implement `HTMLReportGenerator`
-- [ ] Create Jinja2 template (`src/simanalysis/reports/templates/report.html`)
-- [ ] Design CSS styling (`src/simanalysis/reports/templates/styles.css`)
-- [ ] Add interactive features (sortable tables, expandable sections)
-- [ ] Implement dark/light theme
-- [ ] Write tests
-
-**Estimated Effort:** 8-10 hours
-
----
-
-### Day 7: Core Analyzer
-
-**File:** `src/simanalysis/analyzer.py`
-
-**Tasks:**
-- [ ] Implement `ModAnalyzer` class
-  - [ ] Orchestrate parsing
-  - [ ] Run all detectors
-  - [ ] Execute analyzers
-  - [ ] Aggregate results
-  - [ ] Handle parallel processing
-- [ ] Implement progress tracking with Rich
-- [ ] Write integration tests
-- [ ] Performance optimization
-
-**Estimated Effort:** 10-12 hours
-
----
-
-## Sprint 4: Testing & Validation (Week 4)
-
-**Goal:** Comprehensive testing and validation
-
-### Day 1-3: Create Test Fixtures
-
-**Tasks:**
-- [ ] Create mock DBPF packages
-- [ ] Create sample XML tuning files
-- [ ] Create sample TS4Script archives
-- [ ] Create known conflict scenarios
-- [ ] Document test fixtures
-
-**⚠️ Blocker:** Need real Sims 4 mod files for integration testing
-
-**Workaround:** Use mock data for unit tests, document need for community testing
-
----
-
-### Day 4-5: Integration Testing
-
-**Tasks:**
-- [ ] Write end-to-end tests (`tests/integration/test_full_analysis.py`)
-- [ ] Test CLI commands (`tests/integration/test_cli.py`)
-- [ ] Test with various mod collections
-- [ ] Performance benchmarking
-- [ ] Memory profiling
-
----
-
-### Day 6: Bug Fixes & Edge Cases
-
-**Tasks:**
-- [ ] Fix issues found in testing
-- [ ] Handle edge cases
-- [ ] Improve error messages
-- [ ] Add input validation
-- [ ] Enhance logging
-
----
-
-### Day 7: Code Review & Refactoring
-
-**Tasks:**
-- [ ] Internal code review
-- [ ] Refactor for clarity
-- [ ] Optimize performance bottlenecks
-- [ ] Update type hints
-- [ ] Ensure 90%+ test coverage
-
----
-
-## Sprint 5: Polish & Documentation (Week 5)
-
-**Goal:** Polish UX and complete documentation
-
-### Day 1-2: CLI Enhancement
-
-**File:** `src/simanalysis/cli.py`
-
-**Tasks:**
-- [ ] Implement all CLI commands
-  - [ ] `simanalysis analyze`
-  - [ ] `simanalysis conflicts`
-  - [ ] `simanalysis deps`
-  - [ ] `simanalysis perf`
-- [ ] Add Rich formatting for output
-- [ ] Implement progress bars
-- [ ] Add color coding
-- [ ] Improve error messages
-- [ ] Add `--verbose` flag
-- [ ] Write CLI tests
-
----
-
-### Day 3-4: Documentation
-
-**Tasks:**
-- [ ] Complete API reference (`docs/api_reference/`)
-- [ ] Write user guides (`docs/usage/`)
-- [ ] Create examples (`docs/examples/`)
-- [ ] Write architecture docs (`docs/development/architecture.md`)
-- [ ] Document file formats (`docs/development/file_formats.md`)
-- [ ] Create conflict guide (`docs/development/conflict_types.md`)
-- [ ] Configure MkDocs (`docs/mkdocs.yml`)
-- [ ] Build and test documentation site
-
----
-
-### Day 5: AI Integration (Optional)
-
-**File:** `src/simanalysis/ai/claude_analyzer.py`
-
-**Tasks:**
-- [ ] Implement `ClaudeAnalyzer` class
-- [ ] Create prompt templates
-- [ ] Add response caching
-- [ ] Handle API errors gracefully
-- [ ] Make it optional (requires API key)
-- [ ] Document AI features
-
-**Note:** This is optional for v1.0, can be v1.1 feature
-
----
-
-### Day 6-7: Polish & UX
-
-**Tasks:**
-- [ ] Improve error handling
-- [ ] Add helpful warnings
-- [ ] Enhance progress indicators
-- [ ] Improve report readability
-- [ ] Add examples to output
-- [ ] User testing (if possible)
-
----
-
-## Sprint 6: Release Preparation (Week 6)
-
-**Goal:** Prepare for public release
-
-### Day 1-2: Final Testing
-
-**Tasks:**
-- [ ] Full regression testing
-- [ ] Cross-platform testing (Windows, macOS, Linux)
-- [ ] Python version testing (3.9, 3.10, 3.11, 3.12)
-- [ ] Performance benchmarks
-- [ ] Security audit
-
----
-
-### Day 3: Package Building
-
-**Tasks:**
-- [ ] Build source distribution
-- [ ] Build wheel package
-- [ ] Test installation from package
-- [ ] Verify all dependencies
-- [ ] Test CLI entry point
-
----
-
-### Day 4: Documentation Finalization
-
-**Tasks:**
-- [ ] Final documentation review
-- [ ] Create installation guide
-- [ ] Write quick start guide
-- [ ] Create video tutorial (optional)
-- [ ] Update README with badges
-- [ ] Finalize CHANGELOG
-
----
-
-### Day 5: Community Preparation
-
-**Tasks:**
-- [ ] Create GitHub Discussions
-- [ ] Set up issue templates
-- [ ] Create PR template
-- [ ] Write announcement post
-- [ ] Prepare demo with example mods
-- [ ] Create promotional materials
-
----
-
-### Day 6: Pre-release Testing
-
-**Tasks:**
-- [ ] Beta release (v2.0.0-beta.1)
-- [ ] Community beta testing
-- [ ] Collect feedback
-- [ ] Fix critical issues
-- [ ] Update based on feedback
-
----
-
-### Day 7: Release!
-
-**Tasks:**
-- [ ] Tag version 2.0.0
-- [ ] Create GitHub release
-- [ ] Publish to PyPI
-- [ ] Deploy documentation
-- [ ] Announce on forums/Discord
-- [ ] Monitor for issues
-
----
-
-## Critical Path
-
-```
-DBPF Parser → Tuning Parser → Conflict Detection → Core Analyzer → CLI → Release
+## 3. Architecture Direction
+
+### Current architecture to keep
+
+The current architecture is the right base for the next stage:
+
+```text
+React/Tauri desktop UI
+        |
+Tauri Rust shell and sidecar process control
+        |
+Python simanalysis-bridge NDJSON commands
+        |
+Python analysis core
+        |
+Local Sims 4 folder
 ```
 
-**Bottlenecks:**
-1. DBPF parser accuracy (affects everything)
-2. Real mod testing (needed for validation)
-3. Community feedback (needed for beta)
+This keeps the app shippable and lets the existing analyzers continue to improve.
+The next architectural step is not a rewrite. It is adding a durable local data
+layer that all scanners, Doctor flows, Treatment flows, and future profile flows
+can share.
+
+### Next architectural addition
+
+Add a local SQLite-backed inventory and event system:
+
+- `files`: path identity, size, timestamps, extension, SHA-256, scan status.
+- `packages`: DBPF parse status, resource count, compression flags, package-kind
+  hints.
+- `resources`: package resource keys and resource metadata.
+- `scans`: each scan run, root folder, timing, totals, and warnings.
+- `snapshots`: point-in-time file lists and hashes.
+- `event_log`: scan, plan, action, restore, and user-confirmed events.
+
+This should start read-only. Mutating features can use it only after the inventory
+is stable and validated against real Sims folders.
+
+### What not to rewrite now
+
+- Do not rewrite the core in Rust now.
+- Do not replace the existing Tauri sidecar model now.
+- Do not introduce cloud as a required dependency.
+- Do not make AI a core dependency.
+- Do not make symlink-based profiles the default.
+
+Rust can later be used for narrow hot paths if Python scanning becomes a measured
+blocker. Until then, the product risk is local state correctness and rollback,
+not raw language performance.
 
 ---
 
-## Resource Requirements
+## 4. Development Tracks
 
-### Development Resources (✅ Available)
-- Python development environment
-- DBPF format documentation
-- XML parsing libraries
-- Testing frameworks
-- CI/CD infrastructure
+### Track A: Local Truth And Snapshots
 
-### External Resources (⚠️ Needed)
-- Real Sims 4 mod files for testing
-- Community beta testers
-- Domain expertise (Sims modding community)
-- Performance baseline data
+Goal: make Simanalysis know exactly what exists and what changed.
 
-### Optional Resources (🟡 Nice-to-Have)
-- Anthropic API key (for AI features)
-- Dedicated documentation hosting
-- Logo/branding
-- Video tutorials
+Milestones:
+
+1. **Local Inventory + Snapshot v1**
+   - Add SQLite storage for file inventory, package parse status, resources,
+     scans, snapshots, and event log.
+   - Keep v1 read-only.
+   - Index the Sims 4 folder and Mods folder without changing files.
+   - Record `first_seen`, `last_seen`, size, mtime, extension, and SHA-256.
+   - Persist DBPF parse success, parse error, and resource counts.
+   - Export snapshot JSON for support and validation.
+
+2. **Changed Since Last Scan**
+   - Show added, removed, moved, modified, and unchanged files.
+   - Detect same hash at a new path as probable move/duplicate.
+   - Surface parse regressions after updates or imports.
+
+3. **Inventory UI**
+   - Add a calm desktop view for scan history and current folder health.
+   - Show totals, warnings, parse errors, largest folders, largest files, and
+     changed-since-last-scan.
+
+### Track B: Cleanup And Reversible Actions
+
+Goal: turn file chaos into safe plans, not one-click destruction.
+
+Milestones:
+
+1. **Cleanup Planner v1**
+   - Detect exact duplicates by SHA-256.
+   - Detect `.zip`, `.rar`, `.7z`, previews, notes, shortcuts, duplicate
+     Resource.cfg files, and likely misplaced Tray files.
+   - Generate a plan only. Do not move files by default.
+   - Explain every suggested action with a reversible destination.
+
+2. **General Quarantine + Restore v1**
+   - Extend Treatment's safety principles to a general action engine.
+   - Keep manifest-first recording.
+   - Refuse mutation while The Sims 4 is running.
+   - Reject path escape, symlinked units, missing sources, and conflicting
+     destinations.
+   - Support restore by action manifest.
+
+3. **Cache Doctor v1**
+   - Treat cache reset as reversible quarantine, not delete.
+   - Move cache files to a Simanalysis-owned cache quarantine folder.
+   - Recommend cache reset after mod changes, patch events, UI/script crashes,
+     and CC removal.
+
+### Track C: Profiles And Patch Safety
+
+Goal: stop treating `Mods` as one giant permanent state.
+
+Milestones:
+
+1. **Profile Manager Light**
+   - Support Vanilla, Safe After Patch, CAS Only, Build/Buy Only, Gameplay
+     Minimal, Creator Test, and Full profiles.
+   - Use physical move/copy strategy in v1.
+   - Keep symlink/hardlink activation as an advanced later option.
+   - Require snapshot before activation.
+   - Make profile activation reversible.
+
+2. **Patch Day Shield v0**
+   - Detect a changed game version or patch marker.
+   - Mark script, UI, gameplay, and tuning mods as unknown-after-patch.
+   - Recommend vanilla test and save-copy test.
+   - Never automatically re-enable unknown mods.
+
+3. **Patch Day Shield v1**
+   - Bind patch state to profiles.
+   - Add safe-after-patch workflow in the desktop UI.
+   - Explain what changed since the last known game version.
+   - Recommend cache reset through Cache Doctor.
+
+### Track D: Classification, Conflicts, And Performance
+
+Goal: improve explanations from "these files overlap" to "this is what is risky
+and why".
+
+Milestones:
+
+1. **Classification v1**
+   - Classify files as CAS, Build/Buy, gameplay tuning, UI, script, localization,
+     default replacement, animation, dependency, or unknown.
+   - Use DBPF resource types, file names, folder names, companion scripts, and
+     known dependency hints.
+   - Include confidence and signals for every classification.
+
+2. **Conflict Engine v2**
+   - Improve TGI overlap grouping.
+   - Distinguish exact duplicate, likely override, default replacement ambiguity,
+     UI conflict, tuning conflict, and script-family mismatch.
+   - Make recommendations profile-aware.
+   - Avoid labeling intentional overrides as errors.
+
+3. **Performance Doctor**
+   - Analyze file count, total size, script count, package resource count,
+     package size outliers, folder depth, merged packages, and profile startup
+     observations.
+   - Present likely performance suspects without pretending to measure what has
+     not been measured.
+
+### Track E: Saves, Tray, And User Data Protection
+
+Goal: protect user saves and Tray items without writing to save files.
+
+Milestones:
+
+1. **Save Protector v1**
+   - Inventory saves read-only.
+   - Bind a save to a recommended mod profile.
+   - Warn when required or previously active mods are missing, quarantined, or
+     unknown-after-patch.
+   - Offer test-copy workflow before risky play.
+   - Do not edit saves.
+
+2. **Tray Dependency Signals**
+   - Estimate likely CAS/BuildBuy dependencies for Tray items using package
+     classes and prior active profiles.
+   - Label results as likely/probable/unknown, not guaranteed.
+
+### Track F: Updates And Source Binding
+
+Goal: help users update safely without becoming a piracy or scraping platform.
+
+Milestones:
+
+1. **Manual Source Binding v1**
+   - Let users bind a local mod family to a creator URL, GitHub release, or
+     CurseForge source.
+   - Store source metadata locally.
+   - Do not download directly to Mods.
+
+2. **Staging Update Pipeline**
+   - Download to staging.
+   - Scan archive safely.
+   - Reject path traversal and suspicious archives.
+   - Hash staged files.
+   - Parse packages and scripts before install.
+   - Generate an install plan.
+   - Replace only after snapshot and user approval.
+
+3. **CurseForge/GitHub Integration**
+   - Use official APIs where available.
+   - Treat unsupported creator sites as manual tracking unless the user
+     explicitly supplies files.
+   - Do not bypass paywalls, logins, or creator distribution rules.
+
+### Track G: Script Safety And Logs
+
+Goal: improve diagnosis of script mods without executing mod code.
+
+Milestones:
+
+1. **Script Security Analyzer v1**
+   - Inspect `.ts4script` as archives.
+   - Reject path traversal.
+   - Extract imports, namespaces, `.py` metadata, and basic `.pyc` metadata where
+     safe.
+   - Flag risk signals such as subprocess, sockets, network libraries, eval,
+     exec, obfuscation patterns, and unexpected binaries.
+   - Use "elevated risk" language, not "malware" claims.
+
+2. **Exception Analyzer v2**
+   - Expand Doctor parsing for lastCrash, MCCC, Better Exceptions, and common EA
+     error-code families.
+   - Preserve evidence-first explanations.
+   - Feed Treatment and Live Monitoring with better structured summaries.
+
+### Track H: Creator Mode
+
+Goal: support creators after the player-facing safety foundation is stable.
+
+Milestones:
+
+1. **Package Diff**
+   - Compare two packages by added, removed, and changed resource keys.
+   - Highlight same TGI with changed content hash.
+
+2. **STBL Tools**
+   - Diff, export, import, and validate string tables.
+   - Detect missing translations and duplicate string keys.
+
+3. **Release Builder**
+   - Build a release zip with manifest, hashes, changelog, install notes,
+     dependency list, and tested game version.
+
+### Track I: Cloud And AI
+
+Goal: add optional intelligence only after local correctness exists.
+
+Milestones:
+
+1. **Cloud Compatibility Layer**
+   - Opt-in anonymous compatibility reports.
+   - Send hashes and game version, not local paths, save names, household names,
+     usernames, private URLs, or raw logs without redaction.
+   - Track creator-confirmed, manifest-confirmed, and community-reported status
+     with separate trust scores.
+
+2. **AI Doctor**
+   - Use AI as an explanation and control layer over structured evidence.
+   - AI may suggest actions but must not execute mutation without user approval.
+   - AI may not permanently delete, bypass creator sources, run scripts, edit
+     saves, or mark unknown mods safe.
 
 ---
 
-## Risk Management
+## 5. Near-Term Milestone Plan
 
-### High Risk
-**Risk:** DBPF parser doesn't work with real mods
-**Mitigation:** Test early with real mods, have fallback to existing tools
+### Milestone 1: Local Inventory + Snapshot v1
 
-**Risk:** Conflict detection has high false positive rate
-**Mitigation:** Extensive testing, community validation, tunable thresholds
+This is the next recommended development slice.
 
-### Medium Risk
-**Risk:** Performance issues with large mod collections
-**Mitigation:** Parallel processing, profiling, optimization sprint
+Definition of done:
 
-**Risk:** Lack of community adoption
-**Mitigation:** Early engagement, clear documentation, demo videos
+- SQLite database is created in a Simanalysis-owned app data location.
+- A read-only inventory scan records files and package parse metadata.
+- Scan history shows current totals and changed-since-last-scan.
+- Existing scanner behavior still works without requiring the database path from
+  callers.
+- Desktop bridge exposes a command for inventory scan.
+- Desktop UI can show current inventory summary.
+- Exported JSON snapshot can be used for support and regression validation.
 
-### Low Risk
-**Risk:** Dependency compatibility issues
-**Mitigation:** Pin versions, comprehensive CI testing
+Acceptance criteria:
 
----
+- Scanning a synthetic Sims folder creates inventory rows without moving files.
+- Running the scan twice without changes reports no changes.
+- Adding, removing, modifying, and moving files produces correct summary counts.
+- Corrupt or unsupported packages record parse status instead of crashing.
+- Real Sims folder validation is read-only.
 
-## Success Metrics
+### Milestone 2: Cleanup Planner v1
 
-### Technical Metrics
-- [ ] 90%+ test coverage
-- [ ] Parse 1000 mods in <5 minutes
-- [ ] <5% false positive rate on conflicts
-- [ ] Works on Python 3.9-3.12
-- [ ] Works on Windows, macOS, Linux
+Definition of done:
 
-### User Metrics
-- [ ] 100+ GitHub stars in first month
-- [ ] 10+ community contributors
-- [ ] 1000+ PyPI downloads
-- [ ] Positive community feedback
+- Planner consumes the inventory database and emits a cleanup plan.
+- Exact duplicates are grouped by SHA-256.
+- Archives in Mods are identified as inactive files needing unpack/archive
+  handling.
+- Misplaced non-mod files are reported.
+- Plan export is JSON.
+- No files are moved in v1 planning.
 
----
+### Milestone 3: General Quarantine + Restore v1
 
-## Post-Release Roadmap (v1.1+)
+Definition of done:
 
-### v1.1 - Enhanced Analysis
-- Improved conflict detection algorithms
-- More detailed performance profiling
-- Enhanced AI integration
-- Additional report formats
+- Cleanup plans can be applied only after explicit user confirmation.
+- Every action writes a manifest before moving files.
+- Restore uses the manifest, not a fresh scan.
+- The Sims 4 process guard blocks mutation.
+- Symlink and path-safety tests cover apply and restore.
 
-### v1.2 - GUI Version
-- Desktop application (PyQt6)
-- Visual dependency graphs
-- Interactive conflict resolution
-- Real-time monitoring
+### Milestone 4: Profile Manager Light
 
-### v2.0 - Platform Integration
-- Mod manager integration
-- Web service API
-- Community mod database
-- Automatic update checking
+Definition of done:
 
----
+- Users can create, inspect, activate, and restore simple profiles.
+- Activation is based on physical move/copy strategy.
+- Profile activation requires a snapshot.
+- Save Protector warnings can later consume profile state.
 
-## Decision Log
+### Milestone 5: Patch Day Shield v0
 
-### Architecture Decisions
-- ✅ Use Click for CLI (over argparse)
-- ✅ Use Rich for terminal output
-- ✅ Use NetworkX for dependency graphs
-- ✅ Use Jinja2 for HTML templates
-- ✅ Custom DBPF parser (no existing library works)
+Definition of done:
 
-### Feature Decisions
-- ✅ Make AI features optional (v1.0)
-- ✅ Support 3 report formats (JSON, HTML, MD)
-- ✅ Include basic performance profiling (v1.0)
-- 🔄 GUI version deferred to v1.2+
+- Game version changes are detected or manually recorded.
+- Risk classes are marked unknown-after-patch.
+- UI explains the safe test flow.
+- No unknown mods are automatically marked safe.
 
 ---
 
-## Next Actions
+## 6. Safety And Policy Boundaries
 
-### Immediate (Today)
-1. ✅ Review and approve architecture
-2. ✅ Create project structure
-3. ⏭️ Set up development environment
-4. ⏭️ Begin Sprint 1, Day 1
+These rules apply across every future track:
 
-### This Week (Sprint 1)
-1. Implement DBPF parser
-2. Implement tuning parser
-3. Implement script analyzer
-4. Write tests
-5. Document parsers
-
-### This Month (Sprints 1-4)
-1. Complete core implementation
-2. Comprehensive testing
-3. Begin documentation
-4. Start community engagement
+1. Never permanently delete user files automatically.
+2. Destructive-looking actions must route through quarantine or staged restore.
+3. Every Sims-folder mutation requires a snapshot or manifest.
+4. Saves are not modified directly in v1.
+5. Unknown compatibility is never labeled safe.
+6. External downloads go to staging, never directly to Mods.
+7. Paid or private creator content is never redistributed.
+8. Script mods are never executed for analysis.
+9. Creator pages behind auth are not scraped or bypassed.
+10. Public branding must not imply EA, Maxis, or official Sims affiliation.
+11. Plumbob and EA/Maxis/Sims marks are not public product branding.
+12. AI recommendations must show evidence and require approval for actions.
 
 ---
 
-## Communication Plan
+## 7. Verification Standard
 
-### Weekly Updates
-- GitHub Discussions post
-- Progress screenshots/demos
-- Blocker identification
+Every shipped slice should include:
 
-### Milestones
-- Sprint completion announcements
-- Beta release announcement
-- v1.0 release announcement
+- Focused unit tests for new pure logic.
+- Integration tests for bridge commands and file-system behavior.
+- Real Sims folder validation when the feature touches Doctor, Treatment, Live
+  Monitoring, inventory, profiles, or snapshots.
+- `ruff check`.
+- `ruff format --check`.
+- MyPy where the slice touches typed Python surfaces.
+- Bandit before pushing or opening PRs.
+- Frontend unit tests for pure view models.
+- `npm run lint -- --quiet` and `npm run build` when UI changes.
+- CI-log-first debugging if GitHub checks fail.
 
-### Community Engagement
-- Discord presence
-- Forum participation
-- Issue responsiveness
-- PR reviews
+Docs-only updates may use lighter verification, but must at least run:
 
----
-
-## Conclusion
-
-**Current Status:** ✅ Architecture Complete
-**Next Phase:** 💻 Implementation
-**Timeline:** 6 weeks to v1.0
-**Confidence:** High (architecture is solid)
-
-**Ready to Start:** Yes, all planning is complete. Sprint 1 can begin immediately.
-
-**Main Blocker:** Need real Sims 4 mod files for Sprint 4 testing. Can be addressed during Sprint 4 preparation.
+```bash
+git diff --check
+```
 
 ---
 
-*"In complexity, we find clarity. In chaos, we find patterns."* - Derrick
+## 8. Deferred Or Later-Only Work
 
-**Let's build this! 🚀**
+These are valid ideas, but not the next development focus:
+
+- Full Rust core rewrite.
+- Required cloud account or hosted database.
+- AI-first repair flows.
+- Automatic mod update installation.
+- Symlink-based profile activation as the default.
+- Save editing.
+- Full malware verdicts for script mods.
+- Aggressive scraping of Patreon, Tumblr, Discord, or private creator sites.
+- Community compatibility reporting without a privacy/redaction model.
+- Public product names or assets that imply EA/Maxis affiliation.
+
+---
+
+## 9. Working Process
+
+Simanalysis development should continue with the staged flow that has worked:
+
+1. Choose one bounded slice from this masterplan.
+2. Brainstorm and approve the design.
+3. Write the design spec under `docs/superpowers/specs/`.
+4. Write the implementation plan under `docs/superpowers/plans/`.
+5. Implement in an isolated worktree or feature branch.
+6. Validate locally and, where relevant, against real Sims evidence.
+7. Push a PR.
+8. Inspect CI logs precisely if red.
+9. Merge only after checks are green.
+10. Update validation notes or this masterplan when the shipped baseline changes.
+
+The next bounded slice should be **Local Inventory + Snapshot v1**.
