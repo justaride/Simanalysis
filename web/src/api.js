@@ -83,6 +83,8 @@ export const api = {
       { modsPath, interval, once: false },
       callbacks,
     ),
+  scanInventory: (sims4Path, options, callbacks) =>
+    runAnalysis('inventory-scan', sims4Path, options || {}, callbacks),
   planTreatment: (sims4Path, modsPath, save, callbacks) =>
     runAnalysis(
       'treatment-plan',

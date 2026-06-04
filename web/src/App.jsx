@@ -9,6 +9,7 @@ const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
 const Doctor = lazy(() => import('./views/Doctor'));
 const LiveMonitor = lazy(() => import('./views/LiveMonitor'));
+const Inventory = lazy(() => import('./views/Inventory'));
 const Treatment = lazy(() => import('./views/Treatment'));
 const Settings = lazy(() => import('./views/Settings'));
 
@@ -32,6 +33,7 @@ function App() {
                     <Route path="/conflicts" element={<Conflicts />} />
                     <Route path="/doctor" element={<Doctor />} />
                     <Route path="/live-monitor" element={<LiveMonitor />} />
+                    <Route path="/inventory" element={<Inventory />} />
                     <Route path="/treatment" element={<Treatment />} />
                     <Route path="/settings" element={<Settings />} />
                 </Routes>
