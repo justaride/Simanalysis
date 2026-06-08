@@ -718,7 +718,9 @@ def run_inventory_scan(
             elif fact.extension != ".package":
                 _delete_package_details(conn, file_id)
 
-        summary = _summary(root, facts, events, package_payloads, resource_payloads, current_statuses)
+        summary = _summary(
+            root, facts, events, package_payloads, resource_payloads, current_statuses
+        )
         snapshot_id = _snapshot(conn, root_id, scan_id, summary)
         _finish_scan(conn, scan_id, len(facts), warnings)
 
