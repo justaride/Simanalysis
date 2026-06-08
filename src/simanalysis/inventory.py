@@ -249,6 +249,13 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     )
 
 
+def _lastrowid(cursor: sqlite3.Cursor) -> int:
+    row_id = cursor.lastrowid
+    if row_id is None:
+        raise RuntimeError("SQLite insert did not return a row id")
+    return row_id
+
+
 def _root_id(conn: sqlite3.Connection, root: Path) -> int:
     root_string = str(root)
     row = conn.execute("SELECT id FROM roots WHERE path = ?", (root_string,)).fetchone()
@@ -258,7 +265,7 @@ def _root_id(conn: sqlite3.Connection, root: Path) -> int:
         "INSERT INTO roots(path, created_at) VALUES(?, ?)",
         (root_string, _now()),
     )
-    return int(cursor.lastrowid)
+    return _lastrowid(cursor)
 
 
 def _start_scan(conn: sqlite3.Connection, root_id: int) -> int:
@@ -266,7 +273,7 @@ def _start_scan(conn: sqlite3.Connection, root_id: int) -> int:
         "INSERT INTO scans(root_id, started_at, status) VALUES(?, ?, ?)",
         (root_id, _now(), "running"),
     )
-    return int(cursor.lastrowid)
+    return _lastrowid(cursor)
 
 
 def _active_file_rows(conn: sqlite3.Connection, root_id: int) -> dict[str, sqlite3.Row]:
@@ -303,7 +310,7 @@ def _insert_file(conn: sqlite3.Connection, root_id: int, scan_id: int, fact: Fil
             scan_id,
         ),
     )
-    return int(cursor.lastrowid)
+    return _lastrowid(cursor)
 
 
 def _update_file(conn: sqlite3.Connection, file_id: int, scan_id: int, fact: FileFact) -> None:
@@ -370,7 +377,7 @@ def _record_event(
         ),
     )
     return {
-        "id": int(cursor.lastrowid),
+        "id": _lastrowid(cursor),
         "event_type": event_type,
         "file_id": file_id,
         "rel_path": rel_path,
@@ -556,7 +563,7 @@ def _snapshot(
             json.dumps(summary, sort_keys=True),
         ),
     )
-    return int(cursor.lastrowid)
+    return _lastrowid(cursor)
 
 
 def _finish_scan(
@@ -657,7 +664,7 @@ def run_inventory_scan(
         current_file_ids: dict[str, int] = {}
         current_statuses: dict[str, str] = {}
         for fact in facts:
-            previous = previous_by_rel.get(fact.rel_path)
+            previous_row = previous_by_rel.get(fact.rel_path)
             if fact.rel_path in moved_new_rels:
                 file_id = int(
                     conn.execute(
@@ -666,7 +673,7 @@ def run_inventory_scan(
                     ).fetchone()["id"]
                 )
                 current_statuses[fact.rel_path] = "moved"
-            elif previous is None:
+            elif previous_row is None:
                 file_id = _insert_file(conn, root_id, scan_id, fact)
                 events.append(
                     _record_event(
@@ -681,8 +688,8 @@ def run_inventory_scan(
                 )
                 current_statuses[fact.rel_path] = "added"
             else:
-                file_id = int(previous["id"])
-                if str(previous["sha256"]) == fact.sha256:
+                file_id = int(previous_row["id"])
+                if str(previous_row["sha256"]) == fact.sha256:
                     event_type = "unchanged"
                 else:
                     event_type = "modified"
@@ -695,7 +702,7 @@ def run_inventory_scan(
                             fact.rel_path,
                             fact.sha256,
                             file_id=file_id,
-                            payload={"previous_sha256": str(previous["sha256"])},
+                            payload={"previous_sha256": str(previous_row["sha256"])},
                         )
                     )
                 _update_file(conn, file_id, scan_id, fact)
