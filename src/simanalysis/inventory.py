@@ -6,7 +6,6 @@ import hashlib
 import json
 import sqlite3
 import sys
-from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -46,6 +45,12 @@ class _FileFingerprint:
     size: int
     mtime_ns: int
     sha256: str
+
+
+@dataclass(frozen=True)
+class _DiscoveryResult:
+    fingerprints: list[_FileFingerprint]
+    warnings: list[str]
 
 
 @dataclass(frozen=True)
@@ -90,7 +95,8 @@ class InventoryScanner:
             raise ValueError(f"Inventory root is not a directory: {root_path}")
 
         started_at = _utc_now()
-        fingerprints = list(_iter_file_fingerprints(root, excluded_paths={self.store.db_path}))
+        discovery = _discover_file_fingerprints(root, excluded_paths={self.store.db_path})
+        fingerprints = discovery.fingerprints
 
         with self.store.connect() as conn:
             conn.execute("PRAGMA foreign_keys = ON")
@@ -102,7 +108,7 @@ class InventoryScanner:
             packages_total = 0
             resources_total = 0
             package_parse_errors = 0
-            warnings: list[str] = []
+            warnings = list(discovery.warnings)
 
             for fingerprint in fingerprints:
                 file_id = _upsert_file(conn, scan_id, root, fingerprint)
@@ -265,12 +271,19 @@ def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _iter_file_fingerprints(
+def _discover_file_fingerprints(
     root: Path,
     excluded_paths: set[Path],
-) -> Iterable[_FileFingerprint]:
+) -> _DiscoveryResult:
+    fingerprints: list[_FileFingerprint] = []
+    warnings: list[str] = []
     resolved_exclusions = {path.expanduser().resolve() for path in excluded_paths}
     for path in sorted(root.rglob("*")):
+        relative_path = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            warnings.append(f"Skipped symlinked path: {relative_path}")
+            continue
+
         if not path.is_file():
             continue
 
@@ -279,14 +292,17 @@ def _iter_file_fingerprints(
             continue
 
         stat = path.stat()
-        yield _FileFingerprint(
-            path=path,
-            relative_path=path.relative_to(root).as_posix(),
-            extension=path.suffix.lower(),
-            size=stat.st_size,
-            mtime_ns=stat.st_mtime_ns,
-            sha256=_sha256(path),
+        fingerprints.append(
+            _FileFingerprint(
+                path=path,
+                relative_path=relative_path,
+                extension=path.suffix.lower(),
+                size=stat.st_size,
+                mtime_ns=stat.st_mtime_ns,
+                sha256=_sha256(path),
+            )
         )
+    return _DiscoveryResult(fingerprints=fingerprints, warnings=warnings)
 
 
 def _sha256(path: Path) -> str:

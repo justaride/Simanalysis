@@ -53,6 +53,8 @@ Implemented on this branch after the Phase 0 truth pass:
 - Inventory scans record file identity, SHA-256, size, mtime, extension,
   package parse status, package parse errors, and DBPF resource keys without
   moving or deleting Sims files.
+- Symlinked paths are skipped with warnings so inventory scans do not follow
+  links out of the selected Sims folder.
 - Repeat scans compare against the latest snapshot and report added, removed,
   moved, modified, and unchanged counts.
 - Latest snapshots can be exported as JSON-serializable dictionaries for

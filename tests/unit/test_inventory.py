@@ -238,3 +238,34 @@ def test_inventory_scan_records_corrupt_package_and_exports_snapshot(
             },
         }
     ]
+
+
+def test_inventory_scan_skips_symlinked_files_without_following_them(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    outside = tmp_path / "outside"
+    mods.mkdir(parents=True)
+    outside.mkdir()
+    outside_package = outside / "outside.package"
+    outside_package.write_bytes(b"outside package")
+    linked_package = mods / "linked.package"
+    linked_package.symlink_to(outside_package)
+    options_path = sims4 / "Options.ini"
+    options_path.write_text("uiscale = 100", encoding="utf-8")
+
+    db_path = tmp_path / "inventory.sqlite3"
+    summary = InventoryScanner(db_path).scan(sims4)
+
+    assert linked_package.is_symlink()
+    assert outside_package.exists()
+    assert summary.files_total == 1
+    assert summary.packages_total == 0
+    assert summary.resources_total == 0
+    assert summary.warnings == ["Skipped symlinked path: Mods/linked.package"]
+
+    with sqlite3.connect(db_path) as conn:
+        rows = conn.execute("SELECT relative_path FROM files ORDER BY relative_path").fetchall()
+
+    assert [row[0] for row in rows] == ["Options.ini"]
