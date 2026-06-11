@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected critical resource conflict types and names for SimData, Object Definitions, CAS Parts, and Object Catalogs.
 - Updated DBPF parser/model fixtures and documentation examples so tests no longer validate against false resource IDs.
 
+### Added
+- Added the Phase 0 real-file corpus contract, `real`/`synthetic` pytest markers, and a local-only corpus builder that copies explicitly chosen real fixtures into a git-ignored test root with DBPF golden sidecars.
+
 ### Planned
 - Full DBPF package parser implementation
 - XML tuning conflict detection

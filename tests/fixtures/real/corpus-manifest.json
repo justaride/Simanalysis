@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "local_tuning_mod",
+      "kind": "package",
+      "path": "packages/local_tuning_mod.package",
+      "roles": ["tuning_mod"],
+      "redistribution": "local-only",
+      "license": "not-for-redistribution",
+      "source_url": "local://tests/fixtures/local/packages/local_tuning_mod.package",
+      "golden": "golden/local_tuning_mod.json",
+      "notes": "Populate with a small real tuning override package via tests/fixtures/build_real_corpus.py."
+    }
+  ]
+}

@@ -16,6 +16,8 @@ import pytest
 from simanalysis.formats.types import SIMDATA, TUNING_GENERIC
 from simanalysis.parsers.dbpf import DBPFReader
 
+pytestmark = pytest.mark.synthetic
+
 
 class TestDBPFPerformance:
     """Performance benchmarks for DBPF parser."""

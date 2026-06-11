@@ -1,0 +1,38 @@
+# Real Fixture Corpus
+
+This directory is the contract for T0.2 real-file tests.
+
+Real Sims 4 files may only be committed here when redistribution is explicitly
+allowed and provenance is recorded in `corpus-manifest.json`. Files from the
+local Mods folder, downloaded CC, private saves, tray files, or crash logs with
+personal paths must go under the git-ignored `tests/fixtures/local/` tree
+instead.
+
+`pytest -m real` reads the manifest and runs every assertion it can prove from
+available files. Missing local-only files are skipped, not silently treated as
+passing real coverage.
+
+Required package sidecars live under `golden/` and record DBPF metadata checked
+against the parser:
+
+- header fields needed by parser tests
+- resource count
+- selected known TGI keys
+- expected tuning IDs/classes when the package is a tuning fixture
+
+The first required real package role is `tuning_mod`; it exists to prevent the
+scanner from ever proving tuning extraction only against generated fixtures.
+
+## Local Corpus Setup
+
+Use the builder with an explicit source override for each local-only manifest
+item:
+
+```bash
+python tests/fixtures/build_real_corpus.py \
+  --source "local_tuning_mod=/path/to/real/tuning_mod.package"
+```
+
+The builder copies the package into `tests/fixtures/local/packages/` and writes
+the parser-derived golden sidecar into `tests/fixtures/local/golden/`. Both
+paths are git-ignored.

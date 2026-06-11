@@ -22,6 +22,18 @@ T0.1 is now verified locally:
 - Verification: `pytest -q` passed with 376 tests; Ruff, formatting, MyPy,
   web build, and Cargo check passed locally on this branch.
 
+T0.2 is started, not complete:
+- Added `pytest -m real` and `pytest -m synthetic` markers.
+- Added `tests/fixtures/real/corpus-manifest.json` and a documented local-only
+  tuning fixture slot.
+- Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
+  chosen local files into the git-ignored `tests/fixtures/local/` root and
+  writes parser-derived package goldens.
+- Local verification on this branch populated the local-only slot from a
+  real tuning-bearing package and passed the real marker suite. The next T0.2
+  step is to add legally redistributable committed fixtures or keep CI on the
+  manifest-only contract until provenance is solved.
+
 ---
 
 ## ✅ What's FULLY Implemented

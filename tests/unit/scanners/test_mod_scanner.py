@@ -12,6 +12,8 @@ from simanalysis.formats.types import BinaryResourceType, TuningResourceType
 from simanalysis.models import ModType
 from simanalysis.scanners import ModScanner
 
+pytestmark = pytest.mark.synthetic
+
 
 class TestModScanner:
     """Tests for ModScanner."""

@@ -59,6 +59,7 @@ reports/
 *.package
 *.ts4script
 test_mods/
+/tests/fixtures/local/
 
 # Tauri build artifacts
 /src-tauri/binaries/

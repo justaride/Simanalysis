@@ -11,6 +11,8 @@ from simanalysis.formats.types import SIMDATA, TUNING_GENERIC
 from simanalysis.models import DBPFHeader
 from simanalysis.parsers.dbpf import DBPFReader
 
+pytestmark = pytest.mark.synthetic
+
 
 class TestDBPFReader:
     """Tests for DBPFReader class."""
