@@ -63,6 +63,9 @@ Implemented on this branch after the Phase 0 truth pass:
   history helper and bridge command.
 - The desktop bridge and Tauri sidecar argument builder now expose
   `inventory-scan` and `inventory-history` with optional `--db` routing.
+- The web API layer has non-visual wrappers for `scanInventory` and
+  `inventoryHistory`; the visual Inventory route is still pending design
+  approval.
 
 ## Current Product Reality
 

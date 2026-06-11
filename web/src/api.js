@@ -2,6 +2,7 @@
 // public functions and callback shape are unchanged, so the React views keep
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
+import { inventoryHistoryOptions, inventoryScanOptions } from './inventoryApiModel';
 
 const TREATMENT_OUTCOMES = new Set(['same_issue', 'issue_gone', 'different_issue']);
 const TREATMENT_RESTORE_STEPS = new Set(['latest', 'all']);
@@ -76,6 +77,10 @@ export const api = {
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
   scanDoctor: (sims4Path, modsPath, callbacks) =>
     runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  scanInventory: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('inventory-scan', sims4Path, inventoryScanOptions(options), callbacks),
+  inventoryHistory: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('inventory-history', sims4Path, inventoryHistoryOptions(options), callbacks),
   monitorLive: (sims4Path, modsPath, interval, callbacks) =>
     runAnalysis(
       'live-monitor',
