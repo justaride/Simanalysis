@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from simanalysis.parsers.dbpf import DBPFReader
+from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.scanners.mod_scanner import ModScanner
 
 REAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "real"
@@ -132,3 +133,44 @@ def test_real_tuning_package_extracts_nonzero_tunings() -> None:
         return
 
     pytest.skip("Declared real tuning package is local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_last_exception_fixture_matches_golden() -> None:
+    """A sanitized real lastException log must parse to its expected crash report."""
+    exception_items = [item for item in _manifest()["items"] if item["kind"] == "last_exception"]
+    if not exception_items:
+        pytest.fail("Real corpus must declare at least one sanitized lastException log")
+
+    checked = 0
+    for item in exception_items:
+        exception_path = _fixture_path(item)
+        if not exception_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed lastException fixture is missing: {exception_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        reports = parse_exception_file(exception_path)
+
+        assert [
+            {
+                "report_type": report.report_type,
+                "exception_class": report.exception_class,
+                "creator_tag": report.creator_tag,
+                "created": report.created,
+                "game_version": report.game_version,
+                "be_advice": report.be_advice,
+                "frame_count": len(report.frames),
+                "frame_paths": [frame.raw_path for frame in report.frames],
+            }
+            for report in reports
+        ] == golden["reports"]
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared lastException fixtures are local-only or not installed")

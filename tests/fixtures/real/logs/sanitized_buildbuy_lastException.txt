@@ -1,0 +1,15 @@
+<?xml version="1.0" ?><root>
+<BetterExceptions><Advice>Possible Cause: broken or outdated Build/Buy tuning. Review the most recent probe group before moving more files.</Advice></BetterExceptions>
+<report>
+  <version>2</version>
+  <type>desync</type>
+  <createtime>2026-05-16 21:27:46</createtime>
+  <buildsignature>Local.1.124.55.1230</buildsignature>
+  <categoryid>probe_runner.py:42</categoryid>
+  <desyncdata>[redacted-creator] Error occurred within the tag (UnavailablePackSafeResourceError)&#13;&#10;Traceback (most recent call last):&#13;&#10;  File "Core\sims4\utils.py", line 179, in wrapper&#13;&#10;  File "C:\Users\Simmer\Documents\Electronic Arts\The Sims 4\Mods\BuildBuy03B\RedactedMod\probe_runner.py", line 42, in inject&#13;&#10;  File "/Users/Simmer/Documents/Electronic Arts/The Sims 4/Mods/BuildBuy03B/RedactedMod/build_buy.py", line 88, in apply_patch&#13;&#10;UnavailablePackSafeResourceError: unavailable pack resource referenced by redacted tuning</desyncdata>
+</report>
+<report>
+  <type>desync</type>
+  <desyncdata>UI desync without script traceback; retained to prove parser skips non-traceback report bodies.</desyncdata>
+</report>
+</root>

@@ -38,6 +38,12 @@ NODE_PATH=/path/to/node_modules \
   node tests/fixtures/real/source/build_s4tk_minimal_buff_tuning.cjs
 ```
 
+`logs/sanitized_buildbuy_lastException.txt` is a manually redacted
+BetterExceptions-style log from a local probe. It preserves the XML structure,
+advice block, traceback shape, and mixed Windows/macOS mod paths while replacing
+usernames, creator names, and third-party package paths with generic
+placeholders.
+
 ## Local Corpus Setup
 
 Use the builder with an explicit source override for each local-only manifest

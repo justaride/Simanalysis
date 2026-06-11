@@ -27,6 +27,9 @@ T0.2 is started, not complete:
 - Added `tests/fixtures/real/corpus-manifest.json`, a redistributable
   S4TK-generated Buff tuning package, its source XML, and parser-derived golden
   sidecar.
+- Added a sanitized BetterExceptions-style `lastException` log fixture and
+  golden sidecar that exercise the script-exception parser against redacted
+  real-world XML structure.
 - Added a documented local-only tuning fixture slot for non-redistributable
   real-world packages.
 - Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
@@ -34,7 +37,7 @@ T0.2 is started, not complete:
   writes parser-derived package goldens.
 - Local verification on this branch passed the real marker suite with only
   committed fixtures present. The next T0.2 step is to broaden the corpus to
-  script/log/save/tray examples and wire CI to run `pytest -m real`.
+  script/save/tray examples and wire CI to run `pytest -m real`.
 
 ---
 

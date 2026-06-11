@@ -22,6 +22,17 @@
       "source_url": "local://tests/fixtures/local/packages/local_tuning_mod.package",
       "golden": "golden/local_tuning_mod.json",
       "notes": "Populate with a small real tuning override package via tests/fixtures/build_real_corpus.py."
+    },
+    {
+      "id": "sanitized_buildbuy_last_exception",
+      "kind": "last_exception",
+      "path": "logs/sanitized_buildbuy_lastException.txt",
+      "roles": ["script_exception", "better_exceptions"],
+      "redistribution": "committed",
+      "license": "MIT; manually redacted local BetterExceptions log fixture",
+      "source_url": "local-redacted://lastException_63914194296",
+      "golden": "golden/sanitized_buildbuy_last_exception.json",
+      "notes": "Sanitized from a local probe log; usernames and third-party mod paths are replaced with generic placeholders."
     }
   ]
 }
