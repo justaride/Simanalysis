@@ -302,7 +302,7 @@ result = analyzer.analyze_mods(mods)
 ```
 ⚠️  CRITICAL: 3 critical conflicts detected.
   - Tuning 'buff_confident' (ID: 0x12345678) modified by 2 mods
-  - Resource 0x0333406C (Object Definition) in 3 mods
+  - Resource 0xC0DB5AE7 (Object Definition) in 3 mods
   - Script injection conflict in sim_info module
 
 💡 TIP: 5 duplicate mods found (15MB wasted space)

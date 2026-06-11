@@ -73,7 +73,7 @@ for res in resources:
 data = reader.get_resource(resources[0])
 
 # Filter by type
-xml_files = reader.get_resources_by_type(0x545503B2)
+tuning_files = reader.get_resources_by_type(0x03B33DDF)
 ```
 
 ### 2. Unit Tests (`tests/unit/parsers/test_dbpf_parser.py`)

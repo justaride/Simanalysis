@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from simanalysis.formats.types import SIMDATA, TUNING_GENERIC
 from simanalysis.parsers.dbpf import DBPFReader
 
 
@@ -117,7 +118,7 @@ class TestDBPFPerformance:
         for i in range(resource_count):
             original_data, stored_data, is_compressed = resources_data[i]
             instance = 0x1000000000000000 + i
-            type_id = 0x545503B2 if i % 3 == 0 else 0x0333406C
+            type_id = int(TUNING_GENERIC) if i % 3 == 0 else int(SIMDATA)
             index += struct.pack("<I", type_id)  # type
             index += struct.pack("<I", 0x00000000)  # group
             index += struct.pack("<I", instance >> 32)  # instance high
@@ -293,7 +294,7 @@ class TestDBPFPerformance:
 
         for _ in range(iterations):
             start = time.perf_counter()
-            xml_resources = reader.get_resources_by_type(0x545503B2)
+            tuning_resources = reader.get_resources_by_type(int(TUNING_GENERIC))
             elapsed = time.perf_counter() - start
             times.append(elapsed)
 
@@ -301,7 +302,7 @@ class TestDBPFPerformance:
 
         print(f"\nType Filtering ({iterations} iterations):")
         print(f"  Total resources: {len(resources)}")
-        print(f"  Matching:        {len(xml_resources)}")
+        print(f"  Matching:        {len(tuning_resources)}")
         print(f"  Average time:    {avg_time * 1000:.3f}ms")
 
         assert avg_time < 0.01  # Should be < 10ms
@@ -440,7 +441,7 @@ class TestDBPFScalability:
         index = bytearray()
         index += struct.pack("<I", 0)  # mnIndexType
         for i in range(count):
-            index += struct.pack("<I", 0x545503B2)  # type
+            index += struct.pack("<I", int(TUNING_GENERIC))  # type
             index += struct.pack("<I", 0)  # group
             index += struct.pack("<I", 0)  # instance high
             index += struct.pack("<I", i)  # instance low

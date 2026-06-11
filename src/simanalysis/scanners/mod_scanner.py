@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from simanalysis.exceptions import SimanalysisError
+from simanalysis.formats.types import is_tuning_type
 from simanalysis.models import Mod, ModType
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.script import ScriptAnalyzer
@@ -302,11 +303,8 @@ class ModScanner:
         tunings = []
         parser = TuningParser()
 
-        # Find XML tuning resources (type 0x62766556 or 0x220557DA)
-        xml_types = {0x62766556, 0x220557DA}
-
         for resource in reader.resources:
-            if resource.type in xml_types:
+            if is_tuning_type(resource.type):
                 try:
                     # Get resource data
                     data = reader.get_resource(resource)

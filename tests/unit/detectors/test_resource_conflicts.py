@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
+from simanalysis.formats.types import CASP, COBJ, DDS_IMAGE, GEOM, OBJD, SIMDATA
 from simanalysis.models import (
     ConflictType,
     DBPFResource,
@@ -67,7 +68,7 @@ class TestResourceConflictDetector:
     def mods_with_conflict(self) -> list[Mod]:
         """Create mods with resource conflict."""
         shared_resource = DBPFResource(
-            type=0x2E75C764,  # Texture
+            type=int(DDS_IMAGE),
             group=0x00000000,
             instance=0x12345678,
             size=1000,
@@ -76,8 +77,8 @@ class TestResourceConflictDetector:
         )
 
         mod1 = Mod(
-            name="texture_mod_a.package",
-            path=Path("/mods/texture_mod_a.package"),
+            name="image_mod_a.package",
+            path=Path("/mods/image_mod_a.package"),
             type=ModType.PACKAGE,
             size=5000,
             hash="hash_a",
@@ -85,8 +86,8 @@ class TestResourceConflictDetector:
         )
 
         mod2 = Mod(
-            name="texture_mod_b.package",
-            path=Path("/mods/texture_mod_b.package"),
+            name="image_mod_b.package",
+            path=Path("/mods/image_mod_b.package"),
             type=ModType.PACKAGE,
             size=6000,
             hash="hash_b",
@@ -99,7 +100,7 @@ class TestResourceConflictDetector:
     def mods_with_critical_conflict(self) -> list[Mod]:
         """Create mods with critical resource conflict."""
         critical_resource = DBPFResource(
-            type=0x545503B2,  # SimData (critical)
+            type=int(SIMDATA),
             group=0x00000000,
             instance=0x99999999,
             size=500,
@@ -156,7 +157,7 @@ class TestResourceConflictDetector:
     def mods_with_multiple_conflicts(self) -> list[Mod]:
         """Create mods with multiple resource conflicts."""
         resource1 = DBPFResource(
-            type=0x2E75C764,  # Texture
+            type=int(DDS_IMAGE),
             group=0x00000000,
             instance=0x11111111,
             size=1000,
@@ -165,7 +166,7 @@ class TestResourceConflictDetector:
         )
 
         resource2 = DBPFResource(
-            type=0x015A1849,  # Geometry
+            type=GEOM,
             group=0x00000000,
             instance=0x22222222,
             size=2000,
@@ -212,8 +213,8 @@ class TestResourceConflictDetector:
         conflict = conflicts[0]
         assert conflict.type == ConflictType.RESOURCE_DUPLICATE
         assert len(conflict.affected_mods) == 2
-        assert "texture_mod_a.package" in conflict.affected_mods
-        assert "texture_mod_b.package" in conflict.affected_mods
+        assert "image_mod_a.package" in conflict.affected_mods
+        assert "image_mod_b.package" in conflict.affected_mods
 
     def test_conflict_details(
         self, detector: ResourceConflictDetector, mods_with_conflict: list[Mod]
@@ -224,8 +225,8 @@ class TestResourceConflictDetector:
 
         assert "resource_key" in conflict.details
         assert "resource_type" in conflict.details
-        assert conflict.details["resource_type"] == 0x2E75C764
-        assert conflict.details["resource_type_name"] == "Texture"
+        assert conflict.details["resource_type"] == int(DDS_IMAGE)
+        assert conflict.details["resource_type_name"] == "DDS Image"
         assert conflict.details["mod_count"] == 2
 
     def test_conflict_description(
@@ -236,7 +237,7 @@ class TestResourceConflictDetector:
         conflict = conflicts[0]
 
         assert len(conflict.description) > 0
-        assert "Texture" in conflict.description
+        assert "DDS Image" in conflict.description
         assert "2 mods" in conflict.description
 
     def test_critical_resource_severity(
@@ -260,7 +261,7 @@ class TestResourceConflictDetector:
         conflicts = detector.detect(mods_with_conflict)
         conflict = conflicts[0]
 
-        # Texture with 2 mods = LOW (from RESOURCE_DUPLICATE rules)
+        # DDS Image with 2 mods = LOW (from RESOURCE_DUPLICATE rules)
         assert conflict.severity == Severity.LOW
         assert conflict.details["is_critical_resource"] is False
 
@@ -306,13 +307,13 @@ class TestResourceConflictDetector:
 
         # Check resource types
         resource_types = {c.details["resource_type_name"] for c in conflicts}
-        assert "Texture" in resource_types
+        assert "DDS Image" in resource_types
         assert "Geometry" in resource_types
 
     def test_three_way_conflict(self, detector: ResourceConflictDetector) -> None:
         """Test conflict with three mods."""
         shared_resource = DBPFResource(
-            type=0x0333406C,  # Object Definition (critical)
+            type=int(OBJD),
             group=0x00000000,
             instance=0xDEADBEEF,
             size=1000,
@@ -359,9 +360,9 @@ class TestResourceConflictDetector:
         """Test filtering conflicts by resource type."""
         conflicts = detector.detect(mods_with_multiple_conflicts)
 
-        texture_conflicts = detector.get_conflicts_by_type(conflicts, "Texture")
-        assert len(texture_conflicts) == 1
-        assert texture_conflicts[0].details["resource_type_name"] == "Texture"
+        image_conflicts = detector.get_conflicts_by_type(conflicts, "DDS Image")
+        assert len(image_conflicts) == 1
+        assert image_conflicts[0].details["resource_type_name"] == "DDS Image"
 
         geometry_conflicts = detector.get_conflicts_by_type(conflicts, "Geometry")
         assert len(geometry_conflicts) == 1
@@ -395,7 +396,7 @@ class TestResourceConflictDetector:
 
         assert summary["total_conflicts"] == 2
         assert "by_resource_type" in summary
-        assert summary["by_resource_type"]["Texture"] == 1
+        assert summary["by_resource_type"]["DDS Image"] == 1
         assert summary["by_resource_type"]["Geometry"] == 1
         assert summary["resource_key_conflicts"] == 2
         assert summary["hash_collision_conflicts"] == 0
@@ -423,7 +424,7 @@ class TestResourceConflictDetector:
     def test_mixed_conflicts(self, detector: ResourceConflictDetector) -> None:
         """Test both resource key and hash collision conflicts."""
         shared_resource = DBPFResource(
-            type=0x2E75C764,
+            type=int(DDS_IMAGE),
             group=0x00000000,
             instance=0x12345678,
             size=1000,
@@ -483,11 +484,25 @@ class TestResourceConflictDetector:
 
     def test_resource_type_names(self, detector: ResourceConflictDetector) -> None:
         """Test resource type name mapping."""
-        assert detector._get_resource_type_name(0x545503B2) == "SimData"
-        assert detector._get_resource_type_name(0x0333406C) == "Object Definition"
-        assert detector._get_resource_type_name(0x2E75C764) == "Texture"
-        assert detector._get_resource_type_name(0x015A1849) == "Geometry"
+        assert detector._get_resource_type_name(int(SIMDATA)) == "SimData"
+        assert detector._get_resource_type_name(int(OBJD)) == "Object Definition"
+        assert detector._get_resource_type_name(int(DDS_IMAGE)) == "DDS Image"
+        assert detector._get_resource_type_name(GEOM) == "Geometry"
         assert detector._get_resource_type_name(0x99999999) == "Unknown"
+
+    def test_critical_resource_types_are_verified_core_types(
+        self, detector: ResourceConflictDetector
+    ) -> None:
+        """Test critical resources use verified Sims 4 core resource types."""
+        assert {
+            int(SIMDATA),
+            int(OBJD),
+            int(CASP),
+            int(COBJ),
+        } == detector.CRITICAL_RESOURCE_TYPES
+        assert detector._get_resource_type_name(0xC0DB5AE7) == "Object Definition"
+        assert detector._get_resource_type_name(0x034AEECB) == "CAS Part"
+        assert detector._get_resource_type_name(0x00B2D882) == "DST Image"
 
     def test_conflict_has_resolution(
         self, detector: ResourceConflictDetector, mods_with_conflict: list[Mod]

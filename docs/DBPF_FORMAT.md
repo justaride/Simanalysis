@@ -139,7 +139,7 @@ Resources are uniquely identified by their **TGI** (Type-Group-Instance) triple:
 
 ```python
 # Example TGI key
-type_id     = 0x545503B2  # XML Tuning
+type_id     = 0x03B33DDF  # Generic tuning
 group_id    = 0x00000000  # Default group
 instance_id = 0x1234567890ABCDEF  # Unique instance
 
@@ -246,12 +246,12 @@ Common resource type IDs used in The Sims 4:
 
 | Type ID      | Name            | Description | Parser Status |
 |--------------|-----------------|-------------|---------------|
-| `0x545503B2` | XML Tuning      | Gameplay tuning files (XML) | ✅ `tuning.py` |
-| `0x0333406C` | SimData         | Binary object definitions | ❌ Raw bytes |
+| `0x03B33DDF` | Generic Tuning  | Gameplay tuning files (XML) | ✅ `tuning.py` |
+| `0x545AC67A` | SimData         | Binary sim/object data | ❌ Raw bytes |
 | `0x220557DA` | STBL            | String tables (localized text) | ❌ Raw bytes |
-| `0x025ED6F4` | OBJD            | Object definitions | ❌ Raw bytes |
+| `0xC0DB5AE7` | OBJD            | Object definitions | ❌ Raw bytes |
 | `0x00B2D882` | _IMG            | Images (PNG, DDS) | ❌ Raw bytes |
-| `0x034AEECB` | Catalog         | Catalog resources | ❌ Raw bytes |
+| `0x034AEECB` | CASP            | CAS part resources | ❌ Raw bytes |
 | `0x515CA4CD` | Relationship Bit| Relationship tuning | ✅ Via XML |
 | `0x3453CF95` | Buff            | Buff tuning | ✅ Via XML |
 | `0xE882D22F` | Trait           | Trait tuning | ✅ Via XML |
@@ -319,18 +319,18 @@ for i, res in enumerate(resources):
     print()
 ```
 
-### Example 3: Extracting XML Tuning Files
+### Example 3: Extracting Generic Tuning Files
 
 ```python
 from simanalysis.parsers.dbpf import DBPFReader
 
 reader = DBPFReader("my_mod.package")
 
-# Get all XML tuning resources
-XML_TUNING_TYPE = 0x545503B2
-xml_resources = reader.get_resources_by_type(XML_TUNING_TYPE)
+# Get all generic tuning resources
+GENERIC_TUNING_TYPE = 0x03B33DDF
+tuning_resources = reader.get_resources_by_type(GENERIC_TUNING_TYPE)
 
-for res in xml_resources:
+for res in tuning_resources:
     # Extract resource data
     data = reader.get_resource(res)
 

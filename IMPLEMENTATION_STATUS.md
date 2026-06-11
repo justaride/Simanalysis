@@ -6,6 +6,24 @@
 
 ---
 
+## Current Phase-0 Truth Note (2026-06-11)
+
+This status document predates the Phase 0 truth pass and is not yet a fully
+audited source of product truth. T0.3 will consolidate or archive historical
+status claims.
+
+T0.1 is now verified locally:
+- Added `src/simanalysis/formats/types.py`, sourced from S4TK `@s4tk/models`
+  `0.6.14` at commit `4345132fab79a92516095d22d9458b0db334dce5`.
+- Replaced the fabricated tuning/SimData/Object Definition constants in code,
+  tests, and user-facing examples.
+- `ModScanner` now extracts XML tuning from verified tuning resource classes
+  and does not parse STBL resources as XML.
+- Verification: `pytest -q` passed with 376 tests; Ruff, formatting, MyPy,
+  web build, and Cargo check passed locally on this branch.
+
+---
+
 ## ✅ What's FULLY Implemented
 
 ### 1. **Core Parsing Layer** (100% Complete)

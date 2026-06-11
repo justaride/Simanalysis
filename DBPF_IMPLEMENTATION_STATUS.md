@@ -106,12 +106,12 @@ Offset | Size | Field              | Status
 
 **Known Types (in TS4):**
 ```python
-0x545503B2  # XML Tuning          - ✅ Detected, ⚠️ Needs parser
-0x0333406C  # SimData             - ✅ Detected, ❌ No parser
+0x03B33DDF  # Generic Tuning      - ✅ Detected, ⚠️ Needs parser
+0x545AC67A  # SimData             - ✅ Detected, ❌ No parser
 0x220557DA  # STBL (String Table) - ✅ Detected, ❌ No parser
-0x025ED6F4  # OBJD (Object Def)   - ✅ Detected, ❌ No parser
+0xC0DB5AE7  # OBJD (Object Def)   - ✅ Detected, ❌ No parser
 0x00B2D882  # _IMG (Image)        - ✅ Detected, ❌ No parser
-0x034AEECB  # Catalog Resource   - ✅ Detected, ❌ No parser
+0x034AEECB  # CASP (CAS Part)    - ✅ Detected, ❌ No parser
 ```
 
 **Current Handling:**
@@ -429,7 +429,7 @@ Visual diagram:
 ## Common Resource Types
 | Type ID    | Name        | Description |
 |------------|-------------|-------------|
-| 0x545503B2 | XML Tuning  | Game tuning files |
+| 0x03B33DDF | Generic Tuning | Game tuning files |
 | 0x220557DA | STBL        | String tables |
 ...
 """

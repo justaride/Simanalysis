@@ -6,6 +6,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
+from simanalysis.formats.types import MODL, PNG_IMAGE, SIMDATA, STBL, TUNING_GENERIC
+
 
 class ModType(Enum):
     """Type of mod."""
@@ -343,13 +345,13 @@ class AnalysisResult:
         return len(self.critical_conflicts) > 0
 
 
-# Resource type constants
-RESOURCE_TYPE_XML_TUNING = 0x545238C9
-RESOURCE_TYPE_SIMDATA = 0x0333406C
+# Resource type compatibility aliases. Prefer simanalysis.formats.types in new code.
+RESOURCE_TYPE_XML_TUNING = int(TUNING_GENERIC)
+RESOURCE_TYPE_SIMDATA = int(SIMDATA)
 RESOURCE_TYPE_SCRIPT = 0xD382BF57
-RESOURCE_TYPE_STRING = 0x220557DA
-RESOURCE_TYPE_IMAGE = 0x2F7D0004
-RESOURCE_TYPE_MESH = 0x01661233
+RESOURCE_TYPE_STRING = int(STBL)
+RESOURCE_TYPE_IMAGE = int(PNG_IMAGE)
+RESOURCE_TYPE_MESH = int(MODL)
 
 # Pack prefixes
 PACK_PREFIXES = {

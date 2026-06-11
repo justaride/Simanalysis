@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from simanalysis.exceptions import DBPFError
+from simanalysis.formats.types import SIMDATA, TUNING_GENERIC
 from simanalysis.models import DBPFHeader
 from simanalysis.parsers.dbpf import DBPFReader
 
@@ -77,11 +78,11 @@ class TestDBPFReader:
         index = bytearray()
         index += struct.pack("<I", 0)  # mnIndexType: no constant fields
 
-        # Resource 1: XML Tuning (uncompressed)
+        # Resource 1: Generic tuning (uncompressed)
         resource1_offset = 96 + index_block_size  # after header + index
-        resource1_data = b"<I>Test XML Tuning Data</I>"
+        resource1_data = b"<I>Test Generic Tuning Data</I>"
         resource1_size = len(resource1_data)
-        index += struct.pack("<I", 0x545238C9)  # type (XML Tuning)
+        index += struct.pack("<I", int(TUNING_GENERIC))  # type
         index += struct.pack("<I", 0x00000000)  # group
         index += struct.pack("<I", 0x12345678)  # instance high
         index += struct.pack("<I", 0x90ABCDEF)  # instance low
@@ -97,7 +98,7 @@ class TestDBPFReader:
         resource2_size = len(resource2_data)
         resource2_compressed_size = len(resource2_compressed)
         resource2_offset = resource1_offset + resource1_size
-        index += struct.pack("<I", 0x0333406C)  # type (SimData)
+        index += struct.pack("<I", int(SIMDATA))  # type
         index += struct.pack("<I", 0x00000000)  # group
         index += struct.pack("<I", 0xFEDCBA09)  # instance high
         index += struct.pack("<I", 0x87654321)  # instance low
@@ -208,9 +209,9 @@ class TestDBPFReader:
 
         assert len(resources) == 2
 
-        # Check first resource (XML Tuning)
+        # Check first resource (generic tuning)
         res1 = resources[0]
-        assert res1.type == 0x545238C9
+        assert res1.type == int(TUNING_GENERIC)
         assert res1.group == 0x00000000
         assert res1.instance == 0x1234567890ABCDEF
         assert res1.size > 0
@@ -218,7 +219,7 @@ class TestDBPFReader:
 
         # Check second resource (SimData, compressed)
         res2 = resources[1]
-        assert res2.type == 0x0333406C
+        assert res2.type == int(SIMDATA)
         assert res2.group == 0x00000000
         assert res2.instance == 0xFEDCBA0987654321
         assert res2.size > 0
@@ -304,11 +305,11 @@ class TestDBPFReader:
         reader = DBPFReader(valid_dbpf_file)
         resources = reader.read_index()
 
-        # Get first resource (uncompressed XML)
+        # Get first resource (uncompressed tuning)
         data = reader.get_resource(resources[0])
 
         assert isinstance(data, bytes)
-        assert b"Test XML Tuning Data" in data
+        assert b"Test Generic Tuning Data" in data
         assert len(data) == resources[0].size
 
     def test_get_resource_compressed(self, valid_dbpf_file: Path) -> None:
@@ -327,15 +328,15 @@ class TestDBPFReader:
         """Test filtering resources by type."""
         reader = DBPFReader(valid_dbpf_file)
 
-        # Get XML Tuning resources
-        xml_resources = reader.get_resources_by_type(0x545238C9)
-        assert len(xml_resources) == 1
-        assert xml_resources[0].type == 0x545238C9
+        # Get generic tuning resources
+        tuning_resources = reader.get_resources_by_type(int(TUNING_GENERIC))
+        assert len(tuning_resources) == 1
+        assert tuning_resources[0].type == int(TUNING_GENERIC)
 
         # Get SimData resources
-        simdata_resources = reader.get_resources_by_type(0x0333406C)
+        simdata_resources = reader.get_resources_by_type(int(SIMDATA))
         assert len(simdata_resources) == 1
-        assert simdata_resources[0].type == 0x0333406C
+        assert simdata_resources[0].type == int(SIMDATA)
 
         # Get nonexistent type
         nonexistent = reader.get_resources_by_type(0xFFFFFFFF)

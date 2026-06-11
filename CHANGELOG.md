@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Replaced fabricated Sims 4 resource type constants with a verified S4TK-backed registry.
+- Changed package tuning extraction to scan all verified tuning resource classes and keep STBL binary string tables out of XML parsing.
+- Corrected critical resource conflict types and names for SimData, Object Definitions, CAS Parts, and Object Catalogs.
+- Updated DBPF parser/model fixtures and documentation examples so tests no longer validate against false resource IDs.
+
 ### Planned
 - Full DBPF package parser implementation
 - XML tuning conflict detection
