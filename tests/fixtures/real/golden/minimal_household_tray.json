@@ -1,0 +1,14 @@
+{
+  "items": [
+    {
+      "file_count": 2,
+      "files": [
+        "fixture_household.hhi",
+        "fixture_household.trayitem"
+      ],
+      "name": "Fixture Household",
+      "size": 74,
+      "type": "Household"
+    }
+  ]
+}

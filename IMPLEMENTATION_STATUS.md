@@ -32,6 +32,8 @@ T0.2 is started, not complete:
   real-world XML structure.
 - Added a deterministic committed `.ts4script` fixture and golden sidecar that
   exercise metadata, module, hook, import, and scanner dependency extraction.
+- Added committed save-like DBPF and Tray fixture goldens that exercise save
+  resource categorization and tray item grouping/name extraction.
 - Added a documented local-only tuning fixture slot for non-redistributable
   real-world packages.
 - Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
@@ -39,8 +41,9 @@ T0.2 is started, not complete:
   writes parser-derived package goldens.
 - Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
 - Local verification on this branch passed the real marker suite with only
-  committed fixtures present. The next T0.2 step is to broaden the corpus to
-  save/tray examples.
+  committed fixtures present. T0.2 now covers package, script, log, save, and
+  tray fixture families; the remaining step is to decide whether additional
+  local-only real-world exemplars are needed before T0.3 status consolidation.
 
 ---
 

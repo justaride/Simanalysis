@@ -44,6 +44,28 @@
       "source_url": "repo://tests/fixtures/real/source/ts4script_probe",
       "golden": "golden/minimal_probe_ts4script.json",
       "notes": "Deterministic ZIP archive generated from committed Python and metadata sources."
+    },
+    {
+      "id": "minimal_resource_save",
+      "kind": "save",
+      "path": "saves/minimal_resource_refs.save",
+      "roles": ["save_resource_refs"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned DBPF save-like fixture with no gameplay data",
+      "source_url": "repo://tests/fixtures/real/source/build_minimal_save_and_tray.py",
+      "golden": "golden/minimal_resource_save.json",
+      "notes": "Tiny DBPF file with CAS, Build/Buy, and other resource keys for SaveScanner."
+    },
+    {
+      "id": "minimal_household_tray",
+      "kind": "tray",
+      "path": "tray/minimal_household",
+      "roles": ["household_tray"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned tray-shaped binary fixture with no gameplay data",
+      "source_url": "repo://tests/fixtures/real/source/build_minimal_save_and_tray.py",
+      "golden": "golden/minimal_household_tray.json",
+      "notes": "Tiny tray directory with a UTF-16LE name-bearing .trayitem and .hhi companion."
     }
   ]
 }

@@ -54,6 +54,18 @@ To regenerate it:
 python tests/fixtures/real/source/build_minimal_probe_ts4script.py
 ```
 
+`saves/minimal_resource_refs.save` and `tray/minimal_household/` are tiny,
+self-owned binary-shaped fixtures built by
+`source/build_minimal_save_and_tray.py`. The save file is a minimal DBPF with
+known resource keys; the tray folder contains only a name-bearing `.trayitem`
+and a matching `.hhi` companion.
+
+To regenerate them:
+
+```bash
+python tests/fixtures/real/source/build_minimal_save_and_tray.py
+```
+
 ## Local Corpus Setup
 
 Use the builder with an explicit source override for each local-only manifest

@@ -12,6 +12,8 @@ from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.script import ScriptAnalyzer
 from simanalysis.scanners.mod_scanner import ModScanner
+from simanalysis.scanners.save_scanner import SaveScanner
+from simanalysis.scanners.tray_scanner import TrayScanner
 
 REAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "real"
 LOCAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "local"
@@ -228,3 +230,85 @@ def test_real_ts4script_fixture_matches_golden() -> None:
 
     if checked == 0:
         pytest.skip("Declared .ts4script fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_save_fixture_matches_golden() -> None:
+    """A committed save-like DBPF fixture must expose expected resource categories."""
+    save_items = [item for item in _manifest()["items"] if item["kind"] == "save"]
+    if not save_items:
+        pytest.fail("Real corpus must declare at least one save fixture")
+
+    checked = 0
+    for item in save_items:
+        save_path = _fixture_path(item)
+        if not save_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed save fixture is missing: {save_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        save_data = SaveScanner().scan_save_file(save_path)
+
+        assert {
+            "save_name": save_data.save_name,
+            "total_resources": save_data.total_resources,
+            "cas_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.cas_resources)
+            ],
+            "build_buy_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.build_buy_resources)
+            ],
+            "other_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.other_resources)
+            ],
+        } == golden
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared save fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_tray_fixture_matches_golden() -> None:
+    """A committed Tray fixture group must scan to the expected stable item shape."""
+    tray_items = [item for item in _manifest()["items"] if item["kind"] == "tray"]
+    if not tray_items:
+        pytest.fail("Real corpus must declare at least one Tray fixture")
+
+    checked = 0
+    for item in tray_items:
+        tray_path = _fixture_path(item)
+        if not tray_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed Tray fixture is missing: {tray_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        scanned_items = TrayScanner().scan_directory(tray_path)
+
+        assert [
+            {
+                "name": tray_item.name,
+                "type": tray_item.type,
+                "file_count": len(tray_item.files),
+                "files": sorted(path.name for path in tray_item.files),
+                "size": tray_item.size,
+            }
+            for tray_item in scanned_items
+        ] == golden["items"]
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared Tray fixtures are local-only or not installed")
