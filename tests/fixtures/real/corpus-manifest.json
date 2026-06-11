@@ -2,6 +2,17 @@
   "schema_version": 1,
   "items": [
     {
+      "id": "s4tk_minimal_buff_tuning",
+      "kind": "package",
+      "path": "packages/s4tk_minimal_buff_tuning.package",
+      "roles": ["tuning_mod"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned fixture XML generated into DBPF with @s4tk/models 0.6.14",
+      "source_url": "repo://tests/fixtures/real/source/s4tk_minimal_buff_tuning.xml",
+      "golden": "golden/s4tk_minimal_buff_tuning.json",
+      "notes": "Tiny redistributable package generated with S4TK from the committed XML source."
+    },
+    {
       "id": "local_tuning_mod",
       "kind": "package",
       "path": "packages/local_tuning_mod.package",

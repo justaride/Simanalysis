@@ -23,6 +23,21 @@ against the parser:
 The first required real package role is `tuning_mod`; it exists to prevent the
 scanner from ever proving tuning extraction only against generated fixtures.
 
+## Committed Redistributable Fixture
+
+`packages/s4tk_minimal_buff_tuning.package` is a self-owned, MIT-licensed test
+package generated from `source/s4tk_minimal_buff_tuning.xml` with
+`@s4tk/models` 0.6.14. It contains one Buff tuning resource and exists so CI can
+prove real DBPF parsing and tuning extraction without relying on third-party CC
+redistribution rights.
+
+To regenerate it:
+
+```bash
+NODE_PATH=/path/to/node_modules \
+  node tests/fixtures/real/source/build_s4tk_minimal_buff_tuning.cjs
+```
+
 ## Local Corpus Setup
 
 Use the builder with an explicit source override for each local-only manifest

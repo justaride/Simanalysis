@@ -71,9 +71,13 @@ def test_real_package_goldens_match_available_files() -> None:
     for item in package_items:
         package_path = _fixture_path(item)
         if not package_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed real package fixture is missing: {package_path}")
             continue
 
         golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
         with golden_path.open(encoding="utf-8") as handle:
             golden = json.load(handle)
 
@@ -107,11 +111,24 @@ def test_real_tuning_package_extracts_nonzero_tunings() -> None:
     for item in tuning_items:
         package_path = _fixture_path(item)
         if not package_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed tuning package fixture is missing: {package_path}")
             continue
 
         mod = ModScanner(parse_tunings=True, calculate_hashes=False).scan_file(package_path)
         assert mod is not None
         assert mod.tunings, f"{item['id']} extracted zero tunings"
+        golden_path = _golden_path(item)
+        if golden_path.exists():
+            golden = json.loads(golden_path.read_text(encoding="utf-8"))
+            assert [
+                {
+                    "instance_id": tuning.instance_id,
+                    "tuning_class": tuning.tuning_class,
+                    "tuning_name": tuning.tuning_name,
+                }
+                for tuning in mod.tunings
+            ] == golden["tunings"]
         return
 
     pytest.skip("Declared real tuning package is local-only or not installed")

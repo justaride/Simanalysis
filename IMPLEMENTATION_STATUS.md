@@ -24,15 +24,17 @@ T0.1 is now verified locally:
 
 T0.2 is started, not complete:
 - Added `pytest -m real` and `pytest -m synthetic` markers.
-- Added `tests/fixtures/real/corpus-manifest.json` and a documented local-only
-  tuning fixture slot.
+- Added `tests/fixtures/real/corpus-manifest.json`, a redistributable
+  S4TK-generated Buff tuning package, its source XML, and parser-derived golden
+  sidecar.
+- Added a documented local-only tuning fixture slot for non-redistributable
+  real-world packages.
 - Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
   chosen local files into the git-ignored `tests/fixtures/local/` root and
   writes parser-derived package goldens.
-- Local verification on this branch populated the local-only slot from a
-  real tuning-bearing package and passed the real marker suite. The next T0.2
-  step is to add legally redistributable committed fixtures or keep CI on the
-  manifest-only contract until provenance is solved.
+- Local verification on this branch passed the real marker suite with only
+  committed fixtures present. The next T0.2 step is to broaden the corpus to
+  script/log/save/tray examples and wire CI to run `pytest -m real`.
 
 ---
 

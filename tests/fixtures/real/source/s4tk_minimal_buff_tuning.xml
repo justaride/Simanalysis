@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<I c="Buff" i="buff_fixture" m="buffs.buff" s="98765">
+  <T n="mood_weight">10</T>
+</I>
