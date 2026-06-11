@@ -22,7 +22,7 @@ T0.1 is now verified locally:
 - Verification: `pytest -q` passed with 376 tests; Ruff, formatting, MyPy,
   web build, and Cargo check passed locally on this branch.
 
-T0.2 is started, not complete:
+T0.2 committed-corpus coverage is implemented:
 - Added `pytest -m real` and `pytest -m synthetic` markers.
 - Added `tests/fixtures/real/corpus-manifest.json`, a redistributable
   S4TK-generated Buff tuning package, its source XML, and parser-derived golden
@@ -42,8 +42,8 @@ T0.2 is started, not complete:
 - Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
 - Local verification on this branch passed the real marker suite with only
   committed fixtures present. T0.2 now covers package, script, log, save, and
-  tray fixture families; the remaining step is to decide whether additional
-  local-only real-world exemplars are needed before T0.3 status consolidation.
+  tray fixture families. Additional local-only real-world exemplars can still be
+  added later, but they are no longer required for the committed CI gate.
 
 ---
 
