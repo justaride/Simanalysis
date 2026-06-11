@@ -65,6 +65,18 @@ Core units:
 
 The first implementation should not require the inventory database at apply time. The cleanup plan is the evidence contract; the live filesystem is checked only to verify that each selected source still exists and still matches the evidence recorded in the plan.
 
+## Cleanup Plan Mapping
+
+Cleanup Planner v1 stores action rows under each finding. Operating Table staging should flatten those findings into manifest actions while preserving the parent finding context:
+
+- `action_id`, `kind`, `source_relative_path`, `proposed_destination`, and `reason` come from the selected action.
+- `finding_id` comes from the parent finding.
+- `expected.sha256` and `expected.size` come from the parent finding evidence.
+- For exact duplicates, the parent finding evidence applies to every action in that duplicate group; the staged action should also preserve `keep_candidate` when present.
+- For single-file review findings, parent evidence must name the same path as the action's `source_relative_path`.
+
+If a selected action cannot be tied back to exactly one parent finding, staging fails before writing a manifest.
+
 ## Manifest Location
 
 Manifests live inside the selected Sims 4 folder under a Simanalysis-owned directory:
@@ -156,7 +168,8 @@ It must:
 - reject action kinds outside Cleanup Planner v1 review kinds
 - resolve every source relative path under `<sims4_dir>/Mods`
 - resolve every proposed destination under `<sims4_dir>/_Simanalysis_Cleanup`
-- reject source or destination paths containing symlinked path segments
+- reject source paths containing symlinked path segments
+- reject destination paths whose existing ancestor chain contains symlinked path segments
 - record expected `sha256` and `size` when the plan evidence contains them
 - write the manifest atomically before any apply command can run
 
@@ -176,17 +189,19 @@ Before moving, it must:
 - verify each destination does not exist
 - verify every source remains under `Mods`
 - verify every destination remains under `_Simanalysis_Cleanup`
+- preflight every pending action before the first move, so predictable blockers do not create partial operations
 
 During apply:
 
 1. Mark the manifest `applying`.
-2. For each action, write `moving` before calling `shutil.move`.
-3. Move the source file to the destination, creating only the destination parent directories needed for selected actions.
-4. Mark the action `moved` immediately after a successful move.
-5. Save the manifest after every status transition.
-6. Mark the manifest `applied` only when all actions are moved.
+2. Re-run the same preflight checks immediately before each individual move because the filesystem can change after the initial preflight.
+3. For each action, write `moving` before calling `shutil.move`.
+4. Move the source file to the destination, creating only the destination parent directories needed for selected actions.
+5. Mark the action `moved` immediately after a successful move.
+6. Save the manifest after every status transition.
+7. Mark the manifest `applied` only when all actions are moved.
 
-If a move fails after earlier actions moved, the manifest status becomes `partial`, the blocked action records its error, and restore can use the manifest to undo moved actions.
+If initial preflight fails, no source file moves. If a later per-action check or move fails after earlier actions moved, the manifest status becomes `partial`, the blocked action records its error, and restore can use the manifest to undo moved actions.
 
 ## Restore Rules
 
@@ -197,7 +212,7 @@ Before restoring, it must:
 - run the Sims process guard
 - reject restore destination collisions at original source paths
 - reject missing quarantine sources unless the action status shows the original source already exists and the move never completed
-- reject source or destination symlinks
+- reject source paths and existing destination ancestors that contain symlinked path segments
 - use only manifest paths, not a fresh scan or regenerated cleanup plan
 
 During restore:
@@ -277,7 +292,7 @@ Language should stay conservative: `stage`, `apply`, `restore`, `review`, and `q
 - Refuse unsupported plan versions and malformed plan files.
 - Refuse source paths outside `Mods`.
 - Refuse destinations outside `_Simanalysis_Cleanup`.
-- Refuse symlinked source and destination paths.
+- Refuse symlinked sources and destination paths whose existing ancestors are symlinks.
 - Apply writes the manifest before moving and updates action status after move.
 - Apply moves selected files only and never moves unselected cleanup-plan actions.
 - Apply refuses while The Sims 4 process guard reports running.
