@@ -44,6 +44,16 @@ advice block, traceback shape, and mixed Windows/macOS mod paths while replacing
 usernames, creator names, and third-party package paths with generic
 placeholders.
 
+`scripts/minimal_probe.ts4script` is a deterministic ZIP archive built from
+`source/ts4script_probe/`. It keeps a committed script-mod fixture in the corpus
+without relying on third-party code redistribution.
+
+To regenerate it:
+
+```bash
+python tests/fixtures/real/source/build_minimal_probe_ts4script.py
+```
+
 ## Local Corpus Setup
 
 Use the builder with an explicit source override for each local-only manifest

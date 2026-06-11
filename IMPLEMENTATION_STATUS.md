@@ -30,6 +30,8 @@ T0.2 is started, not complete:
 - Added a sanitized BetterExceptions-style `lastException` log fixture and
   golden sidecar that exercise the script-exception parser against redacted
   real-world XML structure.
+- Added a deterministic committed `.ts4script` fixture and golden sidecar that
+  exercise metadata, module, hook, import, and scanner dependency extraction.
 - Added a documented local-only tuning fixture slot for non-redistributable
   real-world packages.
 - Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
@@ -38,7 +40,7 @@ T0.2 is started, not complete:
 - Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
 - Local verification on this branch passed the real marker suite with only
   committed fixtures present. The next T0.2 step is to broaden the corpus to
-  script/save/tray examples.
+  save/tray examples.
 
 ---
 

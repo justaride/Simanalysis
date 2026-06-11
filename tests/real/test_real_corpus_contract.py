@@ -10,6 +10,7 @@ import pytest
 
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.exception_log import parse_exception_file
+from simanalysis.parsers.script import ScriptAnalyzer
 from simanalysis.scanners.mod_scanner import ModScanner
 
 REAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "real"
@@ -174,3 +175,56 @@ def test_real_last_exception_fixture_matches_golden() -> None:
 
     if checked == 0:
         pytest.skip("Declared lastException fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_ts4script_fixture_matches_golden() -> None:
+    """A committed .ts4script ZIP must parse to expected metadata and module data."""
+    script_items = [item for item in _manifest()["items"] if item["kind"] == "ts4script"]
+    if not script_items:
+        pytest.fail("Real corpus must declare at least one .ts4script fixture")
+
+    checked = 0
+    for item in script_items:
+        script_path = _fixture_path(item)
+        if not script_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed .ts4script fixture is missing: {script_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        analyzer = ScriptAnalyzer(script_path)
+        metadata = analyzer.metadata
+        modules = analyzer.list_modules()
+        mod = ModScanner(parse_scripts=True, calculate_hashes=False).scan_file(script_path)
+
+        assert {
+            "metadata": {
+                "name": metadata.name,
+                "version": metadata.version,
+                "author": metadata.author,
+                "requires": metadata.requires,
+            },
+            "modules": [
+                {
+                    "name": module.name,
+                    "imports": sorted(module.imports),
+                    "hooks": module.hooks,
+                    "complexity": module.complexity,
+                }
+                for module in modules
+            ],
+            "scanner": {
+                "type": mod.type.value if mod else None,
+                "script_count": len(mod.scripts) if mod else 0,
+                "requires": sorted(mod.requires) if mod else [],
+            },
+        } == golden
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared .ts4script fixtures are local-only or not installed")

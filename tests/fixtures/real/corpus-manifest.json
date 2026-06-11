@@ -33,6 +33,17 @@
       "source_url": "local-redacted://lastException_63914194296",
       "golden": "golden/sanitized_buildbuy_last_exception.json",
       "notes": "Sanitized from a local probe log; usernames and third-party mod paths are replaced with generic placeholders."
+    },
+    {
+      "id": "minimal_probe_ts4script",
+      "kind": "ts4script",
+      "path": "scripts/minimal_probe.ts4script",
+      "roles": ["script_mod", "hook_probe"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned Python fixture packed as a .ts4script ZIP archive",
+      "source_url": "repo://tests/fixtures/real/source/ts4script_probe",
+      "golden": "golden/minimal_probe_ts4script.json",
+      "notes": "Deterministic ZIP archive generated from committed Python and metadata sources."
     }
   ]
 }
