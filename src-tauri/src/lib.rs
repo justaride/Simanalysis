@@ -43,6 +43,8 @@ struct AnalysisOptions {
     db: Option<String>,
     #[serde(default)]
     export: bool,
+    #[serde(default)]
+    limit: Option<u32>,
 }
 fn default_true() -> bool {
     true
@@ -97,6 +99,18 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             }
             if opts.export {
                 args.push("--export".into());
+            }
+        }
+        "inventory-history" => {
+            args.push("inventory-history".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if let Some(limit) = opts.limit {
+                args.push("--limit".into());
+                args.push(limit.to_string());
             }
         }
         "doctor-scan" => {
@@ -682,6 +696,27 @@ mod tests {
                 "--db",
                 "/Sims/inventory.sqlite3",
                 "--export",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_inventory_history_args_with_db_and_limit() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            limit: Some(5),
+            ..Default::default()
+        };
+        let args = build_args("inventory-history", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-history",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--limit",
+                "5",
             ]
         );
     }

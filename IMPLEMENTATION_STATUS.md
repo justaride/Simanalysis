@@ -59,9 +59,10 @@ Implemented on this branch after the Phase 0 truth pass:
   moved, modified, and unchanged counts.
 - Latest snapshots can be exported as JSON-serializable dictionaries for
   support and regression fixtures.
+- Recent scan summaries can be queried newest-first through the inventory
+  history helper and bridge command.
 - The desktop bridge and Tauri sidecar argument builder now expose
-  `inventory-scan` with an optional `--db` override and optional `--export`
-  payload.
+  `inventory-scan` and `inventory-history` with optional `--db` routing.
 
 ## Current Product Reality
 

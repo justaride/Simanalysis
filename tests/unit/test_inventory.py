@@ -269,3 +269,40 @@ def test_inventory_scan_skips_symlinked_files_without_following_them(
         rows = conn.execute("SELECT relative_path FROM files ORDER BY relative_path").fetchall()
 
     assert [row[0] for row in rows] == ["Options.ini"]
+
+
+def test_inventory_history_returns_latest_scans_first_with_limit(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    options_path = sims4 / "Options.ini"
+    options_path.write_text("uiscale = 100", encoding="utf-8")
+
+    scanner = InventoryScanner(tmp_path / "inventory.sqlite3")
+    first = scanner.scan(sims4)
+    options_path.write_text("uiscale = 90", encoding="utf-8")
+    second = scanner.scan(sims4)
+
+    history = scanner.list_scan_history(sims4, limit=1)
+
+    assert history == [
+        {
+            "scan_id": second.scan_id,
+            "root_path": str(sims4.resolve()),
+            "started_at": history[0]["started_at"],
+            "completed_at": history[0]["completed_at"],
+            "status": "completed",
+            "files_total": 1,
+            "packages_total": 0,
+            "resources_total": 0,
+            "package_parse_errors": 0,
+            "added": 0,
+            "removed": 0,
+            "moved": 0,
+            "modified": 1,
+            "unchanged": 0,
+            "warnings": [],
+        }
+    ]
+
+    all_history = scanner.list_scan_history(sims4, limit=10)
+    assert [item["scan_id"] for item in all_history] == [second.scan_id, first.scan_id]

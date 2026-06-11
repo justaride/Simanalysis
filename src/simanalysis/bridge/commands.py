@@ -83,6 +83,22 @@ def inventory_scan(args: argparse.Namespace, emit: Emitter) -> None:
     emit.done()
 
 
+def inventory_history(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    scanner = InventoryScanner(db_path)
+
+    emit.start("inventory-history")
+    emit.result(
+        {
+            "root_path": str(path),
+            "db_path": str(db_path),
+            "scans": scanner.list_scan_history(path, limit=args.limit),
+        }
+    )
+    emit.done()
+
+
 def thumbnail(args: argparse.Namespace, emit: Emitter) -> None:
     import base64
 
@@ -348,6 +364,7 @@ DISPATCH = {
     "scan-tray": scan_tray,
     "analyze-save": analyze_save,
     "inventory-scan": inventory_scan,
+    "inventory-history": inventory_history,
     "thumbnail": thumbnail,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,

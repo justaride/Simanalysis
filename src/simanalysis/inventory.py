@@ -238,6 +238,42 @@ class InventoryScanner:
             "files": [_export_file_row(row) for row in files],
         }
 
+    def list_scan_history(self, root_path: Path | str, limit: int = 20) -> list[dict[str, object]]:
+        """Return recent scan summaries for a Sims 4 folder, newest first."""
+        if limit <= 0:
+            raise ValueError("Inventory history limit must be greater than zero")
+
+        root = Path(root_path).expanduser().resolve()
+        with self.store.connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT
+                    id AS scan_id,
+                    root_path,
+                    started_at,
+                    completed_at,
+                    status,
+                    files_total,
+                    packages_total,
+                    resources_total,
+                    package_parse_errors,
+                    added,
+                    removed,
+                    moved,
+                    modified,
+                    unchanged,
+                    warnings_json
+                FROM scans
+                WHERE root_path = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (str(root), limit),
+            ).fetchall()
+
+        return [_scan_history_row_to_dict(row) for row in rows]
+
 
 def default_inventory_db_path() -> Path:
     """Return the default Simanalysis-owned inventory database location."""
@@ -264,6 +300,26 @@ def _export_file_row(row: sqlite3.Row) -> dict[str, object]:
         "sha256": str(row["sha256"]),
         "change_status": str(row["change_status"]),
         "package": package,
+    }
+
+
+def _scan_history_row_to_dict(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "scan_id": int(row["scan_id"]),
+        "root_path": str(row["root_path"]),
+        "started_at": str(row["started_at"]),
+        "completed_at": row["completed_at"],
+        "status": str(row["status"]),
+        "files_total": int(row["files_total"]),
+        "packages_total": int(row["packages_total"]),
+        "resources_total": int(row["resources_total"]),
+        "package_parse_errors": int(row["package_parse_errors"]),
+        "added": int(row["added"]),
+        "removed": int(row["removed"]),
+        "moved": int(row["moved"]),
+        "modified": int(row["modified"]),
+        "unchanged": int(row["unchanged"]),
+        "warnings": json.loads(str(row["warnings_json"])),
     }
 
 

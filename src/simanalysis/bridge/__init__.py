@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_inventory.add_argument("--db", default=None)
     p_inventory.add_argument("--export", action="store_true")
 
+    p_inventory_history = sub.add_parser("inventory-history")
+    p_inventory_history.add_argument("path")
+    p_inventory_history.add_argument("--db", default=None)
+    p_inventory_history.add_argument("--limit", type=int, default=20)
+
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 

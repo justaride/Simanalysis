@@ -121,6 +121,35 @@ def test_inventory_scan_records_to_db_and_emits_snapshot(tmp_path):
     assert db_path.exists()
 
 
+def test_inventory_history_emits_latest_scans(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    options = sims4 / "Options.ini"
+    options.write_text("uiscale = 100", encoding="utf-8")
+    db_path = tmp_path / "inventory.sqlite3"
+
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+    options.write_text("uiscale = 90", encoding="utf-8")
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), limit=1)
+    commands.inventory_history(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["root_path"] == str(sims4.resolve())
+    assert len(result["scans"]) == 1
+    assert result["scans"][0]["modified"] == 1
+
+
 def test_thumbnail_found(monkeypatch, tmp_path):
     f = tmp_path / "m.package"
     f.write_bytes(b"x")
