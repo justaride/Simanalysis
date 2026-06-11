@@ -13,9 +13,11 @@ reports.
 - `../IMPLEMENTATION_ROADMAP.md` - product direction and development tracks.
 - `../CHANGELOG.md` - release-oriented change log.
 
-Current branch note: the read-only SQLite inventory ledger has begun in
-`src/simanalysis/inventory.py`; the bridge exposes `inventory-scan`, and UI
-exposure is still pending.
+Current branch note: the read-only SQLite inventory ledger now records scan
+history plus per-file change events in `src/simanalysis/inventory.py`; the
+bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
+`inventory-file-events`. The visual inventory route remains pending design
+approval.
 
 ## Historical Status Snapshots
 

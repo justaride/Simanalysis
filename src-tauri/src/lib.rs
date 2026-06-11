@@ -45,6 +45,8 @@ struct AnalysisOptions {
     export: bool,
     #[serde(default)]
     limit: Option<u32>,
+    #[serde(default)]
+    include_unchanged: bool,
 }
 fn default_true() -> bool {
     true
@@ -111,6 +113,17 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             if let Some(limit) = opts.limit {
                 args.push("--limit".into());
                 args.push(limit.to_string());
+            }
+        }
+        "inventory-file-events" => {
+            args.push("inventory-file-events".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if opts.include_unchanged {
+                args.push("--include-unchanged".into());
             }
         }
         "doctor-scan" => {
@@ -717,6 +730,26 @@ mod tests {
                 "/Sims/inventory.sqlite3",
                 "--limit",
                 "5",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_inventory_file_events_args_with_db_and_include_unchanged() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            include_unchanged: true,
+            ..Default::default()
+        };
+        let args = build_args("inventory-file-events", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-file-events",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--include-unchanged",
             ]
         );
     }

@@ -130,6 +130,18 @@ class InventoryScanner:
                         changes.status_by_relative_path[fingerprint.relative_path],
                     ),
                 )
+                _record_file_event(
+                    conn,
+                    scan_id,
+                    file_id,
+                    fingerprint.relative_path,
+                    changes.status_by_relative_path[fingerprint.relative_path],
+                    fingerprint.size,
+                    fingerprint.sha256,
+                    previous_relative_path=changes.moved_destination_sources.get(
+                        fingerprint.relative_path
+                    ),
+                )
 
                 if fingerprint.extension == ".package":
                     packages_total += 1
@@ -159,6 +171,7 @@ class InventoryScanner:
                 unchanged=changes.unchanged,
                 warnings=warnings,
             )
+            _record_absent_file_events(conn, scan_id, root, changes)
             _mark_removed_files(conn, root, changes.removed_relative_paths)
             _mark_moved_source_files(conn, root, changes.moved_source_relative_paths)
             _complete_scan(conn, summary)
@@ -274,6 +287,66 @@ class InventoryScanner:
 
         return [_scan_history_row_to_dict(row) for row in rows]
 
+    def latest_file_events(
+        self,
+        root_path: Path | str,
+        *,
+        include_unchanged: bool = False,
+    ) -> dict[str, object]:
+        """Return per-file events from the latest inventory scan."""
+        root = Path(root_path).expanduser().resolve()
+        with self.store.connect() as conn:
+            conn.row_factory = sqlite3.Row
+            scan = conn.execute(
+                """
+                SELECT
+                    id AS scan_id,
+                    root_path,
+                    added,
+                    removed,
+                    moved,
+                    modified,
+                    unchanged
+                FROM scans
+                WHERE root_path = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (str(root),),
+            ).fetchone()
+            if scan is None:
+                raise ValueError(f"No inventory scan recorded for: {root}")
+
+            status_filter = "" if include_unchanged else "AND change_status != 'unchanged'"
+            events = conn.execute(
+                f"""
+                SELECT
+                    relative_path,
+                    previous_relative_path,
+                    change_status,
+                    size,
+                    sha256
+                FROM file_events
+                WHERE scan_id = ?
+                {status_filter}
+                ORDER BY relative_path, change_status
+                """,
+                (int(scan["scan_id"]),),
+            ).fetchall()
+
+        return {
+            "scan_id": int(scan["scan_id"]),
+            "root_path": str(scan["root_path"]),
+            "summary": {
+                "added": int(scan["added"]),
+                "removed": int(scan["removed"]),
+                "moved": int(scan["moved"]),
+                "modified": int(scan["modified"]),
+                "unchanged": int(scan["unchanged"]),
+            },
+            "events": [_file_event_row_to_dict(row) for row in events],
+        }
+
 
 def default_inventory_db_path() -> Path:
     """Return the default Simanalysis-owned inventory database location."""
@@ -320,6 +393,16 @@ def _scan_history_row_to_dict(row: sqlite3.Row) -> dict[str, object]:
         "modified": int(row["modified"]),
         "unchanged": int(row["unchanged"]),
         "warnings": json.loads(str(row["warnings_json"])),
+    }
+
+
+def _file_event_row_to_dict(row: sqlite3.Row) -> dict[str, object]:
+    return {
+        "relative_path": str(row["relative_path"]),
+        "previous_relative_path": row["previous_relative_path"],
+        "change_status": str(row["change_status"]),
+        "size": int(row["size"]),
+        "sha256": str(row["sha256"]),
     }
 
 
@@ -374,6 +457,8 @@ class _ChangeSummary:
     status_by_relative_path: dict[str, str]
     removed_relative_paths: set[str]
     moved_source_relative_paths: set[str]
+    moved_destination_sources: dict[str, str]
+    previous_by_relative_path: dict[str, _SnapshotFingerprint]
     added: int
     removed: int
     moved: int
@@ -426,6 +511,8 @@ def _classify_changes(
             status_by_relative_path={fingerprint.relative_path: "added" for fingerprint in current},
             removed_relative_paths=set(),
             moved_source_relative_paths=set(),
+            moved_destination_sources={},
+            previous_by_relative_path=previous,
             added=len(current),
             removed=0,
             moved=0,
@@ -456,6 +543,7 @@ def _classify_changes(
         removed_by_hash.setdefault(previous[relative_path].sha256, []).append(relative_path)
 
     moved_sources: set[str] = set()
+    moved_destination_sources: dict[str, str] = {}
     moved = 0
     added = 0
     for fingerprint in added_candidates:
@@ -467,6 +555,7 @@ def _classify_changes(
         else:
             status_by_relative_path[fingerprint.relative_path] = "moved"
             moved_sources.add(old_path)
+            moved_destination_sources[fingerprint.relative_path] = old_path
             moved += 1
 
     removed_paths = removed_candidates.difference(moved_sources)
@@ -474,6 +563,8 @@ def _classify_changes(
         status_by_relative_path=status_by_relative_path,
         removed_relative_paths=removed_paths,
         moved_source_relative_paths=moved_sources,
+        moved_destination_sources=moved_destination_sources,
+        previous_by_relative_path=previous,
         added=added,
         removed=len(removed_paths),
         moved=moved,
@@ -589,6 +680,92 @@ def _mark_moved_source_files(
             """,
             (str(root), relative_path),
         )
+
+
+def _record_absent_file_events(
+    conn: sqlite3.Connection,
+    scan_id: int,
+    root: Path,
+    changes: _ChangeSummary,
+) -> None:
+    moved_source_destinations = {
+        source: destination for destination, source in changes.moved_destination_sources.items()
+    }
+    for relative_path in sorted(changes.moved_source_relative_paths):
+        old = changes.previous_by_relative_path[relative_path]
+        _record_file_event(
+            conn,
+            scan_id,
+            _file_id_for_relative_path(conn, root, relative_path),
+            relative_path,
+            "moved_source",
+            old.size,
+            old.sha256,
+            previous_relative_path=moved_source_destinations[relative_path],
+        )
+
+    for relative_path in sorted(changes.removed_relative_paths):
+        old = changes.previous_by_relative_path[relative_path]
+        _record_file_event(
+            conn,
+            scan_id,
+            _file_id_for_relative_path(conn, root, relative_path),
+            relative_path,
+            "removed",
+            old.size,
+            old.sha256,
+        )
+
+
+def _file_id_for_relative_path(
+    conn: sqlite3.Connection,
+    root: Path,
+    relative_path: str,
+) -> int | None:
+    row = conn.execute(
+        """
+        SELECT id
+        FROM files
+        WHERE root_path = ? AND relative_path = ?
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        (str(root), relative_path),
+    ).fetchone()
+    if row is None:
+        return None
+    return int(row[0])
+
+
+def _record_file_event(
+    conn: sqlite3.Connection,
+    scan_id: int,
+    file_id: int | None,
+    relative_path: str,
+    change_status: str,
+    size: int,
+    sha256: str,
+    *,
+    previous_relative_path: str | None = None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO file_events (
+            scan_id, file_id, relative_path, previous_relative_path, change_status,
+            size, sha256
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            scan_id,
+            file_id,
+            relative_path,
+            previous_relative_path,
+            change_status,
+            size,
+            sha256,
+        ),
+    )
 
 
 def _record_package(
@@ -794,6 +971,20 @@ CREATE TABLE IF NOT EXISTS snapshot_files (
     change_status TEXT NOT NULL,
     PRIMARY KEY (snapshot_id, file_id)
 );
+
+CREATE TABLE IF NOT EXISTS file_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    scan_id INTEGER NOT NULL REFERENCES scans(id) ON DELETE CASCADE,
+    file_id INTEGER REFERENCES files(id) ON DELETE SET NULL,
+    relative_path TEXT NOT NULL,
+    previous_relative_path TEXT,
+    change_status TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    sha256 TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_file_events_scan_status
+ON file_events(scan_id, change_status);
 
 CREATE TABLE IF NOT EXISTS event_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

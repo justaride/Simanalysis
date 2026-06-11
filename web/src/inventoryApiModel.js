@@ -21,3 +21,14 @@ export function inventoryHistoryOptions(options = {}) {
     }
     return result;
 }
+
+export function inventoryFileEventsOptions(options = {}) {
+    const result = {};
+    if (options.db) {
+        result.db = options.db;
+    }
+    if (options.includeUnchanged) {
+        result.includeUnchanged = true;
+    }
+    return result;
+}

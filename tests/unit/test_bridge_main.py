@@ -119,6 +119,39 @@ def test_inventory_history_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_inventory_file_events_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+
+    def fake_inventory_file_events(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["include_unchanged"] = args.include_unchanged
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "inventory-file-events", fake_inventory_file_events)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "inventory-file-events",
+            str(tmp_path),
+            "--db",
+            str(db_path),
+            "--include-unchanged",
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "db": str(db_path),
+        "include_unchanged": True,
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_treatment_plan_command_is_dispatched_with_save(monkeypatch, tmp_path):
     called = {}
 

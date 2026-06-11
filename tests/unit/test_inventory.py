@@ -306,3 +306,51 @@ def test_inventory_history_returns_latest_scans_first_with_limit(tmp_path: Path)
 
     all_history = scanner.list_scan_history(sims4, limit=10)
     assert [item["scan_id"] for item in all_history] == [second.scan_id, first.scan_id]
+
+
+def test_inventory_latest_file_events_include_removed_and_moved_sources(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    moving = mods / "moving.package"
+    removed = sims4 / "old.txt"
+    modified = sims4 / "Options.ini"
+    _create_package(moving)
+    removed.write_text("old", encoding="utf-8")
+    modified.write_text("uiscale = 100", encoding="utf-8")
+
+    scanner = InventoryScanner(tmp_path / "inventory.sqlite3")
+    scanner.scan(sims4)
+
+    moved_to = mods / "Nested" / "moving.package"
+    moved_to.parent.mkdir()
+    moving.rename(moved_to)
+    removed.unlink()
+    modified.write_text("uiscale = 90", encoding="utf-8")
+    added = sims4 / "new.txt"
+    added.write_text("new", encoding="utf-8")
+
+    summary = scanner.scan(sims4)
+    changes = scanner.latest_file_events(sims4, include_unchanged=False)
+
+    assert changes["scan_id"] == summary.scan_id
+    assert changes["root_path"] == str(sims4.resolve())
+    assert changes["summary"] == {
+        "added": 1,
+        "removed": 1,
+        "moved": 1,
+        "modified": 1,
+        "unchanged": 0,
+    }
+    assert [
+        (event["relative_path"], event["change_status"], event["previous_relative_path"])
+        for event in changes["events"]
+    ] == [
+        ("Mods/Nested/moving.package", "moved", "Mods/moving.package"),
+        ("Mods/moving.package", "moved_source", "Mods/Nested/moving.package"),
+        ("Options.ini", "modified", None),
+        ("new.txt", "added", None),
+        ("old.txt", "removed", None),
+    ]
