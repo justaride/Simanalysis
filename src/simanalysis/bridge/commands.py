@@ -15,6 +15,7 @@ from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.bridge.protocol import Emitter
+from simanalysis.inventory import InventoryScanner, default_inventory_db_path
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 from simanalysis.services.thumbnail_service import ThumbnailService
@@ -65,6 +66,20 @@ def analyze_save(args: argparse.Namespace, emit: Emitter) -> None:
         progress_callback=lambda stage, c, t: emit.progress(c, t, stage=stage),
     )
     emit.result(serialization.save_result_to_dict(analyzer, result))
+    emit.done()
+
+
+def inventory_scan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    scanner = InventoryScanner(db_path)
+
+    emit.start("inventory-scan")
+    result = scanner.scan(path).to_dict()
+    result["db_path"] = str(db_path)
+    if args.export:
+        result["snapshot"] = scanner.export_latest_snapshot(path)
+    emit.result(result)
     emit.done()
 
 
@@ -332,6 +347,7 @@ DISPATCH = {
     "scan-mods": scan_mods,
     "scan-tray": scan_tray,
     "analyze-save": analyze_save,
+    "inventory-scan": inventory_scan,
     "thumbnail": thumbnail,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,

@@ -102,6 +102,25 @@ def test_analyze_save_rejects_missing_save_file(tmp_path):
         commands.analyze_save(args, Emitter(io.StringIO()))
 
 
+def test_inventory_scan_records_to_db_and_emits_snapshot(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    (sims4 / "Options.ini").write_text("uiscale = 100", encoding="utf-8")
+    db_path = tmp_path / "inventory.sqlite3"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=True)
+    commands.inventory_scan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["files_total"] == 1
+    assert result["added"] == 1
+    assert result["snapshot"]["files"][0]["relative_path"] == "Options.ini"
+    assert db_path.exists()
+
+
 def test_thumbnail_found(monkeypatch, tmp_path):
     f = tmp_path / "m.package"
     f.write_bytes(b"x")

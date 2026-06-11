@@ -14,7 +14,8 @@ reports.
 - `../CHANGELOG.md` - release-oriented change log.
 
 Current branch note: the read-only SQLite inventory ledger has begun in
-`src/simanalysis/inventory.py`; bridge and UI exposure are still pending.
+`src/simanalysis/inventory.py`; the bridge exposes `inventory-scan`, and UI
+exposure is still pending.
 
 ## Historical Status Snapshots
 

@@ -27,6 +27,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_save.add_argument("save_path")
     p_save.add_argument("mods_path")
 
+    p_inventory = sub.add_parser("inventory-scan")
+    p_inventory.add_argument("path")
+    p_inventory.add_argument("--db", default=None)
+    p_inventory.add_argument("--export", action="store_true")
+
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 

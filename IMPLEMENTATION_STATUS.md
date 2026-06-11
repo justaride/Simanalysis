@@ -57,6 +57,8 @@ Implemented on this branch after the Phase 0 truth pass:
   moved, modified, and unchanged counts.
 - Latest snapshots can be exported as JSON-serializable dictionaries for
   support and regression fixtures.
+- The desktop bridge now exposes `inventory-scan` with an optional `--db`
+  override and optional `--export` payload.
 
 ## Current Product Reality
 
@@ -66,10 +68,9 @@ detection, crash/UI autopsy flows, Treatment/Auto-Bisect, and Live Monitoring
 surfaces from earlier shipped slices.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including desktop bridge/UI exposure
-for inventory history, profile-aware state, Patch Day Shield, general reversible
-action engine, Cache Doctor, update staging, and broader real-world corpus
-coverage.
+roadmap foundations are still incomplete, including UI exposure for inventory
+history, profile-aware state, Patch Day Shield, general reversible action
+engine, Cache Doctor, update staging, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 
@@ -87,6 +88,5 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 
 ## Next Work
 
-Continue the Ledger/local-memory layer by exposing inventory scans through the
-desktop bridge, then add a quiet UI summary for scan history and
-changed-since-last-scan.
+Continue the Ledger/local-memory layer by adding a quiet desktop UI summary for
+scan history and changed-since-last-scan.
