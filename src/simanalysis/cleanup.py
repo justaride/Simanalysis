@@ -294,11 +294,16 @@ def _destination(plan_id: str, bucket: str, relative_path: str) -> str:
     return f"_Simanalysis_Cleanup/{plan_id}/{bucket}/{relative_path}"
 
 
+def _action_count(finding: dict[str, object]) -> int:
+    actions = finding.get("actions")
+    return len(actions) if isinstance(actions, list) else 0
+
+
 def _summary(files: list[CleanupFile], findings: list[dict[str, object]]) -> dict[str, int]:
-    counts = {
+    counts: dict[str, int] = {
         "files_considered": len(files),
         "finding_count": len(findings),
-        "action_count": sum(len(finding["actions"]) for finding in findings),
+        "action_count": sum(_action_count(finding) for finding in findings),
         "duplicate_groups": 0,
         "archives": 0,
         "duplicate_resource_cfg": 0,

@@ -70,6 +70,19 @@ Implemented on this branch after the Phase 0 truth pass:
   `inventoryHistory` plus `inventoryFileEvents`; the visual Inventory route is
   still pending design approval.
 
+## Cleanup Planner Progress
+
+Implemented on this branch after the inventory ledger:
+
+- Added `src/simanalysis/cleanup.py`, a read-only planner that consumes the
+  latest inventory snapshot.
+- The planner is scoped to `Mods` files and reports exact duplicates, inactive
+  archives, nested `Resource.cfg`, support files, and misplaced Tray files.
+- Plans include proposed future destinations but do not create
+  `_Simanalysis_Cleanup`, move files, or write Sims-folder manifests.
+- The desktop bridge and Tauri/web API plumbing expose `cleanup-plan`; the
+  visual cleanup route remains future work.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -79,8 +92,9 @@ surfaces from earlier shipped slices.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
-profile-aware state, Patch Day Shield, general reversible action engine, Cache
-Doctor, update staging, and broader real-world corpus coverage.
+visual cleanup route, profile-aware state, Patch Day Shield, general reversible
+action engine, Cache Doctor, update staging, and broader real-world corpus
+coverage.
 
 ## Current Verification Gates
 
@@ -98,7 +112,7 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 
 ## Next Work
 
-The visual Inventory route remains pending design approval. The next non-visual
-slice is Track B Cleanup Planner v1: consume the inventory database and emit a
-read-only cleanup plan for exact duplicates, inactive archives, misplaced files,
-and duplicate `Resource.cfg` files without moving anything.
+The visual Inventory route and visual Cleanup route remain pending design
+approval. The next non-visual slice should stay ledger-backed and reversible:
+turn review-only findings into an explicit journaled operating-table plan
+before any file moves are allowed.
