@@ -1,4 +1,9 @@
-# Simanalysis Technical Specification v2.1
+# Historical Snapshot: Simanalysis Technical Specification v2.1
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated technical specification and must not be treated as current
+> architecture or project status truth. See `../../../IMPLEMENTATION_ROADMAP.md`,
+> `../../../IMPLEMENTATION_STATUS.md`, and `../../STATUS.md`.
 **Derrick - The PhD in Simology and Complexity Theory**
 
 ## Document Control

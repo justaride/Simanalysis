@@ -39,7 +39,7 @@ Simanalysis/
 | File | Purpose | Edit Frequency |
 |------|---------|----------------|
 | `README.md` | Project overview and quick start | Often |
-| `TECHNICAL_SPECIFICATION.md` | Detailed technical design | Sometimes |
+| `docs/archive/status/TECHNICAL_SPECIFICATION_2025-12-21.md` | Historical technical design snapshot | Rarely |
 | `CONTRIBUTING.md` | Contribution guidelines | Rarely |
 | `CHANGELOG.md` | Version history | Every release |
 | `LICENSE` | MIT License | Never |

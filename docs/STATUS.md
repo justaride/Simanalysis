@@ -1,0 +1,42 @@
+# Simanalysis Status Index
+
+**Last consolidated:** 2026-06-11
+
+Use this index to avoid mixing current Phase 0 truth with older generated status
+reports.
+
+## Current Status Documents
+
+- `../IMPLEMENTATION_STATUS.md` - current implementation status and Phase 0
+  truth-pass summary.
+- `../DBPF_IMPLEMENTATION_STATUS.md` - current DBPF/parser status.
+- `../IMPLEMENTATION_ROADMAP.md` - product direction and development tracks.
+- `../CHANGELOG.md` - release-oriented change log.
+
+## Historical Status Snapshots
+
+These files are preserved for context only and are not current project truth:
+
+- `archive/status/CODE_REVIEW_RESPONSE_2025-review.md`
+- `archive/status/DBPF_ENHANCEMENT_SUMMARY_2025-10-24.md`
+- `archive/status/IMPLEMENTATION_STATUS_2025-12-21.md`
+- `archive/status/DBPF_IMPLEMENTATION_STATUS_2025-10-24.md`
+- `archive/status/REQUIREMENTS_VERIFICATION_2025-10-24.md`
+- `archive/status/REVIEW_CLARIFICATION_2025-10-22.md`
+- `archive/status/SETUP_SUMMARY_2025-10-21.md`
+- `archive/status/SPRINT_1_COMPLETION_SUMMARY_2025-10-21.md`
+- `archive/status/TECHNICAL_SPECIFICATION_2025-12-21.md`
+
+## Current Verification Contract
+
+The branch-level Python gates are:
+
+```bash
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/mypy src
+COVERAGE_FILE=/tmp/simanalysis-real.coverage .venv/bin/python -m pytest -m real --no-cov
+COVERAGE_FILE=/tmp/simanalysis-full.coverage .venv/bin/python -m pytest -q
+```
+
+Run web and Tauri checks before publishing changes that touch those surfaces.

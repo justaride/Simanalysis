@@ -1,4 +1,9 @@
-# DBPF Parser Enhancement Summary
+# Historical Snapshot: DBPF Parser Enhancement Summary
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated DBPF enhancement summary and must not be treated as current
+> parser truth. See `../../../DBPF_IMPLEMENTATION_STATUS.md` and
+> `../../STATUS.md`.
 
 **Date:** 2025-10-24
 **Task:** Build robust DBPF parser for The Sims 4 .package files

@@ -333,7 +333,7 @@ simanalysis/
 │   ├── exceptions.py       # Custom exceptions
 │   └── __init__.py
 │
-├── tests/                  # Test suite (175 tests, 93% coverage)
+├── tests/                  # Test suite; see docs/STATUS.md for current gates
 │   ├── unit/
 │   │   ├── analyzers/
 │   │   ├── detectors/
@@ -342,9 +342,9 @@ simanalysis/
 │   └── integration/
 │
 ├── docs/                   # Documentation
-│   ├── TECHNICAL_SPECIFICATION.md
-│   ├── IMPLEMENTATION_ROADMAP.md
-│   └── CONTRIBUTING.md
+│   ├── STATUS.md
+│   ├── DBPF_FORMAT.md
+│   └── archive/status/     # Historical generated reports
 │
 ├── pyproject.toml         # Package configuration
 ├── pytest.ini             # Test configuration
@@ -411,21 +411,26 @@ pytest
 
 ## 📚 Documentation
 
-- [Technical Specification](docs/TECHNICAL_SPECIFICATION.md) - Detailed architecture
-- [Implementation Roadmap](docs/IMPLEMENTATION_ROADMAP.md) - Development plan
-- [Project Structure](docs/PROJECT_STRUCTURE.md) - Code organization
+- [Current Status](docs/STATUS.md) - Current status index and verification contract
+- [Implementation Roadmap](IMPLEMENTATION_ROADMAP.md) - Development plan
+- [Project Structure](PROJECT_STRUCTURE.md) - Code organization
+- [DBPF Format Notes](docs/DBPF_FORMAT.md) - DBPF format notes and parser limits
 - [Contributing Guide](CONTRIBUTING.md) - How to contribute
 
 ---
 
 ## 🔮 Roadmap
 
-### Current Version (2.1.0)
+### Current Baseline
 - ✅ Complete file format parsing
 - ✅ Tuning and resource conflict detection
 - ✅ Performance metrics
 - ✅ Report generation
 - ✅ Modern React web interface with glass-morphism design
+- ✅ Phase 0 resource type truth pass and real fixture corpus gate
+
+See [Current Status](docs/STATUS.md) for the verified branch-level status and
+known limitations.
 
 ### Planned Features
 - 🔄 Mod compatibility database
