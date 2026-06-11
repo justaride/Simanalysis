@@ -13,6 +13,9 @@ reports.
 - `../IMPLEMENTATION_ROADMAP.md` - product direction and development tracks.
 - `../CHANGELOG.md` - release-oriented change log.
 
+Current branch note: the read-only SQLite inventory ledger has begun in
+`src/simanalysis/inventory.py`; bridge and UI exposure are still pending.
+
 ## Historical Status Snapshots
 
 These files are preserved for context only and are not current project truth:

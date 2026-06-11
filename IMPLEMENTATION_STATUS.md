@@ -43,6 +43,21 @@ Implemented on this branch:
 - Added a local-only corpus builder for non-redistributable real-world files.
 - Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
 
+## Ledger / Local Truth Progress
+
+Implemented on this branch after the Phase 0 truth pass:
+
+- Added `src/simanalysis/inventory.py`, a read-only SQLite inventory ledger.
+- The ledger initializes durable tables for scans, files, packages, resources,
+  snapshots, snapshot file rows, and event log entries.
+- Inventory scans record file identity, SHA-256, size, mtime, extension,
+  package parse status, package parse errors, and DBPF resource keys without
+  moving or deleting Sims files.
+- Repeat scans compare against the latest snapshot and report added, removed,
+  moved, modified, and unchanged counts.
+- Latest snapshots can be exported as JSON-serializable dictionaries for
+  support and regression fixtures.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -51,9 +66,10 @@ detection, crash/UI autopsy flows, Treatment/Auto-Bisect, and Live Monitoring
 surfaces from earlier shipped slices.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including persistent inventory,
-profile-aware state, Patch Day Shield, general reversible action engine,
-Cache Doctor, update staging, and broader real-world corpus coverage.
+roadmap foundations are still incomplete, including desktop bridge/UI exposure
+for inventory history, profile-aware state, Patch Day Shield, general reversible
+action engine, Cache Doctor, update staging, and broader real-world corpus
+coverage.
 
 ## Current Verification Gates
 
@@ -71,6 +87,6 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 
 ## Next Work
 
-The next plan step after this status consolidation is to continue from the
-June 11 workplan toward the Ledger/local-memory layer: persistent scan history,
-file identity, snapshots, and event logging, still read-only at first.
+Continue the Ledger/local-memory layer by exposing inventory scans through the
+desktop bridge, then add a quiet UI summary for scan history and
+changed-since-last-scan.
