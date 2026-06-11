@@ -47,6 +47,8 @@ struct AnalysisOptions {
     limit: Option<u32>,
     #[serde(default)]
     include_unchanged: bool,
+    #[serde(default)]
+    export_path: Option<String>,
 }
 fn default_true() -> bool {
     true
@@ -124,6 +126,18 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             }
             if opts.include_unchanged {
                 args.push("--include-unchanged".into());
+            }
+        }
+        "cleanup-plan" => {
+            args.push("cleanup-plan".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if let Some(export_path) = opts.export_path.as_deref() {
+                args.push("--export".into());
+                args.push(export_path.into());
             }
         }
         "doctor-scan" => {
@@ -750,6 +764,27 @@ mod tests {
                 "--db",
                 "/Sims/inventory.sqlite3",
                 "--include-unchanged",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_cleanup_plan_args_with_db_and_export() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            export_path: Some("/tmp/cleanup-plan.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("cleanup-plan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cleanup-plan",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--export",
+                "/tmp/cleanup-plan.json",
             ]
         );
     }
