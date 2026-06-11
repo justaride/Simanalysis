@@ -42,6 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_inventory_file_events.add_argument("--db", default=None)
     p_inventory_file_events.add_argument("--include-unchanged", action="store_true")
 
+    p_cleanup_plan = sub.add_parser("cleanup-plan")
+    p_cleanup_plan.add_argument("path")
+    p_cleanup_plan.add_argument("--db", default=None)
+    p_cleanup_plan.add_argument("--export", default=None)
+
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 

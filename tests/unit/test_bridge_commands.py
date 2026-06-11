@@ -182,6 +182,52 @@ def test_inventory_file_events_emits_latest_changes(tmp_path):
     ]
 
 
+def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (mods / "download.zip").write_bytes(b"archive")
+    db_path = tmp_path / "inventory.sqlite3"
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=None)
+    commands.cleanup_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["root_path"] == str(sims4.resolve())
+    assert result["db_path"] == str(db_path)
+    assert result["summary"]["archives"] == 1
+    assert not (sims4 / "_Simanalysis_Cleanup").exists()
+
+
+def test_cleanup_plan_command_exports_only_when_requested(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (mods / "download.zip").write_bytes(b"archive")
+    db_path = tmp_path / "inventory.sqlite3"
+    export_path = tmp_path / "cleanup-plan.json"
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=str(export_path))
+    commands.cleanup_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert export_path.exists()
+    assert json.loads(export_path.read_text(encoding="utf-8")) == result
+
+
 def test_thumbnail_found(monkeypatch, tmp_path):
     f = tmp_path / "m.package"
     f.write_bytes(b"x")

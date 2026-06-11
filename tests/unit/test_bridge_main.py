@@ -152,6 +152,41 @@ def test_inventory_file_events_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+    export_path = tmp_path / "cleanup.json"
+
+    def fake_cleanup_plan(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["export"] = args.export
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cleanup-plan", fake_cleanup_plan)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "cleanup-plan",
+            str(tmp_path),
+            "--db",
+            str(db_path),
+            "--export",
+            str(export_path),
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "db": str(db_path),
+        "export": str(export_path),
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_treatment_plan_command_is_dispatched_with_save(monkeypatch, tmp_path):
     called = {}
 
