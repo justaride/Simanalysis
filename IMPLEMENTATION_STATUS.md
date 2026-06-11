@@ -57,8 +57,9 @@ Implemented on this branch after the Phase 0 truth pass:
   moved, modified, and unchanged counts.
 - Latest snapshots can be exported as JSON-serializable dictionaries for
   support and regression fixtures.
-- The desktop bridge now exposes `inventory-scan` with an optional `--db`
-  override and optional `--export` payload.
+- The desktop bridge and Tauri sidecar argument builder now expose
+  `inventory-scan` with an optional `--db` override and optional `--export`
+  payload.
 
 ## Current Product Reality
 

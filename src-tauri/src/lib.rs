@@ -39,6 +39,10 @@ struct AnalysisOptions {
     outcome: Option<String>,
     #[serde(default)]
     step: Option<String>,
+    #[serde(default)]
+    db: Option<String>,
+    #[serde(default)]
+    export: bool,
 }
 fn default_true() -> bool {
     true
@@ -83,6 +87,17 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("analyze-save".into());
             args.push(path.into());
             args.push(mods.into());
+        }
+        "inventory-scan" => {
+            args.push("inventory-scan".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if opts.export {
+                args.push("--export".into());
+            }
         }
         "doctor-scan" => {
             args.push("doctor-scan".into());
@@ -649,6 +664,26 @@ mod tests {
         };
         let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
         assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_inventory_scan_args_with_db_and_export() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            export: true,
+            ..Default::default()
+        };
+        let args = build_args("inventory-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-scan",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--export",
+            ]
+        );
     }
 
     #[test]
