@@ -35,9 +35,10 @@ T0.2 is started, not complete:
 - Added `tests/fixtures/build_real_corpus.py`, which copies only explicitly
   chosen local files into the git-ignored `tests/fixtures/local/` root and
   writes parser-derived package goldens.
+- Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
 - Local verification on this branch passed the real marker suite with only
   committed fixtures present. The next T0.2 step is to broaden the corpus to
-  script/save/tray examples and wire CI to run `pytest -m real`.
+  script/save/tray examples.
 
 ---
 
