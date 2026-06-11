@@ -116,3 +116,8 @@ The visual Inventory route and visual Cleanup route remain pending design
 approval. The next non-visual slice should stay ledger-backed and reversible:
 turn review-only findings into an explicit journaled operating-table plan
 before any file moves are allowed.
+
+The draft design for that slice is
+`docs/superpowers/specs/2026-06-12-operating-table-v1-design.md`. It is
+currently a review gate, not an implementation plan: implementation should wait
+until the mutating-engine design is approved.

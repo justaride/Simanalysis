@@ -18,7 +18,10 @@ history plus per-file change events in `src/simanalysis/inventory.py`; the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings. Visual inventory and cleanup routes remain
-pending design approval.
+pending design approval. The next reversible-action slice has a draft Operating
+Table v1 design at
+`superpowers/specs/2026-06-12-operating-table-v1-design.md`; implementation is
+waiting on approval because it is the first general mutating engine.
 
 ## Historical Status Snapshots
 
