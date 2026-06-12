@@ -703,7 +703,7 @@ def test_restore_moves_file_back_from_manifest(tmp_path: Path) -> None:
     assert restored["actions"][0]["status"] == "restored"
 
 
-def test_restore_refuses_destination_collision_and_preserves_state(
+def test_restore_collision_remains_restorable_and_retry_succeeds(
     tmp_path: Path,
 ) -> None:
     table, manifest_path, source = _stage_manifest(tmp_path)
@@ -715,10 +715,37 @@ def test_restore_refuses_destination_collision_and_preserves_state(
         table.restore(manifest_path)
 
     saved = load_manifest(manifest_path)
-    assert saved["status"] == "blocked"
-    assert saved["actions"][0]["status"] == "blocked"
+    assert saved["status"] == "applied"
+    assert saved["actions"][0]["status"] == "moved"
     assert source.read_bytes() == b"collision"
     assert destination.read_bytes() == b"payload"
+
+    source.unlink()
+    restored = table.restore(manifest_path)
+
+    assert source.exists()
+    assert source.read_bytes() == b"payload"
+    assert not destination.exists()
+    assert restored["status"] == "restored"
+    assert restored["actions"][0]["status"] == "restored"
+
+
+def test_restore_preflights_later_destination_collision_before_any_move(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, package_source, archive_source = _stage_two_action_manifest(tmp_path)
+    applied = table.apply(manifest_path)
+    cleanup_sources = [Path(str(action["destination_path"])) for action in applied["actions"]]
+    package_source.write_bytes(b"collision")
+    before = _read_raw_manifest(manifest_path)
+
+    with pytest.raises(ValueError, match="Restore destination already exists"):
+        table.restore(manifest_path)
+
+    assert package_source.read_bytes() == b"collision"
+    assert not archive_source.exists()
+    assert all(path.exists() for path in cleanup_sources)
+    assert _read_raw_manifest(manifest_path) == before
 
 
 def test_restore_refuses_running_sims_before_mutation(
@@ -841,6 +868,22 @@ def test_restore_rejects_symlinked_mods_component_without_outside_write(
     assert not (outside / source.name).exists()
 
 
+def test_restore_rejects_tampered_cleanup_copy_before_mods_move(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    applied = table.apply(manifest_path)
+    cleanup_source = Path(str(applied["actions"][0]["destination_path"]))
+    cleanup_source.write_bytes(b"tampered")
+
+    with pytest.raises(ValueError, match="no longer matches cleanup plan evidence"):
+        table.restore(manifest_path)
+
+    assert not source.exists()
+    assert cleanup_source.exists()
+    assert cleanup_source.read_bytes() == b"tampered"
+
+
 def test_restore_rejects_destination_outside_sims_root_before_any_mutation(
     tmp_path: Path,
 ) -> None:
@@ -920,13 +963,42 @@ def test_restore_does_not_mark_action_blocked_when_persisting_after_move_fails(
             raise OSError("manifest write failed after restore")
         return original_save_manifest(manifest)
 
-    monkeypatch.setattr(operating_table, "_save_manifest", fail_after_physical_restore)
+    with monkeypatch.context() as restore_failure:
+        restore_failure.setattr(
+            operating_table,
+            "_save_manifest",
+            fail_after_physical_restore,
+        )
 
-    with pytest.raises(OSError, match="manifest write failed after restore"):
-        table.restore(manifest_path)
+        with pytest.raises(OSError, match="manifest write failed after restore"):
+            table.restore(manifest_path)
 
     assert source.exists()
     assert not cleanup_source.exists()
     saved = load_manifest(manifest_path)
     assert saved["status"] != "blocked"
     assert saved["actions"][0]["status"] != "blocked"
+
+    retried = table.restore(manifest_path)
+
+    assert source.exists()
+    assert source.read_bytes() == b"payload"
+    assert not cleanup_source.exists()
+    assert retried["status"] == "restored"
+    assert retried["actions"][0]["status"] == "restored"
+
+
+def test_restore_rejects_fresh_planned_manifest_before_any_mutation(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    manifest = load_manifest(manifest_path)
+    destination = Path(str(manifest["actions"][0]["destination_path"]))
+    before = _read_raw_manifest(manifest_path)
+
+    with pytest.raises(ValueError, match="cannot be restored from status: planned"):
+        table.restore(manifest_path)
+
+    assert source.exists()
+    assert not destination.exists()
+    assert _read_raw_manifest(manifest_path) == before

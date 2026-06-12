@@ -33,6 +33,7 @@ VALID_MANIFEST_STATUSES = {
     "restored",
 }
 RESTORABLE_ACTION_STATUSES = {"moving", "moved", "restore_pending", "restoring"}
+RESTORABLE_MANIFEST_STATUSES = {"applied", "partial", "restoring"}
 APPLICABLE_MANIFEST_STATUSES = {"planned", "partial"}
 APPLICABLE_ACTION_STATUSES = {"pending", "blocked"}
 VALID_ACTION_STATUSES = APPLICABLE_ACTION_STATUSES | {
@@ -175,22 +176,28 @@ class OperatingTable:
     def restore(self, manifest_path: Path | str) -> dict[str, Any]:
         assert_sims_not_running()
         manifest = load_manifest(manifest_path)
+        if manifest["status"] not in RESTORABLE_MANIFEST_STATUSES:
+            raise ValueError(
+                f"Cleanup operation cannot be restored from status: {manifest['status']}"
+            )
         actions = _validated_apply_actions(manifest)
         restorable = [
             action
             for action in reversed(actions)
             if action.get("status") in RESTORABLE_ACTION_STATUSES
         ]
-        _preflight_restore_actions(restorable)
+        _preflight_restore_actions(manifest, restorable)
 
         manifest["status"] = "restoring"
         _save_manifest(manifest)
 
         for action in restorable:
             move_completed = False
+            already_restored = False
             try:
                 restore_paths = _prepare_restore_action(manifest, action)
                 if restore_paths is None:
+                    already_restored = True
                     action["status"] = "restored"
                     action["error"] = None
                     _save_manifest(manifest)
@@ -211,14 +218,19 @@ class OperatingTable:
                     action["error"] = str(exc)
                     _save_manifest_best_effort(manifest)
                     raise
-                action["status"] = "blocked"
+                if already_restored:
+                    action["status"] = "restored"
+                    action["error"] = str(exc)
+                    _save_manifest_best_effort(manifest)
+                    raise
+                action["status"] = "restore_pending"
                 action["error"] = str(exc)
-                manifest["status"] = "blocked"
+                manifest["status"] = "partial"
                 _save_manifest(manifest)
                 raise
 
         if _has_moved_or_moving_actions(manifest):
-            manifest["status"] = "blocked"
+            manifest["status"] = "partial"
             _save_manifest(manifest)
             raise ValueError("Could not restore every moved cleanup action")
         manifest["status"] = "restored"
@@ -498,9 +510,14 @@ def _preflight_actions(manifest: dict[str, Any], actions: list[dict[str, Any]]) 
         _preflight_action(manifest, action)
 
 
-def _preflight_restore_actions(actions: list[dict[str, Any]]) -> None:
+def _preflight_restore_actions(
+    manifest: dict[str, Any],
+    actions: list[dict[str, Any]],
+) -> None:
     _reject_duplicate_action_paths(actions, "destination_path", "restore source")
     _reject_duplicate_action_paths(actions, "source_path", "restore destination")
+    for action in actions:
+        _prepare_restore_action(manifest, action)
 
 
 def _reject_duplicate_action_paths(
@@ -708,12 +725,20 @@ def _manifest_mods(manifest: dict[str, Any], root: Path) -> Path:
 
 
 def _validate_expected_file_identity(action: dict[str, Any]) -> None:
-    expected = cast(dict[str, Any], action["expected"])
     source = Path(str(action["source_path"]))
-    if source.stat().st_size != _validate_expected_size(expected["size"]):
-        raise ValueError(f"Source path no longer matches cleanup plan evidence: {source}")
-    if _sha256_file(source) != str(expected["sha256"]):
-        raise ValueError(f"Source path no longer matches cleanup plan evidence: {source}")
+    _validate_expected_path_identity(action, source, "Source path")
+
+
+def _validate_expected_path_identity(
+    action: dict[str, Any],
+    path: Path,
+    label: str,
+) -> None:
+    expected = cast(dict[str, Any], action["expected"])
+    if path.stat().st_size != _validate_expected_size(expected["size"]):
+        raise ValueError(f"{label} no longer matches cleanup plan evidence: {path}")
+    if _sha256_file(path) != str(expected["sha256"]):
+        raise ValueError(f"{label} no longer matches cleanup plan evidence: {path}")
 
 
 def _validate_expected_size(value: Any) -> int:
@@ -757,21 +782,25 @@ def _prepare_restore_action(
     destination = Path(str(action["source_path"]))
 
     if not source.exists():
-        if action.get("status") == "moving" and destination.exists():
+        if destination.is_symlink():
+            raise ValueError(f"Refusing symlinked restore destination: {destination}")
+        if destination.exists():
             _reject_symlinked_path(destination, "symlinked restore destination")
+            _validate_expected_path_identity(action, destination, "Restore destination")
             return None
         raise ValueError(f"Restore source is missing: {source}")
 
     _reject_symlinked_path(source, "symlinked restore source")
-    if destination.exists():
-        raise ValueError(f"Restore destination already exists: {destination}")
+    _validate_expected_path_identity(action, source, "Restore source")
     if destination.is_symlink():
         raise ValueError(f"Refusing symlinked restore destination: {destination}")
+    if destination.exists():
+        raise ValueError(f"Restore destination already exists: {destination}")
     _ensure_safe_restore_destination_parent(manifest, destination)
-    if destination.exists():
-        raise ValueError(f"Restore destination already exists: {destination}")
     if destination.is_symlink():
         raise ValueError(f"Refusing symlinked restore destination: {destination}")
+    if destination.exists():
+        raise ValueError(f"Restore destination already exists: {destination}")
     return source, destination
 
 
