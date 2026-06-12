@@ -53,11 +53,11 @@ class OperatingTable:
 
         selected_ids = _selected_action_ids(plan, selected_action_ids, all_actions)
         created_at = self._clock()
+        actions = [_manifest_action(root, plan, action_id) for action_id in selected_ids]
         operation_id, manifest_path = _unique_manifest_path(
             root / SESSION_ROOT_NAME / MANIFEST_DIR_NAME,
             _operation_id(created_at),
         )
-        actions = [_manifest_action(root, plan, action_id) for action_id in selected_ids]
         manifest: dict[str, Any] = {
             "version": MANIFEST_VERSION,
             "operation_id": operation_id,

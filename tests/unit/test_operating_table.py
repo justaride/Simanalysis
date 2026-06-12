@@ -321,6 +321,8 @@ def test_stage_rejects_destination_outside_cleanup_root(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="destination must be under _Simanalysis_Cleanup"):
         table.stage_cleanup_plan(root, plan, selected_action_ids=["duplicate:1"])
+    manifest_dir = root / "_Simanalysis_Cleanup" / "manifests"
+    assert not manifest_dir.exists() or not any(manifest_dir.iterdir())
 
 
 def test_stage_rejects_symlinked_source(tmp_path: Path) -> None:
