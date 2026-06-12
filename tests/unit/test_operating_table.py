@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,19 @@ def _sha256_hex(body: bytes) -> str:
     import hashlib
 
     return hashlib.sha256(body).hexdigest()
+
+
+def _read_raw_manifest(path: Path) -> dict[str, Any]:
+    parsed = json.loads(path.read_text(encoding="utf-8"))
+    assert isinstance(parsed, dict)
+    return parsed
+
+
+@pytest.fixture(autouse=True)
+def _allow_file_mutation_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    import simanalysis.operating_table as operating_table
+
+    monkeypatch.setattr(operating_table, "assert_sims_not_running", lambda: None)
 
 
 def _cleanup_plan(root: Path, body: bytes = b"payload") -> dict[str, Any]:
@@ -367,3 +381,144 @@ def test_stage_rejects_symlinked_source(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="symlinked source"):
         table.stage_cleanup_plan(root, _cleanup_plan(root), selected_action_ids=["duplicate:1"])
+
+
+def _stage_manifest(tmp_path: Path) -> tuple[OperatingTable, Path, Path]:
+    root = tmp_path / "The Sims 4"
+    source = _write(root / "Mods" / "B" / "item.package", b"payload")
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+    manifest = table.stage_cleanup_plan(
+        root,
+        _cleanup_plan(root),
+        selected_action_ids=["duplicate:1"],
+    )
+    return table, Path(str(manifest["manifest_path"])), source
+
+
+def test_apply_moves_selected_file_and_updates_manifest(tmp_path: Path) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+
+    manifest = table.apply(manifest_path)
+
+    destination = Path(str(manifest["actions"][0]["destination_path"]))
+    assert not source.exists()
+    assert destination.exists()
+    assert destination.read_bytes() == b"payload"
+    assert manifest["status"] == "applied"
+    assert manifest["actions"][0]["status"] == "moved"
+    assert load_manifest(manifest_path)["status"] == "applied"
+
+
+def test_apply_refuses_running_sims_before_mutation(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import simanalysis.operating_table as operating_table
+
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    monkeypatch.setattr(
+        operating_table,
+        "assert_sims_not_running",
+        lambda: (_ for _ in ()).throw(ValueError("game is running")),
+    )
+
+    with pytest.raises(ValueError, match="game is running"):
+        table.apply(manifest_path)
+
+    assert source.exists()
+    assert load_manifest(manifest_path)["status"] == "planned"
+
+
+def test_apply_refuses_hash_mismatch_without_moving(tmp_path: Path) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    source.write_bytes(b"changed")
+
+    with pytest.raises(ValueError, match="no longer matches cleanup plan evidence"):
+        table.apply(manifest_path)
+
+    assert source.exists()
+    assert load_manifest(manifest_path)["status"] == "planned"
+
+
+def test_apply_preflight_blocks_destination_collision_before_any_move(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    manifest = load_manifest(manifest_path)
+    destination = Path(str(manifest["actions"][0]["destination_path"]))
+    _write(destination, b"collision")
+
+    with pytest.raises(ValueError, match="Destination already exists"):
+        table.apply(manifest_path)
+
+    assert source.exists()
+    assert destination.read_bytes() == b"collision"
+    assert load_manifest(manifest_path)["status"] == "planned"
+
+
+def test_apply_records_partial_progress_when_later_move_fails(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import simanalysis.operating_table as operating_table
+
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    _write(root / "Mods" / "archive.zip", b"archive")
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+    staged = table.stage_cleanup_plan(root, _cleanup_plan(root), all_actions=True)
+    manifest_path = Path(str(staged["manifest_path"]))
+    first_destination = Path(str(staged["actions"][0]["destination_path"]))
+    original_move = operating_table.shutil.move
+
+    def fail_second_move(source: str, destination: str) -> str:
+        if source.endswith("archive.zip"):
+            raise OSError("move exploded")
+        return original_move(source, destination)
+
+    monkeypatch.setattr(operating_table.shutil, "move", fail_second_move)
+
+    with pytest.raises(OSError, match="move exploded"):
+        table.apply(manifest_path)
+
+    saved = load_manifest(manifest_path)
+    assert saved["status"] == "partial"
+    assert saved["actions"][0]["status"] == "moved"
+    assert saved["actions"][1]["status"] == "blocked"
+    assert first_destination.exists()
+
+
+def test_apply_rejects_invalid_action_status_before_any_move(tmp_path: Path) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    manifest = load_manifest(manifest_path)
+    manifest["actions"][0]["status"] = "surprise"
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    before = _read_raw_manifest(manifest_path)
+    destination = Path(str(manifest["actions"][0]["destination_path"]))
+
+    with pytest.raises(ValueError, match="Unsupported cleanup action status"):
+        table.apply(manifest_path)
+
+    assert source.exists()
+    assert not destination.exists()
+    assert _read_raw_manifest(manifest_path) == before
+
+
+def test_apply_rejects_destination_relative_path_mismatch_before_any_move(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    manifest = load_manifest(manifest_path)
+    manifest["actions"][0]["destination_relative_path"] = (
+        "_Simanalysis_Cleanup/other-op/duplicates/Mods/B/item.package"
+    )
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    before = _read_raw_manifest(manifest_path)
+    destination = Path(str(manifest["actions"][0]["destination_path"]))
+
+    with pytest.raises(ValueError, match="Destination path does not match relative path"):
+        table.apply(manifest_path)
+
+    assert source.exists()
+    assert not destination.exists()
+    assert _read_raw_manifest(manifest_path) == before

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any, Callable, cast
@@ -30,6 +32,28 @@ VALID_MANIFEST_STATUSES = {
     "restored",
 }
 RESTORABLE_ACTION_STATUSES = {"moving", "moved", "restore_pending", "restoring"}
+APPLICABLE_MANIFEST_STATUSES = {"planned", "partial"}
+APPLICABLE_ACTION_STATUSES = {"pending", "blocked"}
+VALID_ACTION_STATUSES = APPLICABLE_ACTION_STATUSES | {
+    "moving",
+    "moved",
+    "restore_pending",
+    "restoring",
+    "restored",
+}
+REQUIRED_ACTION_KEYS = {
+    "action_id",
+    "finding_id",
+    "kind",
+    "source_relative_path",
+    "destination_relative_path",
+    "source_path",
+    "destination_path",
+    "reason",
+    "expected",
+    "status",
+    "error",
+}
 
 
 class OperatingTable:
@@ -101,7 +125,43 @@ class OperatingTable:
         return load_manifest(manifest_path)
 
     def apply(self, manifest_path: Path | str) -> dict[str, Any]:
-        raise NotImplementedError("apply is implemented in Task 2")
+        assert_sims_not_running()
+        manifest = load_manifest(manifest_path)
+        if manifest["status"] not in APPLICABLE_MANIFEST_STATUSES:
+            raise ValueError(
+                f"Cleanup operation cannot be applied from status: {manifest['status']}"
+            )
+        actions = _validated_apply_actions(manifest)
+        pending = [
+            action for action in actions if action.get("status") in APPLICABLE_ACTION_STATUSES
+        ]
+        _preflight_actions(manifest, pending)
+        manifest["status"] = "applying"
+        _save_manifest(manifest)
+
+        for action in pending:
+            try:
+                _preflight_action(manifest, action)
+                action["status"] = "moving"
+                action["error"] = None
+                _save_manifest(manifest)
+                destination = Path(str(action["destination_path"]))
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                _reject_symlinked_existing_ancestors(destination, "symlinked destination")
+                if destination.exists():
+                    raise ValueError(f"Destination already exists: {destination}")
+                shutil.move(str(action["source_path"]), str(destination))
+                action["status"] = "moved"
+                _save_manifest(manifest)
+            except Exception as exc:
+                action["status"] = "blocked"
+                action["error"] = str(exc)
+                manifest["status"] = "partial" if _has_moved_actions(manifest) else "blocked"
+                _save_manifest(manifest)
+                raise
+
+        manifest["status"] = "applied"
+        return _save_manifest(manifest)
 
     def restore(self, manifest_path: Path | str) -> dict[str, Any]:
         raise NotImplementedError("restore is implemented in Task 3")
@@ -343,6 +403,193 @@ def _write_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
         if tmp_name is not None:
             Path(tmp_name).unlink(missing_ok=True)
     return manifest
+
+
+def _save_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
+    _validate_manifest_write_target(manifest)
+    manifest["updated_at"] = _utc_now()
+    return _write_manifest(manifest)
+
+
+def _validated_apply_actions(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    _validate_manifest_write_target(manifest)
+    actions = manifest.get("actions")
+    if not isinstance(actions, list):
+        raise ValueError("Manifest actions must be a list")
+    validated: list[dict[str, Any]] = []
+    for index, action in enumerate(actions):
+        if not isinstance(action, dict):
+            raise ValueError(f"Manifest action at index {index} must be an object")
+        _validate_action_contract(manifest, action)
+        validated.append(action)
+    return validated
+
+
+def _preflight_actions(manifest: dict[str, Any], actions: list[dict[str, Any]]) -> None:
+    for action in actions:
+        _preflight_action(manifest, action)
+
+
+def _preflight_action(manifest: dict[str, Any], action: dict[str, Any]) -> None:
+    _validate_action_contract(manifest, action)
+    source = Path(str(action["source_path"]))
+    destination = Path(str(action["destination_path"]))
+    if not source.exists():
+        raise ValueError(f"Source path is missing: {source}")
+    _reject_symlinked_path(source, "symlinked source")
+    _reject_symlinked_existing_ancestors(destination, "symlinked destination")
+    if destination.exists():
+        raise ValueError(f"Destination already exists: {destination}")
+    _validate_expected_file_identity(action)
+
+
+def _validate_manifest_write_target(manifest: dict[str, Any]) -> None:
+    root = _manifest_root(manifest)
+    _manifest_mods(manifest, root)
+    manifest_path = _absolute_manifest_path(manifest)
+    cleanup_root = _logical_absolute(root / SESSION_ROOT_NAME)
+    manifest_root = _logical_absolute(cleanup_root / MANIFEST_DIR_NAME)
+    try:
+        manifest_path.relative_to(manifest_root)
+    except ValueError as exc:
+        raise ValueError("Manifest path must be under cleanup manifest root") from exc
+    _reject_symlinked_path(manifest_path, "symlinked cleanup manifest")
+
+
+def _validate_action_contract(manifest: dict[str, Any], action: dict[str, Any]) -> None:
+    missing = REQUIRED_ACTION_KEYS - set(action)
+    if missing:
+        raise ValueError(f"Manifest action is missing required keys: {', '.join(sorted(missing))}")
+
+    for key in (
+        "action_id",
+        "finding_id",
+        "kind",
+        "source_relative_path",
+        "destination_relative_path",
+        "source_path",
+        "destination_path",
+        "reason",
+    ):
+        if not isinstance(action[key], str) or not action[key]:
+            raise ValueError(f"Manifest action {key} must be a non-empty string")
+
+    if action["kind"] not in VALID_ACTION_KINDS:
+        raise ValueError(f"Unsupported cleanup action kind: {action['kind']}")
+
+    if action["status"] not in VALID_ACTION_STATUSES:
+        raise ValueError(f"Unsupported cleanup action status: {action['status']}")
+
+    if action["error"] is not None and not isinstance(action["error"], str):
+        raise ValueError("Manifest action error must be a string or null")
+
+    expected = action["expected"]
+    if not isinstance(expected, dict):
+        raise ValueError("Action expected evidence must be an object")
+    if "size" not in expected or "sha256" not in expected:
+        raise ValueError("Action expected evidence must include size and sha256")
+
+    _validate_expected_size(expected["size"])
+    if not isinstance(expected["sha256"], str) or not expected["sha256"]:
+        raise ValueError("Action expected sha256 must be a non-empty string")
+
+    _validate_source_path_relation(manifest, action)
+    _validate_destination_path_relation(manifest, action)
+
+
+def _validate_source_path_relation(
+    manifest: dict[str, Any],
+    action: dict[str, Any],
+) -> None:
+    root = _manifest_root(manifest)
+    source = _absolute_action_path(action, "source_path", "Source path")
+    expected_source = _resolve_source(root, str(action["source_relative_path"]))
+    if source != expected_source:
+        raise ValueError("Source path does not match relative path")
+
+
+def _validate_destination_path_relation(
+    manifest: dict[str, Any],
+    action: dict[str, Any],
+) -> None:
+    root = _manifest_root(manifest)
+    destination = _absolute_action_path(action, "destination_path", "Destination path")
+    expected_destination = _resolve_destination(root, str(action["destination_relative_path"]))
+    if destination != expected_destination:
+        raise ValueError("Destination path does not match relative path")
+
+
+def _absolute_action_path(
+    action: dict[str, Any],
+    key: str,
+    label: str,
+) -> Path:
+    path = Path(str(action[key])).expanduser()
+    if not path.is_absolute():
+        raise ValueError(f"{label} must be absolute")
+    return _logical_absolute(path)
+
+
+def _absolute_manifest_path(manifest: dict[str, Any]) -> Path:
+    path = Path(str(manifest["manifest_path"])).expanduser()
+    if not path.is_absolute():
+        raise ValueError("Manifest path must be absolute")
+    return _logical_absolute(path)
+
+
+def _manifest_root(manifest: dict[str, Any]) -> Path:
+    path = Path(str(manifest["root_path"])).expanduser()
+    if not path.is_absolute():
+        raise ValueError("Manifest root path must be absolute")
+    root = _logical_absolute(path)
+    if not root.exists() or not root.is_dir():
+        raise ValueError(f"Manifest root path is not a directory: {root}")
+    return root
+
+
+def _manifest_mods(manifest: dict[str, Any], root: Path) -> Path:
+    path = Path(str(manifest["mods_path"])).expanduser()
+    if not path.is_absolute():
+        raise ValueError("Manifest Mods path must be absolute")
+    mods = _logical_absolute(path)
+    expected_mods = _logical_absolute(root / "Mods")
+    if mods != expected_mods:
+        raise ValueError("Manifest Mods path does not match root")
+    return mods
+
+
+def _validate_expected_file_identity(action: dict[str, Any]) -> None:
+    expected = cast(dict[str, Any], action["expected"])
+    source = Path(str(action["source_path"]))
+    if source.stat().st_size != _validate_expected_size(expected["size"]):
+        raise ValueError(f"Source path no longer matches cleanup plan evidence: {source}")
+    if _sha256_file(source) != str(expected["sha256"]):
+        raise ValueError(f"Source path no longer matches cleanup plan evidence: {source}")
+
+
+def _validate_expected_size(value: Any) -> int:
+    try:
+        size = int(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Action expected size must be an integer") from exc
+    if size < 0:
+        raise ValueError("Action expected size must be non-negative")
+    return size
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _has_moved_actions(manifest: dict[str, Any]) -> bool:
+    return any(
+        isinstance(action, dict) and action.get("status") == "moved"
+        for action in manifest.get("actions", [])
+    )
 
 
 def _unique_manifest_path(manifest_dir: Path, base_operation_id: str) -> tuple[str, Path]:
