@@ -354,3 +354,27 @@ def test_inventory_latest_file_events_include_removed_and_moved_sources(
         ("new.txt", "added", None),
         ("old.txt", "removed", None),
     ]
+
+
+def test_inventory_latest_file_events_can_include_unchanged_files(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    options = sims4 / "Options.ini"
+    notes = sims4 / "notes.txt"
+    options.write_text("uiscale = 100", encoding="utf-8")
+    notes.write_text("same", encoding="utf-8")
+
+    scanner = InventoryScanner(tmp_path / "inventory.sqlite3")
+    scanner.scan(sims4)
+    options.write_text("uiscale = 90", encoding="utf-8")
+    summary = scanner.scan(sims4)
+
+    changes = scanner.latest_file_events(sims4, include_unchanged=True)
+
+    assert changes["scan_id"] == summary.scan_id
+    assert [(event["relative_path"], event["change_status"]) for event in changes["events"]] == [
+        ("Options.ini", "modified"),
+        ("notes.txt", "unchanged"),
+    ]

@@ -317,9 +317,8 @@ class InventoryScanner:
             if scan is None:
                 raise ValueError(f"No inventory scan recorded for: {root}")
 
-            status_filter = "" if include_unchanged else "AND change_status != 'unchanged'"
             events = conn.execute(
-                f"""
+                """
                 SELECT
                     relative_path,
                     previous_relative_path,
@@ -328,10 +327,10 @@ class InventoryScanner:
                     sha256
                 FROM file_events
                 WHERE scan_id = ?
-                {status_filter}
+                AND (? OR change_status != 'unchanged')
                 ORDER BY relative_path, change_status
                 """,
-                (int(scan["scan_id"]),),
+                (int(scan["scan_id"]), int(include_unchanged)),
             ).fetchall()
 
         return {
