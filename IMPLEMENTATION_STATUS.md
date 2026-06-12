@@ -118,6 +118,7 @@ turn review-only findings into an explicit journaled operating-table plan
 before any file moves are allowed.
 
 The draft design for that slice is
-`docs/superpowers/specs/2026-06-12-operating-table-v1-design.md`. It is
-currently a review gate, not an implementation plan: implementation should wait
-until the mutating-engine design is approved.
+`docs/superpowers/specs/2026-06-12-operating-table-v1-design.md`. That
+mutating-engine design is approved; the implementation plan is
+`docs/superpowers/plans/2026-06-12-operating-table-v1.md`, and the next step is
+TDD execution.

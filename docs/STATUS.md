@@ -20,8 +20,10 @@ bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 for Mods-folder review findings. Visual inventory and cleanup routes remain
 pending design approval. The next reversible-action slice has a draft Operating
 Table v1 design at
-`superpowers/specs/2026-06-12-operating-table-v1-design.md`; implementation is
-waiting on approval because it is the first general mutating engine.
+`superpowers/specs/2026-06-12-operating-table-v1-design.md`; that design is
+approved, has an implementation plan at
+`superpowers/plans/2026-06-12-operating-table-v1.md`, and is ready for TDD
+execution.
 
 ## Historical Status Snapshots
 
