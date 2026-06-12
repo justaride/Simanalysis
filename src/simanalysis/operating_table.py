@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import tempfile
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Callable, cast
 
@@ -140,20 +141,28 @@ class OperatingTable:
         _save_manifest(manifest)
 
         for action in pending:
+            move_completed = False
             try:
                 _preflight_action(manifest, action)
                 action["status"] = "moving"
                 action["error"] = None
                 _save_manifest(manifest)
                 destination = Path(str(action["destination_path"]))
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                _reject_symlinked_existing_ancestors(destination, "symlinked destination")
+                _ensure_safe_destination_parent(manifest, destination)
                 if destination.exists():
                     raise ValueError(f"Destination already exists: {destination}")
                 shutil.move(str(action["source_path"]), str(destination))
+                move_completed = True
                 action["status"] = "moved"
                 _save_manifest(manifest)
             except Exception as exc:
+                if move_completed:
+                    if action.get("status") not in RESTORABLE_ACTION_STATUSES:
+                        action["status"] = "restore_pending"
+                    action["error"] = str(exc)
+                    manifest["status"] = "partial"
+                    _save_manifest_best_effort(manifest)
+                    raise
                 action["status"] = "blocked"
                 action["error"] = str(exc)
                 manifest["status"] = "partial" if _has_moved_actions(manifest) else "blocked"
@@ -201,8 +210,11 @@ def _validate_manifest(manifest: dict[str, Any], path: Path) -> None:
     missing = required - set(manifest)
     if missing:
         raise ValueError(f"Manifest is missing required keys: {', '.join(sorted(missing))}")
-    if manifest["status"] not in VALID_MANIFEST_STATUSES:
-        raise ValueError(f"Unknown cleanup operation status: {manifest['status']}")
+    status = manifest["status"]
+    if not isinstance(status, str):
+        raise ValueError("Cleanup operation status must be a string")
+    if status not in VALID_MANIFEST_STATUSES:
+        raise ValueError(f"Unknown cleanup operation status: {status}")
     if Path(str(manifest["manifest_path"])).expanduser().resolve() != path:
         raise ValueError("Manifest path does not match loaded path")
     if not isinstance(manifest["actions"], list):
@@ -359,7 +371,7 @@ def _logical_absolute(path: Path) -> Path:
 
 def _reject_symlinked_path(path: Path, message: str) -> None:
     for part in [path, *path.parents]:
-        if part.exists() and part.is_symlink():
+        if part.is_symlink():
             raise ValueError(f"Refusing {message}: {path}")
 
 
@@ -411,6 +423,11 @@ def _save_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     return _write_manifest(manifest)
 
 
+def _save_manifest_best_effort(manifest: dict[str, Any]) -> None:
+    with suppress(Exception):
+        _save_manifest(manifest)
+
+
 def _validated_apply_actions(manifest: dict[str, Any]) -> list[dict[str, Any]]:
     _validate_manifest_write_target(manifest)
     actions = manifest.get("actions")
@@ -426,8 +443,27 @@ def _validated_apply_actions(manifest: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _preflight_actions(manifest: dict[str, Any], actions: list[dict[str, Any]]) -> None:
+    _reject_duplicate_action_paths(actions, "source_path", "source")
+    _reject_duplicate_action_paths(actions, "destination_path", "destination")
     for action in actions:
         _preflight_action(manifest, action)
+
+
+def _reject_duplicate_action_paths(
+    actions: list[dict[str, Any]],
+    key: str,
+    label: str,
+) -> None:
+    seen: dict[Path, str] = {}
+    for action in actions:
+        path = _logical_absolute(Path(str(action[key])))
+        action_id = str(action["action_id"])
+        previous_action_id = seen.get(path)
+        if previous_action_id is not None:
+            raise ValueError(
+                f"Duplicate cleanup action {label} path: {path} ({previous_action_id}, {action_id})"
+            )
+        seen[path] = action_id
 
 
 def _preflight_action(manifest: dict[str, Any], action: dict[str, Any]) -> None:
@@ -441,6 +477,35 @@ def _preflight_action(manifest: dict[str, Any], action: dict[str, Any]) -> None:
     if destination.exists():
         raise ValueError(f"Destination already exists: {destination}")
     _validate_expected_file_identity(action)
+
+
+def _ensure_safe_destination_parent(manifest: dict[str, Any], destination: Path) -> None:
+    root = _manifest_root(manifest)
+    cleanup_root = _logical_absolute(root / SESSION_ROOT_NAME)
+    destination = _logical_absolute(destination)
+    try:
+        relative_parent = destination.parent.relative_to(cleanup_root)
+    except ValueError as exc:
+        raise ValueError("Destination path must be under cleanup root") from exc
+
+    _ensure_safe_directory_component(cleanup_root, destination)
+    current = cleanup_root
+    for part in relative_parent.parts:
+        current = current / part
+        _ensure_safe_directory_component(current, destination)
+
+
+def _ensure_safe_directory_component(path: Path, destination: Path) -> None:
+    if path.is_symlink():
+        raise ValueError(f"Refusing symlinked destination: {destination}")
+    if path.exists() and not path.is_dir():
+        raise ValueError(f"Destination parent is not a directory: {path}")
+    if not path.exists():
+        path.mkdir(exist_ok=True)
+    if path.is_symlink():
+        raise ValueError(f"Refusing symlinked destination: {destination}")
+    if not path.is_dir():
+        raise ValueError(f"Destination parent is not a directory: {path}")
 
 
 def _validate_manifest_write_target(manifest: dict[str, Any]) -> None:
@@ -477,8 +542,11 @@ def _validate_action_contract(manifest: dict[str, Any], action: dict[str, Any]) 
     if action["kind"] not in VALID_ACTION_KINDS:
         raise ValueError(f"Unsupported cleanup action kind: {action['kind']}")
 
-    if action["status"] not in VALID_ACTION_STATUSES:
-        raise ValueError(f"Unsupported cleanup action status: {action['status']}")
+    status = action["status"]
+    if not isinstance(status, str):
+        raise ValueError("Cleanup action status must be a string")
+    if status not in VALID_ACTION_STATUSES:
+        raise ValueError(f"Unsupported cleanup action status: {status}")
 
     if action["error"] is not None and not isinstance(action["error"], str):
         raise ValueError("Manifest action error must be a string or null")
