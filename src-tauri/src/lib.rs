@@ -873,8 +873,8 @@ mod tests {
     #[test]
     fn builds_cleanup_operation_manifest_args() {
         for kind in ["cleanup-apply", "cleanup-restore", "cleanup-status"] {
-            let args = build_args(kind, "/Sims/manifest.json", &AnalysisOptions::default())
-                .unwrap();
+            let args =
+                build_args(kind, "/Sims/manifest.json", &AnalysisOptions::default()).unwrap();
             assert_eq!(args, vec![kind, "/Sims/manifest.json"]);
         }
     }
