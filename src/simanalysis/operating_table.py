@@ -346,6 +346,7 @@ def _write_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def _unique_manifest_path(manifest_dir: Path, base_operation_id: str) -> tuple[str, Path]:
+    _reject_symlinked_path(manifest_dir, "symlinked cleanup manifest root")
     manifest_dir.mkdir(parents=True, exist_ok=True)
     operation_id = base_operation_id
     suffix = 1

@@ -340,6 +340,23 @@ def test_stage_rejects_malformed_scan_id_without_manifest_reservation(
     assert not manifest_dir.exists() or not any(manifest_dir.iterdir())
 
 
+def test_stage_rejects_symlinked_manifest_directory_without_outside_write(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    outside = tmp_path / "outside-manifests"
+    outside.mkdir()
+    cleanup_root = root / "_Simanalysis_Cleanup"
+    cleanup_root.mkdir()
+    (cleanup_root / "manifests").symlink_to(outside, target_is_directory=True)
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+
+    with pytest.raises(ValueError, match=r"symlinked.*manifest"):
+        table.stage_cleanup_plan(root, _cleanup_plan(root), selected_action_ids=["duplicate:1"])
+    assert not any(outside.iterdir())
+
+
 def test_stage_rejects_symlinked_source(tmp_path: Path) -> None:
     root = tmp_path / "The Sims 4"
     outside = tmp_path / "outside"
