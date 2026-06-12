@@ -228,6 +228,78 @@ def test_cleanup_plan_command_exports_only_when_requested(tmp_path):
     assert json.loads(export_path.read_text(encoding="utf-8")) == result
 
 
+def test_cleanup_stage_emits_operation_manifest(monkeypatch, tmp_path):
+    calls = {}
+
+    class FakeOperatingTable:
+        def stage_cleanup_plan_file(
+            self,
+            root,
+            plan,
+            *,
+            selected_action_ids=None,
+            all_actions=False,
+        ):
+            calls["stage"] = (root, plan, selected_action_ids, all_actions)
+            return {"manifest_path": "manifest.json", "status": "planned"}
+
+    monkeypatch.setattr(commands, "OperatingTable", lambda: FakeOperatingTable())
+
+    buf = io.StringIO()
+    commands.cleanup_stage(
+        argparse.Namespace(
+            path=str(tmp_path),
+            plan="plan.json",
+            action=["duplicate:1"],
+            all_actions=False,
+        ),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cleanup-stage"
+    assert events[1]["data"] == {"manifest_path": "manifest.json", "status": "planned"}
+    assert calls["stage"] == (tmp_path.resolve(), "plan.json", ["duplicate:1"], False)
+
+
+def test_cleanup_apply_restore_status_emit_results(monkeypatch):
+    calls = []
+
+    class FakeOperatingTable:
+        def apply(self, manifest_path):
+            calls.append(("apply", manifest_path))
+            return {"status": "applied"}
+
+        def restore(self, manifest_path):
+            calls.append(("restore", manifest_path))
+            return {"status": "restored"}
+
+        def load_status(self, manifest_path):
+            calls.append(("status", manifest_path))
+            return {"status": "planned"}
+
+    monkeypatch.setattr(commands, "OperatingTable", lambda: FakeOperatingTable())
+
+    for handler, task, status in (
+        (commands.cleanup_apply, "cleanup-apply", "applied"),
+        (commands.cleanup_restore, "cleanup-restore", "restored"),
+        (commands.cleanup_status, "cleanup-status", "planned"),
+    ):
+        buf = io.StringIO()
+        handler(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+        events = [json.loads(line) for line in buf.getvalue().splitlines()]
+        assert [event["type"] for event in events] == ["start", "result", "done"]
+        assert events[0]["task"] == task
+        assert events[1]["data"] == {"status": status}
+
+    assert calls == [
+        ("apply", "manifest.json"),
+        ("restore", "manifest.json"),
+        ("status", "manifest.json"),
+    ]
+
+
 def test_thumbnail_found(monkeypatch, tmp_path):
     f = tmp_path / "m.package"
     f.write_bytes(b"x")

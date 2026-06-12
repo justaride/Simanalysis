@@ -187,6 +187,67 @@ def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_cleanup_stage_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    plan_path = tmp_path / "plan.json"
+
+    def fake_cleanup_stage(args, emit):
+        called["path"] = args.path
+        called["plan"] = args.plan
+        called["actions"] = args.action
+        called["all_actions"] = args.all_actions
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cleanup-stage", fake_cleanup_stage)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "cleanup-stage",
+            str(tmp_path),
+            "--plan",
+            str(plan_path),
+            "--action",
+            "duplicate:1",
+            "--action",
+            "archive:1",
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "plan": str(plan_path),
+        "actions": ["duplicate:1", "archive:1"],
+        "all_actions": False,
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cleanup_operation_commands_are_dispatched(monkeypatch):
+    calls = []
+
+    def fake_handler(args, emit):
+        calls.append((args.command, getattr(args, "manifest_path", None)))
+        emit.result({"ok": True})
+        emit.done()
+
+    for command in ("cleanup-apply", "cleanup-restore", "cleanup-status"):
+        monkeypatch.setitem(commands.DISPATCH, command, fake_handler)
+
+    for command in ("cleanup-apply", "cleanup-restore", "cleanup-status"):
+        code, events = _run(monkeypatch, [command, "manifest.json"])
+        assert code == 0
+        assert [event["type"] for event in events] == ["result", "done"]
+
+    assert calls == [
+        ("cleanup-apply", "manifest.json"),
+        ("cleanup-restore", "manifest.json"),
+        ("cleanup-status", "manifest.json"),
+    ]
+
+
 def test_treatment_plan_command_is_dispatched_with_save(monkeypatch, tmp_path):
     called = {}
 
