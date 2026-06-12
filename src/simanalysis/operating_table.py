@@ -344,14 +344,19 @@ def _write_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
 
 
 def _unique_manifest_path(manifest_dir: Path, base_operation_id: str) -> tuple[str, Path]:
+    manifest_dir.mkdir(parents=True, exist_ok=True)
     operation_id = base_operation_id
     suffix = 1
     while True:
         path = manifest_dir / f"{operation_id}.json"
-        if not path.exists():
+        try:
+            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        except FileExistsError:
+            suffix += 1
+            operation_id = f"{base_operation_id}-{suffix}"
+        else:
+            os.close(fd)
             return operation_id, path
-        suffix += 1
-        operation_id = f"{base_operation_id}-{suffix}"
 
 
 def _operation_id(created_at: str) -> str:

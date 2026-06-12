@@ -179,6 +179,73 @@ def test_stage_same_second_operations_preserve_distinct_manifests(tmp_path: Path
     )
 
 
+def test_concurrent_same_second_staging_reserves_distinct_manifest_paths(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import threading
+
+    import simanalysis.operating_table as operating_table
+
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    _write(root / "Mods" / "archive.zip", b"archive")
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+    barrier = threading.Barrier(2)
+    original_unique_manifest_path = operating_table._unique_manifest_path
+
+    def racing_unique_manifest_path(
+        manifest_dir: Path,
+        base_operation_id: str,
+    ) -> tuple[str, Path]:
+        result = original_unique_manifest_path(manifest_dir, base_operation_id)
+        barrier.wait(timeout=5)
+        return result
+
+    monkeypatch.setattr(
+        operating_table,
+        "_unique_manifest_path",
+        racing_unique_manifest_path,
+    )
+    results: list[dict[str, Any]] = []
+    errors: list[BaseException] = []
+
+    def stage(action_id: str) -> None:
+        try:
+            results.append(
+                table.stage_cleanup_plan(
+                    root,
+                    _cleanup_plan(root),
+                    selected_action_ids=[action_id],
+                )
+            )
+        except BaseException as exc:  # pragma: no cover - surfaced after thread join
+            errors.append(exc)
+
+    threads = [
+        threading.Thread(target=stage, args=("duplicate:1",)),
+        threading.Thread(target=stage, args=("inactive_archive:1:Mods/archive.zip",)),
+    ]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=10)
+
+    assert not any(thread.is_alive() for thread in threads)
+    if errors:
+        raise AssertionError("Concurrent staging failed") from errors[0]
+    assert len(results) == 2
+    manifest_paths = [Path(str(manifest["manifest_path"])) for manifest in results]
+    assert {path.name for path in manifest_paths} == {
+        "cleanup-op-20260612-101530.json",
+        "cleanup-op-20260612-101530-2.json",
+    }
+    assert {load_manifest(path)["actions"][0]["action_id"] for path in manifest_paths} == {
+        "duplicate:1",
+        "inactive_archive:1:Mods/archive.zip",
+    }
+
+
 def test_stage_fsyncs_manifest_directory_after_atomic_replace(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -226,7 +293,7 @@ def test_stage_fsyncs_manifest_directory_after_atomic_replace(
     manifest_dir = Path(str(manifest["manifest_path"])).parent
     assert opened_directories == [manifest_dir]
     assert parent_fd in fsynced_fds
-    assert closed_fds == [parent_fd]
+    assert parent_fd in closed_fds
 
 
 def test_stage_rejects_unknown_and_duplicate_action_ids(tmp_path: Path) -> None:
