@@ -173,7 +173,56 @@ class OperatingTable:
         return _save_manifest(manifest)
 
     def restore(self, manifest_path: Path | str) -> dict[str, Any]:
-        raise NotImplementedError("restore is implemented in Task 3")
+        assert_sims_not_running()
+        manifest = load_manifest(manifest_path)
+        actions = _validated_apply_actions(manifest)
+        restorable = [
+            action
+            for action in reversed(actions)
+            if action.get("status") in RESTORABLE_ACTION_STATUSES
+        ]
+        _preflight_restore_actions(restorable)
+
+        manifest["status"] = "restoring"
+        _save_manifest(manifest)
+
+        for action in restorable:
+            move_completed = False
+            try:
+                restore_paths = _prepare_restore_action(manifest, action)
+                if restore_paths is None:
+                    action["status"] = "restored"
+                    action["error"] = None
+                    _save_manifest(manifest)
+                    continue
+
+                source, destination = restore_paths
+                action["status"] = "restoring"
+                action["error"] = None
+                _save_manifest(manifest)
+                shutil.move(str(source), str(destination))
+                move_completed = True
+                action["status"] = "restored"
+                action["error"] = None
+                _save_manifest(manifest)
+            except Exception as exc:
+                if move_completed:
+                    action["status"] = "restored"
+                    action["error"] = str(exc)
+                    _save_manifest_best_effort(manifest)
+                    raise
+                action["status"] = "blocked"
+                action["error"] = str(exc)
+                manifest["status"] = "blocked"
+                _save_manifest(manifest)
+                raise
+
+        if _has_moved_or_moving_actions(manifest):
+            manifest["status"] = "blocked"
+            _save_manifest(manifest)
+            raise ValueError("Could not restore every moved cleanup action")
+        manifest["status"] = "restored"
+        return _save_manifest(manifest)
 
 
 def load_manifest(manifest_path: Path | str) -> dict[str, Any]:
@@ -449,6 +498,11 @@ def _preflight_actions(manifest: dict[str, Any], actions: list[dict[str, Any]]) 
         _preflight_action(manifest, action)
 
 
+def _preflight_restore_actions(actions: list[dict[str, Any]]) -> None:
+    _reject_duplicate_action_paths(actions, "destination_path", "restore source")
+    _reject_duplicate_action_paths(actions, "source_path", "restore destination")
+
+
 def _reject_duplicate_action_paths(
     actions: list[dict[str, Any]],
     key: str,
@@ -488,22 +542,49 @@ def _ensure_safe_destination_parent(manifest: dict[str, Any], destination: Path)
     except ValueError as exc:
         raise ValueError("Destination path must be under cleanup root") from exc
 
-    _ensure_safe_directory_component(cleanup_root, destination)
+    _ensure_safe_directory_component(cleanup_root, destination, "symlinked destination")
     current = cleanup_root
     for part in relative_parent.parts:
         current = current / part
-        _ensure_safe_directory_component(current, destination)
+        _ensure_safe_directory_component(current, destination, "symlinked destination")
 
 
-def _ensure_safe_directory_component(path: Path, destination: Path) -> None:
+def _ensure_safe_restore_destination_parent(
+    manifest: dict[str, Any],
+    destination: Path,
+) -> None:
+    root = _manifest_root(manifest)
+    mods = _manifest_mods(manifest, root)
+    destination = _logical_absolute(destination)
+    try:
+        relative_parent = destination.parent.relative_to(mods)
+    except ValueError as exc:
+        raise ValueError("Restore destination path must be under Mods") from exc
+
+    _ensure_safe_directory_component(mods, destination, "symlinked restore destination")
+    current = mods
+    for part in relative_parent.parts:
+        current = current / part
+        _ensure_safe_directory_component(
+            current,
+            destination,
+            "symlinked restore destination",
+        )
+
+
+def _ensure_safe_directory_component(
+    path: Path,
+    destination: Path,
+    symlink_message: str,
+) -> None:
     if path.is_symlink():
-        raise ValueError(f"Refusing symlinked destination: {destination}")
+        raise ValueError(f"Refusing {symlink_message}: {destination}")
     if path.exists() and not path.is_dir():
         raise ValueError(f"Destination parent is not a directory: {path}")
     if not path.exists():
         path.mkdir(exist_ok=True)
     if path.is_symlink():
-        raise ValueError(f"Refusing symlinked destination: {destination}")
+        raise ValueError(f"Refusing {symlink_message}: {destination}")
     if not path.is_dir():
         raise ValueError(f"Destination parent is not a directory: {path}")
 
@@ -658,6 +739,40 @@ def _has_moved_actions(manifest: dict[str, Any]) -> bool:
         isinstance(action, dict) and action.get("status") == "moved"
         for action in manifest.get("actions", [])
     )
+
+
+def _has_moved_or_moving_actions(manifest: dict[str, Any]) -> bool:
+    return any(
+        isinstance(action, dict) and action.get("status") in RESTORABLE_ACTION_STATUSES
+        for action in manifest.get("actions", [])
+    )
+
+
+def _prepare_restore_action(
+    manifest: dict[str, Any],
+    action: dict[str, Any],
+) -> tuple[Path, Path] | None:
+    _validate_action_contract(manifest, action)
+    source = Path(str(action["destination_path"]))
+    destination = Path(str(action["source_path"]))
+
+    if not source.exists():
+        if action.get("status") == "moving" and destination.exists():
+            _reject_symlinked_path(destination, "symlinked restore destination")
+            return None
+        raise ValueError(f"Restore source is missing: {source}")
+
+    _reject_symlinked_path(source, "symlinked restore source")
+    if destination.exists():
+        raise ValueError(f"Restore destination already exists: {destination}")
+    if destination.is_symlink():
+        raise ValueError(f"Refusing symlinked restore destination: {destination}")
+    _ensure_safe_restore_destination_parent(manifest, destination)
+    if destination.exists():
+        raise ValueError(f"Restore destination already exists: {destination}")
+    if destination.is_symlink():
+        raise ValueError(f"Refusing symlinked restore destination: {destination}")
+    return source, destination
 
 
 def _unique_manifest_path(manifest_dir: Path, base_operation_id: str) -> tuple[str, Path]:
