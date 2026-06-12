@@ -148,6 +148,87 @@ def test_stage_all_actions_requires_explicit_flag(tmp_path: Path) -> None:
     ]
 
 
+def test_stage_same_second_operations_preserve_distinct_manifests(tmp_path: Path) -> None:
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    _write(root / "Mods" / "archive.zip", b"archive")
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+
+    first = table.stage_cleanup_plan(
+        root,
+        _cleanup_plan(root),
+        selected_action_ids=["duplicate:1"],
+    )
+    second = table.stage_cleanup_plan(
+        root,
+        _cleanup_plan(root),
+        selected_action_ids=["inactive_archive:1:Mods/archive.zip"],
+    )
+
+    first_path = Path(str(first["manifest_path"]))
+    second_path = Path(str(second["manifest_path"]))
+    assert first_path == root / "_Simanalysis_Cleanup" / "manifests" / (
+        "cleanup-op-20260612-101530.json"
+    )
+    assert second_path == root / "_Simanalysis_Cleanup" / "manifests" / (
+        "cleanup-op-20260612-101530-2.json"
+    )
+    assert load_manifest(first_path)["actions"][0]["action_id"] == "duplicate:1"
+    assert load_manifest(second_path)["actions"][0]["action_id"] == (
+        "inactive_archive:1:Mods/archive.zip"
+    )
+
+
+def test_stage_fsyncs_manifest_directory_after_atomic_replace(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import simanalysis.operating_table as operating_table
+
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    opened_directories: list[Path] = []
+    fsynced_fds: list[int] = []
+    closed_fds: list[int] = []
+    parent_fd = 8675309
+    original_open = operating_table.os.open
+    original_fsync = operating_table.os.fsync
+    original_close = operating_table.os.close
+
+    def fake_open(path: str | Path, flags: int, mode: int = 0o777) -> int:
+        path_obj = Path(path)
+        if path_obj.is_dir() and flags == operating_table.os.O_RDONLY:
+            opened_directories.append(path_obj)
+            return parent_fd
+        return original_open(path, flags, mode)
+
+    def fake_fsync(fd: int) -> None:
+        fsynced_fds.append(fd)
+        if fd != parent_fd:
+            original_fsync(fd)
+
+    def fake_close(fd: int) -> None:
+        closed_fds.append(fd)
+        if fd != parent_fd:
+            original_close(fd)
+
+    monkeypatch.setattr(operating_table.os, "open", fake_open)
+    monkeypatch.setattr(operating_table.os, "fsync", fake_fsync)
+    monkeypatch.setattr(operating_table.os, "close", fake_close)
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+
+    manifest = table.stage_cleanup_plan(
+        root,
+        _cleanup_plan(root),
+        selected_action_ids=["duplicate:1"],
+    )
+
+    manifest_dir = Path(str(manifest["manifest_path"])).parent
+    assert opened_directories == [manifest_dir]
+    assert parent_fd in fsynced_fds
+    assert closed_fds == [parent_fd]
+
+
 def test_stage_rejects_unknown_and_duplicate_action_ids(tmp_path: Path) -> None:
     root = tmp_path / "The Sims 4"
     root.mkdir()

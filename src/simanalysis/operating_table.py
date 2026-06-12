@@ -53,8 +53,10 @@ class OperatingTable:
 
         selected_ids = _selected_action_ids(plan, selected_action_ids, all_actions)
         created_at = self._clock()
-        operation_id = _operation_id(created_at)
-        manifest_path = root / SESSION_ROOT_NAME / MANIFEST_DIR_NAME / f"{operation_id}.json"
+        operation_id, manifest_path = _unique_manifest_path(
+            root / SESSION_ROOT_NAME / MANIFEST_DIR_NAME,
+            _operation_id(created_at),
+        )
         actions = [_manifest_action(root, plan, action_id) for action_id in selected_ids]
         manifest: dict[str, Any] = {
             "version": MANIFEST_VERSION,
@@ -326,10 +328,30 @@ def _write_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
             os.fsync(tmp.fileno())
         os.replace(tmp_name, path)
         tmp_name = None
+
+        try:
+            parent_fd = os.open(path.parent, os.O_RDONLY)
+        except OSError:
+            return manifest
+        try:
+            os.fsync(parent_fd)
+        finally:
+            os.close(parent_fd)
     finally:
         if tmp_name is not None:
             Path(tmp_name).unlink(missing_ok=True)
     return manifest
+
+
+def _unique_manifest_path(manifest_dir: Path, base_operation_id: str) -> tuple[str, Path]:
+    operation_id = base_operation_id
+    suffix = 1
+    while True:
+        path = manifest_dir / f"{operation_id}.json"
+        if not path.exists():
+            return operation_id, path
+        suffix += 1
+        operation_id = f"{base_operation_id}-{suffix}"
 
 
 def _operation_id(created_at: str) -> str:
