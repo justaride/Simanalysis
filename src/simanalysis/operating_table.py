@@ -54,9 +54,16 @@ class OperatingTable:
         selected_ids = _selected_action_ids(plan, selected_action_ids, all_actions)
         created_at = self._clock()
         actions = [_manifest_action(root, plan, action_id) for action_id in selected_ids]
+        source_plan = {
+            "version": int(plan["version"]),
+            "plan_id": str(plan["plan_id"]),
+            "scan_id": int(plan["scan_id"]),
+            "created_at": str(plan["created_at"]),
+        }
+        base_operation_id = _operation_id(created_at)
         operation_id, manifest_path = _unique_manifest_path(
             root / SESSION_ROOT_NAME / MANIFEST_DIR_NAME,
-            _operation_id(created_at),
+            base_operation_id,
         )
         manifest: dict[str, Any] = {
             "version": MANIFEST_VERSION,
@@ -65,12 +72,7 @@ class OperatingTable:
             "updated_at": created_at,
             "root_path": str(root),
             "mods_path": str(root / "Mods"),
-            "source_plan": {
-                "version": int(plan["version"]),
-                "plan_id": str(plan["plan_id"]),
-                "scan_id": int(plan["scan_id"]),
-                "created_at": str(plan["created_at"]),
-            },
+            "source_plan": source_plan,
             "manifest_path": str(manifest_path),
             "status": "planned",
             "actions": actions,

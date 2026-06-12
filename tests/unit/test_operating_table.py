@@ -325,6 +325,21 @@ def test_stage_rejects_destination_outside_cleanup_root(tmp_path: Path) -> None:
     assert not manifest_dir.exists() or not any(manifest_dir.iterdir())
 
 
+def test_stage_rejects_malformed_scan_id_without_manifest_reservation(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "The Sims 4"
+    _write(root / "Mods" / "B" / "item.package", b"payload")
+    plan = _cleanup_plan(root)
+    plan["scan_id"] = "not-an-int"
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+
+    with pytest.raises(ValueError, match="not-an-int"):
+        table.stage_cleanup_plan(root, plan, selected_action_ids=["duplicate:1"])
+    manifest_dir = root / "_Simanalysis_Cleanup" / "manifests"
+    assert not manifest_dir.exists() or not any(manifest_dir.iterdir())
+
+
 def test_stage_rejects_symlinked_source(tmp_path: Path) -> None:
     root = tmp_path / "The Sims 4"
     outside = tmp_path / "outside"
