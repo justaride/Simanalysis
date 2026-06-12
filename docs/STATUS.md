@@ -1,6 +1,6 @@
 # Simanalysis Status Index
 
-**Last consolidated:** 2026-06-11
+**Last consolidated:** 2026-06-12
 
 Use this index to avoid mixing current Phase 0 truth with older generated status
 reports.
@@ -17,13 +17,9 @@ Current branch note: the read-only SQLite inventory ledger now records scan
 history plus per-file change events in `src/simanalysis/inventory.py`; the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
-for Mods-folder review findings. Visual inventory and cleanup routes remain
-pending design approval. The next reversible-action slice has a draft Operating
-Table v1 design at
-`superpowers/specs/2026-06-12-operating-table-v1-design.md`; that design is
-approved, has an implementation plan at
-`superpowers/plans/2026-06-12-operating-table-v1.md`, and is ready for TDD
-execution.
+for Mods-folder review findings. Operating Table v1 adds manifest-first
+non-visual cleanup staging, apply, restore, and status plumbing. Visual
+inventory and cleanup routes remain pending design approval.
 
 ## Historical Status Snapshots
 

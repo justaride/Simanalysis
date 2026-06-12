@@ -1,6 +1,6 @@
 # Operating Table v1 - design
 
-**Status:** Design approved; implementation plan written
+**Status:** Implemented backend/API slice; visual cleanup route pending separate design
 **Date:** 2026-06-12
 **Roadmap:** Track B, General Quarantine + Restore v1. Builds on Cleanup Planner v1 by turning review-only cleanup actions into a manifest-first, undoable quarantine workflow.
 

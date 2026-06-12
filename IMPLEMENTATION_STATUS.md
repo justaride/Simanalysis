@@ -1,6 +1,6 @@
 # Simanalysis Current Implementation Status
 
-**Last consolidated:** 2026-06-11
+**Last consolidated:** 2026-06-12
 **Status source:** Phase 0 truth pass on branch `codex/phase0-real-fixtures`
 
 This file replaces the old generated status report that called the project
@@ -83,6 +83,21 @@ Implemented on this branch after the inventory ledger:
 - The desktop bridge and Tauri/web API plumbing expose `cleanup-plan`; the
   visual cleanup route remains future work.
 
+## Operating Table Progress
+
+Implemented on this branch after Cleanup Planner v1:
+
+- Added `src/simanalysis/operating_table.py`, a manifest-first cleanup
+  operation engine.
+- Cleanup actions must be explicitly selected or staged with an explicit
+  all-actions flag.
+- Apply and restore use the operation manifest, block while The Sims 4 is
+  running, reject path escapes/symlinks/collisions, and never delete or
+  overwrite files.
+- The desktop bridge and Tauri/web API plumbing expose `cleanup-stage`,
+  `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; the visual cleanup
+  route remains future work.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -92,9 +107,9 @@ surfaces from earlier shipped slices.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
-visual cleanup route, profile-aware state, Patch Day Shield, general reversible
-action engine, Cache Doctor, update staging, and broader real-world corpus
-coverage.
+visual cleanup route, profile-aware state, Patch Day Shield, reversible
+workflows beyond cleanup actions, Cache Doctor, update staging, and broader
+real-world corpus coverage.
 
 ## Current Verification Gates
 
@@ -113,12 +128,6 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 ## Next Work
 
 The visual Inventory route and visual Cleanup route remain pending design
-approval. The next non-visual slice should stay ledger-backed and reversible:
-turn review-only findings into an explicit journaled operating-table plan
-before any file moves are allowed.
-
-The draft design for that slice is
-`docs/superpowers/specs/2026-06-12-operating-table-v1-design.md`. That
-mutating-engine design is approved; the implementation plan is
-`docs/superpowers/plans/2026-06-12-operating-table-v1.md`, and the next step is
-TDD execution.
+approval. Operating Table v1 now provides the non-visual journaled action
+engine for cleanup staging, apply, restore, and status; the next cleanup work
+should design the visual route around that reversible manifest contract.
