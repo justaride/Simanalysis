@@ -176,16 +176,16 @@ class OperatingTable:
     def restore(self, manifest_path: Path | str) -> dict[str, Any]:
         assert_sims_not_running()
         manifest = load_manifest(manifest_path)
-        if manifest["status"] not in RESTORABLE_MANIFEST_STATUSES:
-            raise ValueError(
-                f"Cleanup operation cannot be restored from status: {manifest['status']}"
-            )
         actions = _validated_apply_actions(manifest)
         restorable = [
             action
             for action in reversed(actions)
             if action.get("status") in RESTORABLE_ACTION_STATUSES
         ]
+        if not _can_restore_manifest_status(manifest, restorable):
+            raise ValueError(
+                f"Cleanup operation cannot be restored from status: {manifest['status']}"
+            )
         _preflight_restore_actions(manifest, restorable)
 
         manifest["status"] = "restoring"
@@ -225,7 +225,7 @@ class OperatingTable:
                     raise
                 action["status"] = "restore_pending"
                 action["error"] = str(exc)
-                manifest["status"] = "partial"
+                manifest["status"] = "blocked"
                 _save_manifest(manifest)
                 raise
 
@@ -315,7 +315,7 @@ def _selected_action_ids(
     selected = list(selected_action_ids or [])
     if selected and all_actions:
         raise ValueError("Choose explicit actions or --all-actions, not both")
-    available = [action["action_id"] for _, action in _iter_plan_actions(plan)]
+    available = [_plan_action_id(action) for _, action in _iter_plan_actions(plan)]
     if all_actions:
         selected = [str(action_id) for action_id in available]
     if not selected:
@@ -326,6 +326,13 @@ def _selected_action_ids(
     if missing:
         raise ValueError(f"Unknown cleanup action: {', '.join(missing)}")
     return selected
+
+
+def _plan_action_id(action: dict[str, Any]) -> str:
+    action_id = action.get("action_id")
+    if not isinstance(action_id, str) or not action_id:
+        raise ValueError("Cleanup action is missing action_id")
+    return action_id
 
 
 def _iter_plan_actions(plan: dict[str, Any]) -> list[tuple[dict[str, Any], dict[str, Any]]]:
@@ -517,7 +524,7 @@ def _preflight_restore_actions(
     _reject_duplicate_action_paths(actions, "destination_path", "restore source")
     _reject_duplicate_action_paths(actions, "source_path", "restore destination")
     for action in actions:
-        _prepare_restore_action(manifest, action)
+        _prepare_restore_action(manifest, action, create_destination_parent=False)
 
 
 def _reject_duplicate_action_paths(
@@ -570,6 +577,15 @@ def _ensure_safe_restore_destination_parent(
     manifest: dict[str, Any],
     destination: Path,
 ) -> None:
+    _check_restore_destination_parent(manifest, destination, create=True)
+
+
+def _check_restore_destination_parent(
+    manifest: dict[str, Any],
+    destination: Path,
+    *,
+    create: bool,
+) -> None:
     root = _manifest_root(manifest)
     mods = _manifest_mods(manifest, root)
     destination = _logical_absolute(destination)
@@ -578,32 +594,45 @@ def _ensure_safe_restore_destination_parent(
     except ValueError as exc:
         raise ValueError("Restore destination path must be under Mods") from exc
 
-    _ensure_safe_directory_component(mods, destination, "symlinked restore destination")
+    if not _ensure_safe_directory_component(
+        mods,
+        destination,
+        "symlinked restore destination",
+        create=create,
+    ):
+        return
     current = mods
     for part in relative_parent.parts:
         current = current / part
-        _ensure_safe_directory_component(
+        if not _ensure_safe_directory_component(
             current,
             destination,
             "symlinked restore destination",
-        )
+            create=create,
+        ):
+            return
 
 
 def _ensure_safe_directory_component(
     path: Path,
     destination: Path,
     symlink_message: str,
-) -> None:
+    *,
+    create: bool = True,
+) -> bool:
     if path.is_symlink():
         raise ValueError(f"Refusing {symlink_message}: {destination}")
     if path.exists() and not path.is_dir():
         raise ValueError(f"Destination parent is not a directory: {path}")
     if not path.exists():
+        if not create:
+            return False
         path.mkdir(exist_ok=True)
     if path.is_symlink():
         raise ValueError(f"Refusing {symlink_message}: {destination}")
     if not path.is_dir():
         raise ValueError(f"Destination parent is not a directory: {path}")
+    return True
 
 
 def _validate_manifest_write_target(manifest: dict[str, Any]) -> None:
@@ -773,9 +802,21 @@ def _has_moved_or_moving_actions(manifest: dict[str, Any]) -> bool:
     )
 
 
+def _can_restore_manifest_status(
+    manifest: dict[str, Any],
+    restorable_actions: list[dict[str, Any]],
+) -> bool:
+    status = manifest["status"]
+    if status in RESTORABLE_MANIFEST_STATUSES:
+        return True
+    return status == "applying" and bool(restorable_actions)
+
+
 def _prepare_restore_action(
     manifest: dict[str, Any],
     action: dict[str, Any],
+    *,
+    create_destination_parent: bool = True,
 ) -> tuple[Path, Path] | None:
     _validate_action_contract(manifest, action)
     source = Path(str(action["destination_path"]))
@@ -796,7 +837,10 @@ def _prepare_restore_action(
         raise ValueError(f"Refusing symlinked restore destination: {destination}")
     if destination.exists():
         raise ValueError(f"Restore destination already exists: {destination}")
-    _ensure_safe_restore_destination_parent(manifest, destination)
+    if create_destination_parent:
+        _ensure_safe_restore_destination_parent(manifest, destination)
+    else:
+        _check_restore_destination_parent(manifest, destination, create=False)
     if destination.is_symlink():
         raise ValueError(f"Refusing symlinked restore destination: {destination}")
     if destination.exists():

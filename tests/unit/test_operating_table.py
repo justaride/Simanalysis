@@ -326,6 +326,19 @@ def test_stage_rejects_unknown_and_duplicate_action_ids(tmp_path: Path) -> None:
         )
 
 
+def test_stage_rejects_plan_action_missing_action_id_as_invalid_input(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "The Sims 4"
+    root.mkdir()
+    plan = _cleanup_plan(root)
+    del plan["findings"][0]["actions"][0]["action_id"]
+    table = OperatingTable(clock=lambda: "2026-06-12T10:15:30Z")
+
+    with pytest.raises(ValueError, match="Cleanup action is missing action_id"):
+        table.stage_cleanup_plan(root, plan, all_actions=True)
+
+
 def test_stage_rejects_destination_outside_cleanup_root(tmp_path: Path) -> None:
     root = tmp_path / "The Sims 4"
     root.mkdir()
@@ -748,6 +761,30 @@ def test_restore_preflights_later_destination_collision_before_any_move(
     assert _read_raw_manifest(manifest_path) == before
 
 
+def test_restore_preflight_does_not_create_missing_parent_before_manifest_state(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, package_source, _archive_source = _stage_two_action_manifest(tmp_path)
+    applied = table.apply(manifest_path)
+    manifest = load_manifest(manifest_path)
+    nested_archive_destination = (
+        Path(str(manifest["root_path"])) / "Mods" / "Nested" / "archive.zip"
+    )
+    missing_parent = nested_archive_destination.parent
+    manifest["actions"][1]["source_relative_path"] = "Mods/Nested/archive.zip"
+    manifest["actions"][1]["source_path"] = str(nested_archive_destination)
+    package_source.write_bytes(b"collision")
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    before = _read_raw_manifest(manifest_path)
+
+    with pytest.raises(ValueError, match="Restore destination already exists"):
+        table.restore(manifest_path)
+
+    assert not missing_parent.exists()
+    assert _read_raw_manifest(manifest_path) == before
+    assert all(Path(str(action["destination_path"])).exists() for action in applied["actions"])
+
+
 def test_restore_refuses_running_sims_before_mutation(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -945,6 +982,51 @@ def test_restore_recovers_apply_persistence_states_when_cleanup_file_exists(
     assert not cleanup_source.exists()
     assert restored["status"] == "restored"
     assert restored["actions"][0]["status"] == "restored"
+
+
+def test_restore_recovers_applying_manifest_with_restorable_action(
+    tmp_path: Path,
+) -> None:
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    applied = table.apply(manifest_path)
+    cleanup_source = Path(str(applied["actions"][0]["destination_path"]))
+    manifest = load_manifest(manifest_path)
+    manifest["status"] = "applying"
+    manifest["actions"][0]["status"] = "moving"
+    manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+
+    restored = table.restore(manifest_path)
+
+    assert source.exists()
+    assert source.read_bytes() == b"payload"
+    assert not cleanup_source.exists()
+    assert restored["status"] == "restored"
+    assert restored["actions"][0]["status"] == "restored"
+
+
+def test_restore_failure_after_restoring_state_marks_manifest_blocked(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    import simanalysis.operating_table as operating_table
+
+    table, manifest_path, source = _stage_manifest(tmp_path)
+    applied = table.apply(manifest_path)
+    cleanup_source = Path(str(applied["actions"][0]["destination_path"]))
+
+    def fail_restore_move(_source: str, _destination: str) -> str:
+        raise OSError("restore move exploded")
+
+    monkeypatch.setattr(operating_table.shutil, "move", fail_restore_move)
+
+    with pytest.raises(OSError, match="restore move exploded"):
+        table.restore(manifest_path)
+
+    assert not source.exists()
+    assert cleanup_source.exists()
+    saved = load_manifest(manifest_path)
+    assert saved["status"] == "blocked"
+    assert saved["actions"][0]["status"] == "restore_pending"
 
 
 def test_restore_does_not_mark_action_blocked_when_persisting_after_move_fails(
