@@ -13,8 +13,14 @@ def test_mod_result_to_dict_shape():
         path="/x/A.package",
         type=_v("package"),
         size=123,
+        hash=None,
         author=None,
         version=None,
+        resources=[],
+        tunings=[],
+        scripts=[],
+        string_tables=[],
+        sim_data=[],
     )
     conflict = SimpleNamespace(
         id="c1",
@@ -54,9 +60,37 @@ def test_mod_result_to_dict_shape():
         "path": "/x/A.package",
         "type": "package",
         "size": 123,
+        "hash": None,
         "author": "Unknown",
         "version": "Unknown",
         "conflicts": 1,
+        "resource_count": 0,
+        "tuning_count": 0,
+        "script_count": 0,
+        "string_table_count": 0,
+        "sim_data_count": 0,
+        "resource_summary": {
+            "resource_count": 0,
+            "tuning_count": 0,
+            "script_count": 0,
+            "string_table_count": 0,
+            "sim_data_count": 0,
+            "resource_types": [],
+            "parse_status": {
+                "string_tables": {
+                    "total": 0,
+                    "statuses": {},
+                    "warning_count": 0,
+                    "warnings": [],
+                },
+                "sim_data": {
+                    "total": 0,
+                    "statuses": {},
+                    "warning_count": 0,
+                    "warnings": [],
+                },
+            },
+        },
     }
     assert out["conflicts"][0]["severity"] == "high"
     assert out["conflicts"][0]["details"] == {
@@ -64,6 +98,104 @@ def test_mod_result_to_dict_shape():
     }
     assert out["warnings"] == ["partial load-order warning"]
     assert out["performance"]["complexity_score"] == 7
+
+
+def test_mod_result_to_dict_includes_compact_resource_truth():
+    mod = SimpleNamespace(
+        name="Truth.package",
+        path="/x/Truth.package",
+        type=_v("package"),
+        size=456,
+        hash="abc123",
+        author="Creator",
+        version="1.2.3",
+        resources=[
+            SimpleNamespace(type=0x220557DA),
+            SimpleNamespace(type=0x545AC67A),
+            SimpleNamespace(type=0x545AC67A),
+            SimpleNamespace(type=0xDEADBEEF),
+        ],
+        tunings=[object()],
+        scripts=[object(), object()],
+        string_tables=[
+            SimpleNamespace(
+                parse_status="parsed",
+                warnings=[],
+                resource_group=0x80000000,
+                resource_instance=0x0B84CB2FC430848A,
+            ),
+            SimpleNamespace(
+                parse_status="malformed",
+                warnings=["entry count exceeds remaining bytes"],
+                resource_group=0x00000000,
+                resource_instance=0x0000000000000042,
+            ),
+        ],
+        sim_data=[
+            SimpleNamespace(
+                parse_status="unsupported",
+                warnings=["unsupported SimData version 0x999"],
+                resource_group=None,
+                resource_instance=0xABCDEF0123456789,
+            )
+        ],
+    )
+    result = SimpleNamespace(
+        mods=[mod],
+        conflicts=[],
+        performance=SimpleNamespace(
+            total_size_mb=0,
+            total_resources=4,
+            total_tunings=1,
+            total_scripts=2,
+            estimated_load_time_seconds=0,
+            estimated_memory_mb=0,
+            complexity_score=0,
+        ),
+    )
+    analyzer = SimpleNamespace(get_summary=lambda r: {}, get_recommendations=lambda r: [])
+
+    out = serialization.mod_result_to_dict(analyzer, result)
+
+    mod_payload = out["mods"][0]
+    assert mod_payload["resource_count"] == 4
+    assert mod_payload["tuning_count"] == 1
+    assert mod_payload["script_count"] == 2
+    assert mod_payload["string_table_count"] == 2
+    assert mod_payload["sim_data_count"] == 1
+    assert mod_payload["resource_summary"]["resource_types"] == [
+        {"type_id": 0x220557DA, "type_hex": "0x220557DA", "name": "String Table", "count": 1},
+        {"type_id": 0x545AC67A, "type_hex": "0x545AC67A", "name": "SimData", "count": 2},
+        {"type_id": 0xDEADBEEF, "type_hex": "0xDEADBEEF", "name": "Unknown", "count": 1},
+    ]
+    assert mod_payload["resource_summary"]["parse_status"] == {
+        "string_tables": {
+            "total": 2,
+            "statuses": {"malformed": 1, "parsed": 1},
+            "warning_count": 1,
+            "warnings": [
+                {
+                    "status": "malformed",
+                    "message": "entry count exceeds remaining bytes",
+                    "resource_group": "0x00000000",
+                    "resource_instance": "0x0000000000000042",
+                }
+            ],
+        },
+        "sim_data": {
+            "total": 1,
+            "statuses": {"unsupported": 1},
+            "warning_count": 1,
+            "warnings": [
+                {
+                    "status": "unsupported",
+                    "message": "unsupported SimData version 0x999",
+                    "resource_group": None,
+                    "resource_instance": "0xABCDEF0123456789",
+                }
+            ],
+        },
+    }
 
 
 def test_tray_result_to_dict_shape():

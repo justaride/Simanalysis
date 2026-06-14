@@ -303,6 +303,8 @@ class TestModAnalyzer:
         assert "conflicts" in data
         assert data["warnings"] == ["load-order confidence warning"]
         assert len(data["mods"]) == 2
+        assert "resource_summary" in data["mods"][0]
+        assert "details" in data["conflicts"][0]
 
     def test_export_unsupported_format(
         self, analyzer: ModAnalyzer, test_mods_with_conflicts: list[Mod], tmp_path: Path
@@ -487,6 +489,8 @@ class TestModAnalyzer:
             assert "path" in mod_data
             assert "type" in mod_data
             assert "size" in mod_data
+            assert "resource_count" in mod_data
+            assert "resource_summary" in mod_data
 
         # Check conflicts structure (should be empty for this case)
         assert len(data["conflicts"]) == 0

@@ -56,3 +56,6 @@ class TestWebSocket:
             assert last["status"] == "complete"
             assert "result" in last
             assert "summary" in last["result"]
+            assert "warnings" in last["result"]
+            assert "details" in last["result"]["conflicts"][0]
+            assert "resource_summary" in last["result"]["mods"][0]

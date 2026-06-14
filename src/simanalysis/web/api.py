@@ -16,7 +16,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from simanalysis import __version__
+from simanalysis import __version__, serialization
 from simanalysis.analyzers.mod_analyzer import ModAnalyzer
 from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
@@ -174,6 +174,7 @@ class ScanResponse(BaseModel):
     conflicts: list[dict]
     performance: dict
     recommendations: list[str]
+    warnings: list[str] = []
 
 
 @app.get("/api/health")
@@ -231,43 +232,7 @@ async def websocket_scan(websocket: WebSocket) -> None:
             ),
         )
 
-        # Transform result
-        response_data = {
-            "summary": analyzer.get_summary(result),
-            "mods": [
-                {
-                    "name": m.name,
-                    "path": str(m.path),
-                    "type": m.type.value,
-                    "size": m.size,
-                    "author": m.author or "Unknown",
-                    "version": m.version or "Unknown",
-                    "conflicts": len([c for c in result.conflicts if m.name in c.affected_mods]),
-                }
-                for m in result.mods
-            ],
-            "conflicts": [
-                {
-                    "id": c.id,
-                    "severity": c.severity.value,
-                    "type": c.type.value,
-                    "description": c.description,
-                    "affected_mods": c.affected_mods,
-                    "resolution": c.resolution,
-                }
-                for c in result.conflicts
-            ],
-            "performance": {
-                "total_size_mb": result.performance.total_size_mb,
-                "total_resources": result.performance.total_resources,
-                "total_tunings": result.performance.total_tunings,
-                "total_scripts": result.performance.total_scripts,
-                "estimated_load_time_seconds": result.performance.estimated_load_time_seconds,
-                "estimated_memory_mb": result.performance.estimated_memory_mb,
-                "complexity_score": result.performance.complexity_score,
-            },
-            "recommendations": analyzer.get_recommendations(result),
-        }
+        response_data = serialization.mod_result_to_dict(analyzer, result)
 
         await websocket.send_json({"status": "complete", "result": response_data})
 
@@ -432,43 +397,7 @@ async def scan_directory(request: ScanRequest) -> dict[str, object]:
         )
         result = analyzer.analyze_directory(path, recursive=request.recursive)
 
-        # Transform result for JSON response
-        return {
-            "summary": analyzer.get_summary(result),
-            "mods": [
-                {
-                    "name": m.name,
-                    "path": str(m.path),
-                    "type": m.type.value,
-                    "size": m.size,
-                    "author": m.author or "Unknown",
-                    "version": m.version or "Unknown",
-                    "conflicts": len([c for c in result.conflicts if m.name in c.affected_mods]),
-                }
-                for m in result.mods
-            ],
-            "conflicts": [
-                {
-                    "id": c.id,
-                    "severity": c.severity.value,
-                    "type": c.type.value,
-                    "description": c.description,
-                    "affected_mods": c.affected_mods,
-                    "resolution": c.resolution,
-                }
-                for c in result.conflicts
-            ],
-            "performance": {
-                "total_size_mb": result.performance.total_size_mb,
-                "total_resources": result.performance.total_resources,
-                "total_tunings": result.performance.total_tunings,
-                "total_scripts": result.performance.total_scripts,
-                "estimated_load_time_seconds": result.performance.estimated_load_time_seconds,
-                "estimated_memory_mb": result.performance.estimated_memory_mb,
-                "complexity_score": result.performance.complexity_score,
-            },
-            "recommendations": analyzer.get_recommendations(result),
-        }
+        return serialization.mod_result_to_dict(analyzer, result)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 

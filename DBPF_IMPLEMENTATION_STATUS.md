@@ -18,6 +18,9 @@ The old generated DBPF status report is archived at
   explicit `parsed`, `unsupported`, or `malformed` status and warnings.
 - Parses Sims 4 SimData `DATA` resources into read-only table, schema, and
   column metadata with explicit `parsed`, `unsupported`, or `malformed` status.
+- Surfaces compact parser truth in mod analysis JSON: resource type names,
+  resource counts, STBL/SimData parse-status counts, and parser warnings are
+  available without dumping full STBL strings or SimData column payloads.
 - Handles corrupted or unsupported package data with parser errors instead of
   silent success.
 - Uses verified Sims 4 resource type constants from

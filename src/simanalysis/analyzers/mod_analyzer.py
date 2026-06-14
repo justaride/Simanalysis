@@ -411,46 +411,9 @@ class ModAnalyzer:
         """Export JSON report."""
         import json
 
-        # Build JSON structure
-        report = {
-            "summary": self.get_summary(result),
-            "performance": {
-                "total_size_mb": result.performance.total_size_mb,
-                "total_resources": result.performance.total_resources,
-                "total_tunings": result.performance.total_tunings,
-                "total_scripts": result.performance.total_scripts,
-                "estimated_load_time_seconds": result.performance.estimated_load_time_seconds,
-                "estimated_memory_mb": result.performance.estimated_memory_mb,
-                "complexity_score": result.performance.complexity_score,
-            },
-            "recommendations": self.get_recommendations(result),
-            "warnings": result.warnings,
-            "mods": [
-                {
-                    "name": mod.name,
-                    "path": str(mod.path),
-                    "type": mod.type.value,
-                    "size": mod.size,
-                    "hash": mod.hash,
-                    "resource_count": len(mod.resources),
-                    "tuning_count": len(mod.tunings),
-                    "script_count": len(mod.scripts),
-                }
-                for mod in result.mods
-            ],
-            "conflicts": [
-                {
-                    "id": conflict.id,
-                    "severity": conflict.severity.value,
-                    "type": conflict.type.value,
-                    "description": conflict.description,
-                    "affected_mods": conflict.affected_mods,
-                    "resolution": conflict.resolution,
-                    "details": conflict.details,
-                }
-                for conflict in result.conflicts
-            ],
-        }
+        from simanalysis import serialization
+
+        report = serialization.mod_result_to_dict(self, result)
 
         # Write file
         with open(output_path, "w", encoding="utf-8") as f:

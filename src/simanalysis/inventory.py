@@ -9,10 +9,28 @@ import sys
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from types import TracebackType
+from typing import Literal
 
 from simanalysis.parsers.dbpf import DBPFReader
 
 SCHEMA_VERSION = 1
+
+
+class _ClosingConnection(sqlite3.Connection):
+    """SQLite connection that closes when used as a context manager."""
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> Literal[False]:
+        try:
+            super().__exit__(exc_type, exc_value, traceback)
+            return False
+        finally:
+            self.close()
 
 
 @dataclass(frozen=True)
@@ -69,14 +87,14 @@ class InventoryStore:
     def connect(self) -> sqlite3.Connection:
         """Open a SQLite connection after ensuring the schema exists."""
         self.initialize()
-        return sqlite3.connect(self.db_path)
+        return sqlite3.connect(self.db_path, factory=_ClosingConnection)
 
     def initialize(self) -> None:
         """Create the inventory schema if needed."""
         if str(self.db_path) != ":memory:":
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(self.db_path, factory=_ClosingConnection) as conn:
             conn.execute("PRAGMA foreign_keys = ON")
             conn.executescript(_SCHEMA_SQL)
             conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")

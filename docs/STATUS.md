@@ -20,8 +20,9 @@ bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 for Mods-folder review findings. Operating Table v1 adds manifest-first
 non-visual cleanup staging, apply, restore, and status plumbing. The True Engine
 now has conservative read-only STBL v5 and SimData metadata parsers wired into
-package scanning. Visual inventory and cleanup routes remain pending design
-approval.
+package scanning, with compact parser/resource truth exposed through CLI JSON,
+the desktop bridge, HTTP scan, and WebSocket scan responses. Visual inventory
+and cleanup routes remain pending design approval.
 
 ## Historical Status Snapshots
 
