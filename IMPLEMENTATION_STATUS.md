@@ -132,6 +132,12 @@ desktop shell, Python sidecar bridge, package/script scanning, conflict
 detection, crash/UI autopsy flows, Treatment/Auto-Bisect, and Live Monitoring
 surfaces from earlier shipped slices.
 
+The combined Doctor payload is now shared outside the desktop bridge and exposed
+through `simanalysis doctor` for read-only script-crash plus UI-exception
+autopsy in text or JSON form. Ledger-aware crash history, timeline correlation,
+richer verdict objects, and the public bisection CLI/session flow remain future
+Doctor/Bisect work.
+
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
 visual cleanup route, profile-aware state, Patch Day Shield, reversible

@@ -20,11 +20,14 @@ bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings. Operating Table v1 adds manifest-first
 non-visual cleanup staging, apply, restore, and status plumbing, plus the
-`simanalysis ops plan|commit|restore|undo` CLI surface. The True Engine now has
-conservative read-only STBL v5 and SimData metadata parsers wired into package
-scanning, with compact parser/resource truth exposed through CLI JSON, the
-desktop bridge, HTTP scan, and WebSocket scan responses. Visual inventory and
-cleanup routes remain pending design approval.
+`simanalysis ops plan|commit|restore|undo` CLI surface. The shared read-only
+Doctor payload is now available through `simanalysis doctor`, combining script
+crash and UI exception autopsy without changing Sims files. The True Engine now
+has conservative read-only STBL v5 and SimData metadata parsers wired into
+package scanning, with compact parser/resource truth exposed through CLI JSON,
+the desktop bridge, HTTP scan, and WebSocket scan responses. Visual inventory,
+visual cleanup, richer Doctor verdicts, and bisection session CLI remain
+pending design approval and follow-on slices.
 
 ## Historical Status Snapshots
 

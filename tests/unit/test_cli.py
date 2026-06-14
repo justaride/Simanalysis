@@ -77,6 +77,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Simanalysis" in result.output
         assert "analyze" in result.output
+        assert re.search(r"^\s+doctor\s+", result.output, re.MULTILINE)
         assert "ledger" in result.output
         assert re.search(r"^\s+ops\s+", result.output, re.MULTILINE)
         assert "scan" in result.output
@@ -515,6 +516,107 @@ class TestCLI:
 
         assert result.exit_code != 0
         assert source.exists()
+
+    def test_doctor_json_outputs_combined_payload(
+        self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test doctor emits the shared combined Doctor payload as JSON."""
+        import simanalysis.doctor as doctor_core
+
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        mods.mkdir(parents=True)
+        payload = {
+            "summary": {
+                "script_reports": 1,
+                "script_active": 1,
+                "script_disabled": 0,
+                "script_not_installed": 0,
+                "script_base_game_only": 0,
+                "ui_findings": 1,
+                "ui_occurrences": 2,
+                "ui_active": 0,
+                "ui_disabled": 1,
+                "ui_not_found": 0,
+                "ui_no_key": 0,
+                "parse_errors": 0,
+                "index_errors": 0,
+            },
+            "script_crashes": {"ranked_mods": []},
+            "ui_crashes": {"findings": []},
+        }
+        calls: dict[str, object] = {}
+
+        def fake_build_doctor_payload(base: Path, mods_dir: Path, recursive: bool) -> dict:
+            calls["args"] = (base, mods_dir, recursive)
+            return payload
+
+        monkeypatch.setattr(doctor_core, "build_doctor_payload", fake_build_doctor_payload)
+
+        result = runner.invoke(cli, ["doctor", str(sims4), "--format", "json"])
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output) == payload
+        assert calls["args"] == (sims4.resolve(), mods.resolve(), False)
+
+    def test_doctor_text_output_file(
+        self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test doctor can write a human-readable report to a file."""
+        import simanalysis.doctor as doctor_core
+
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        output = tmp_path / "doctor.txt"
+        payload = {
+            "summary": {
+                "script_reports": 2,
+                "script_active": 1,
+                "script_disabled": 0,
+                "script_not_installed": 0,
+                "script_base_game_only": 0,
+                "ui_findings": 0,
+                "ui_occurrences": 0,
+                "ui_active": 0,
+                "ui_disabled": 0,
+                "ui_not_found": 0,
+                "ui_no_key": 0,
+                "parse_errors": 0,
+                "index_errors": 0,
+            },
+            "script_crashes": {
+                "ranked_mods": [
+                    {
+                        "mod": "Active.ts4script",
+                        "status": "active",
+                        "confidence": "high",
+                        "top_suspect_count": 2,
+                    }
+                ]
+            },
+            "ui_crashes": {"findings": []},
+        }
+        monkeypatch.setattr(doctor_core, "build_doctor_payload", lambda *args: payload)
+
+        result = runner.invoke(cli, ["doctor", str(sims4), "--output", str(output)])
+
+        assert result.exit_code == 0, result.output
+        assert "Wrote report" in result.output
+        report = output.read_text(encoding="utf-8")
+        assert "Sims Doctor" in report
+        assert "Active.ts4script" in report
+
+    def test_doctor_rejects_explicit_missing_mods_dir(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test doctor rejects an explicit missing Mods directory."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+
+        result = runner.invoke(cli, ["doctor", str(sims4), "--mods", str(tmp_path / "missing")])
+
+        assert result.exit_code != 0
+        assert "Invalid Mods directory path" in result.output
 
     def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""

@@ -879,6 +879,43 @@ def ui_crash(
         click.echo(text)
 
 
+@cli.command("doctor")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--mods", type=click.Path(), default=None, help="Mods dir (default: <sims4_dir>/Mods)"
+)
+@click.option("--recursive", is_flag=True, help="Also scan subfolders for exception logs")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
+@click.option("--limit", type=int, default=20, help="Top-N findings to show per status group")
+def doctor(
+    sims4_dir: str,
+    mods: Optional[str],
+    recursive: bool,
+    fmt: str,
+    output: Optional[str],
+    limit: int,
+) -> None:
+    """Run the combined read-only Sims Doctor over crash and UI exception logs."""
+    import json
+
+    from simanalysis.doctor import build_doctor_payload, format_doctor_text
+
+    base = Path(sims4_dir).expanduser().resolve()
+    mods_dir = Path(mods).expanduser().resolve() if mods else base / "Mods"
+    if mods and (not mods_dir.exists() or not mods_dir.is_dir()):
+        raise click.ClickException(f"Invalid Mods directory path: {mods}")
+
+    payload = build_doctor_payload(base, mods_dir, recursive)
+    text = json.dumps(payload, indent=2) if fmt == "json" else format_doctor_text(payload, limit)
+
+    if output:
+        Path(output).expanduser().write_text(text, encoding="utf-8")
+        click.echo(f"Wrote report to {output}")
+    else:
+        click.echo(text)
+
+
 @cli.command()
 @click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(
