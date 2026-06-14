@@ -23,6 +23,7 @@ def test_mod_result_to_dict_shape():
         description="d",
         affected_mods=["A.package"],
         resolution="r",
+        details={"load_order": {"winner": "A.package", "confidence": "configured"}},
     )
     perf = SimpleNamespace(
         total_size_mb=1.0,
@@ -33,7 +34,12 @@ def test_mod_result_to_dict_shape():
         estimated_memory_mb=6.0,
         complexity_score=7,
     )
-    result = SimpleNamespace(mods=[mod], conflicts=[conflict], performance=perf)
+    result = SimpleNamespace(
+        mods=[mod],
+        conflicts=[conflict],
+        performance=perf,
+        warnings=["partial load-order warning"],
+    )
     analyzer = SimpleNamespace(
         get_summary=lambda r: {"ok": True},
         get_recommendations=lambda r: ["rec"],
@@ -53,6 +59,10 @@ def test_mod_result_to_dict_shape():
         "conflicts": 1,
     }
     assert out["conflicts"][0]["severity"] == "high"
+    assert out["conflicts"][0]["details"] == {
+        "load_order": {"winner": "A.package", "confidence": "configured"}
+    }
+    assert out["warnings"] == ["partial load-order warning"]
     assert out["performance"]["complexity_score"] == 7
 
 

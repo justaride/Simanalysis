@@ -33,6 +33,7 @@ def mod_result_to_dict(analyzer: Any, result: Any) -> dict[str, Any]:
                 "description": c.description,
                 "affected_mods": c.affected_mods,
                 "resolution": c.resolution,
+                "details": getattr(c, "details", {}),
             }
             for c in result.conflicts
         ],
@@ -46,6 +47,7 @@ def mod_result_to_dict(analyzer: Any, result: Any) -> dict[str, Any]:
             "complexity_score": result.performance.complexity_score,
         },
         "recommendations": analyzer.get_recommendations(result),
+        "warnings": getattr(result, "warnings", []),
     }
 
 

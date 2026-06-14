@@ -10,11 +10,13 @@ from simanalysis.analyzers.mesh_analyzer import MeshAnalyzer
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
 from simanalysis.detectors.tuning_conflicts import TuningConflictDetector
+from simanalysis.load_order import LoadOrderPlan, simulate_package_load_order
 from simanalysis.models import (
     AnalysisMetadata,
     AnalysisResult,
     Mod,
     ModConflict,
+    ModType,
     PerformanceMetrics,
     Severity,
 )
@@ -95,9 +97,10 @@ class ModAnalyzer:
         mods = self.scanner.scan_directory(
             directory, recursive, extensions, progress_callback=progress_callback
         )
+        load_order = self._build_load_order(directory, mods)
 
         # Run conflict detection
-        conflicts = self.detect_conflicts(mods)
+        conflicts = self.detect_conflicts(mods, load_order=load_order)
 
         # Calculate performance metrics
         performance = self._calculate_performance(mods)
@@ -125,6 +128,7 @@ class ModAnalyzer:
             dependencies=dependencies,
             performance=performance,
             recommendations=recommendations,
+            warnings=self._load_order_warnings(load_order),
         )
 
         return result
@@ -163,7 +167,12 @@ class ModAnalyzer:
             recommendations=recommendations,
         )
 
-    def detect_conflicts(self, mods: list[Mod]) -> list[ModConflict]:
+    def detect_conflicts(
+        self,
+        mods: list[Mod],
+        *,
+        load_order: Optional[LoadOrderPlan] = None,
+    ) -> list[ModConflict]:
         """
         Run all conflict detectors on mods.
 
@@ -176,6 +185,8 @@ class ModAnalyzer:
         all_conflicts: list[ModConflict] = []
 
         for detector in self.detectors:
+            if isinstance(detector, ResourceConflictDetector):
+                detector.load_order = load_order
             conflicts = detector.run(mods)
             all_conflicts.extend(conflicts)
 
@@ -184,6 +195,21 @@ class ModAnalyzer:
             all_conflicts.extend(mesh_conflicts)
 
         return all_conflicts
+
+    def _build_load_order(self, directory: Path, mods: list[Mod]) -> LoadOrderPlan:
+        """Build Resource.cfg load-order context for package mods in a Mods root."""
+        package_paths = [mod.path for mod in mods if mod.type == ModType.PACKAGE]
+        return simulate_package_load_order(directory, package_paths)
+
+    def _load_order_warnings(self, load_order: LoadOrderPlan) -> list[str]:
+        """Return user-facing warnings from conservative load-order simulation."""
+        warnings = list(load_order.warnings)
+        if load_order.unmatched_relative_paths:
+            warnings.append(
+                "Load-order simulation did not match "
+                f"{len(load_order.unmatched_relative_paths)} package(s) to Resource.cfg rules"
+            )
+        return warnings
 
     def get_summary(self, result: AnalysisResult) -> dict:
         """
@@ -398,6 +424,7 @@ class ModAnalyzer:
                 "complexity_score": result.performance.complexity_score,
             },
             "recommendations": self.get_recommendations(result),
+            "warnings": result.warnings,
             "mods": [
                 {
                     "name": mod.name,

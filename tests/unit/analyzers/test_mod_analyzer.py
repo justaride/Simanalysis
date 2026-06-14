@@ -11,6 +11,7 @@ from simanalysis.analyzers import ModAnalyzer
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.models import (
     ConflictType,
+    DBPFResource,
     Mod,
     ModType,
     TuningData,
@@ -285,6 +286,7 @@ class TestModAnalyzer:
     ) -> None:
         """Test exporting JSON report."""
         result = analyzer.analyze_mods(test_mods_with_conflicts)
+        result.warnings.append("load-order confidence warning")
         output_path = tmp_path / "report.json"
 
         analyzer.export_report(result, output_path, format="json")
@@ -299,6 +301,7 @@ class TestModAnalyzer:
         assert "recommendations" in data
         assert "mods" in data
         assert "conflicts" in data
+        assert data["warnings"] == ["load-order confidence warning"]
         assert len(data["mods"]) == 2
 
     def test_export_unsupported_format(
@@ -318,6 +321,61 @@ class TestModAnalyzer:
         assert len(result.mods) >= 2
         # Conflicts expected since both packages have same tuning ID
         # (though parsing might fail, that's OK for this test)
+
+    def test_analyze_directory_adds_load_order_to_resource_conflicts(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test directory analysis includes Resource.cfg winner metadata."""
+        mods_dir = tmp_path / "Mods"
+        overrides_dir = mods_dir / "Overrides"
+        overrides_dir.mkdir(parents=True)
+        (mods_dir / "Resource.cfg").write_text(
+            """
+            Priority 500
+            PackedFile *.package
+            Priority 1000
+            PackedFile Overrides/*.package
+            """,
+            encoding="utf-8",
+        )
+        shared_resource = DBPFResource(
+            type=0x12345678,
+            group=0x00000000,
+            instance=0xAABBCCDD,
+            size=100,
+            offset=0,
+            compressed_size=0,
+        )
+        mods = [
+            Mod(
+                name="base.package",
+                path=mods_dir / "base.package",
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="base_hash",
+                resources=[shared_resource],
+            ),
+            Mod(
+                name="winner.package",
+                path=overrides_dir / "winner.package",
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="winner_hash",
+                resources=[shared_resource],
+            ),
+        ]
+        analyzer = ModAnalyzer(parse_tunings=False, calculate_hashes=False)
+        monkeypatch.setattr(analyzer.scanner, "scan_directory", lambda *args, **kwargs: mods)
+
+        result = analyzer.analyze_directory(mods_dir)
+
+        resource_conflicts = [
+            conflict for conflict in result.conflicts if "resource_key" in conflict.details
+        ]
+        assert resource_conflicts
+        assert resource_conflicts[0].details["load_order"]["winner"] == "Overrides/winner.package"
+        assert resource_conflicts[0].details["load_order"]["confidence"] == "configured"
+        assert result.warnings == []
 
     def test_analyze_directory_non_recursive(
         self, analyzer: ModAnalyzer, test_mods_directory: Path
