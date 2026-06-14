@@ -36,6 +36,54 @@ def make_stbl(entries: list[tuple[int, str]]) -> bytes:
     return bytes(payload)
 
 
+def make_simdata() -> bytes:
+    """Build a minimal SimData v0x101 payload with one table/schema/column."""
+    table_name = b"objects\0"
+    schema_name = b"ObjectSchema\0"
+    column_name = b"price\0"
+
+    header_size = 28
+    table_start = header_size
+    table_size = 28
+    schema_start = table_start + table_size
+    schema_size = 24
+    column_start = schema_start + schema_size
+    column_size = 20
+    string_start = column_start + column_size
+
+    payload = bytearray()
+    payload += b"DATA"
+    payload += struct.pack("<I", 0x101)
+    payload += struct.pack("<i", table_start - 8)
+    payload += struct.pack("<i", 1)
+    payload += struct.pack("<i", schema_start - 16)
+    payload += struct.pack("<i", 1)
+    payload += struct.pack("<I", 0xFFFFFFFF)
+    payload += struct.pack("<i", string_start - table_start)
+    payload += struct.pack("<I", 0x11111111)
+    payload += struct.pack("<i", schema_start - (table_start + 8))
+    payload += struct.pack("<I", 6)
+    payload += struct.pack("<I", 4)
+    payload += struct.pack("<i", 0)
+    payload += struct.pack("<I", 0)
+    payload += struct.pack("<i", string_start + len(table_name) - schema_start)
+    payload += struct.pack("<I", 0x22222222)
+    payload += struct.pack("<I", 0x33333333)
+    payload += struct.pack("<I", 4)
+    payload += struct.pack("<i", column_start - (schema_start + 16))
+    payload += struct.pack("<I", 1)
+    payload += struct.pack("<i", string_start + len(table_name) + len(schema_name) - column_start)
+    payload += struct.pack("<I", 0x44444444)
+    payload += struct.pack("<H", 6)
+    payload += struct.pack("<H", 0)
+    payload += struct.pack("<I", 0)
+    payload += struct.pack("<i", -0x80000000)
+    payload += table_name
+    payload += schema_name
+    payload += column_name
+    return bytes(payload)
+
+
 class TestModScanner:
     """Tests for ModScanner."""
 
@@ -135,6 +183,7 @@ def test_function():
         assert scanner.parse_tunings is True
         assert scanner.parse_scripts is True
         assert scanner.parse_string_tables is True
+        assert scanner.parse_sim_data is True
         assert scanner.calculate_hashes is True
         assert scanner.mods_scanned == 0
         assert len(scanner.errors_encountered) == 0
@@ -145,12 +194,14 @@ def test_function():
             parse_tunings=False,
             parse_scripts=False,
             parse_string_tables=False,
+            parse_sim_data=False,
             calculate_hashes=False,
         )
 
         assert scanner.parse_tunings is False
         assert scanner.parse_scripts is False
         assert scanner.parse_string_tables is False
+        assert scanner.parse_sim_data is False
         assert scanner.calculate_hashes is False
 
     def test_scan_directory_not_found(self, scanner: ModScanner) -> None:
@@ -378,6 +429,58 @@ def test_function():
         assert mod.string_tables[0].resource_group == 0x80000000
         assert mod.string_tables[0].resource_instance == 0x0B84CB2FC430848A
         assert mod.string_tables[0].strings == {0x12345678: "Hello Build/Buy"}
+
+    def test_scan_package_extracts_simdata_metadata(
+        self, scanner: ModScanner, test_directory: Path
+    ) -> None:
+        """Test package scanning parses SimData table/schema metadata."""
+        package_path = test_directory / "simdata.package"
+        simdata_binary = make_simdata()
+        resources = [
+            (int(BinaryResourceType.SimData), 0x00000000, 0xABCDEF0123456789, simdata_binary),
+        ]
+
+        header = bytearray(96)
+        header[0:4] = b"DBPF"
+        header[4:8] = struct.pack("<I", 2)
+        header[8:12] = struct.pack("<I", 0)
+        header[36:40] = struct.pack("<I", len(resources))
+        index_size = 4 + 32 * len(resources)
+        header[44:48] = struct.pack("<I", index_size)
+        header[64:68] = struct.pack("<I", 96)
+
+        index = bytearray()
+        index += struct.pack("<I", 0)
+        data_blobs = []
+        current_offset = 96 + index_size
+        for resource_type, group, instance, data in resources:
+            compressed = zlib.compress(data)
+            index += struct.pack("<I", resource_type)
+            index += struct.pack("<I", group)
+            index += struct.pack("<I", instance >> 32)
+            index += struct.pack("<I", instance & 0xFFFFFFFF)
+            index += struct.pack("<I", current_offset)
+            index += struct.pack("<I", len(compressed))
+            index += struct.pack("<I", len(data))
+            index += struct.pack("<H", 0x5A42)
+            index += struct.pack("<H", 1)
+            data_blobs.append(compressed)
+            current_offset += len(compressed)
+
+        with package_path.open("wb") as handle:
+            handle.write(header)
+            handle.write(index)
+            for blob in data_blobs:
+                handle.write(blob)
+
+        mod = scanner.scan_file(package_path)
+
+        assert mod is not None
+        assert len(mod.sim_data) == 1
+        assert mod.sim_data[0].parse_status == "parsed"
+        assert mod.sim_data[0].resource_instance == 0xABCDEF0123456789
+        assert mod.sim_data[0].tables[0].name == "objects"
+        assert mod.sim_data[0].schemas[0].columns[0].name == "price"
 
     def test_scan_script_with_metadata(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test script scanning extracts metadata."""

@@ -16,6 +16,8 @@ The old generated DBPF status report is archived at
   compression flag, even when compressed and decompressed sizes match.
 - Parses Sims 4 STBL version 5 string tables into keyed UTF-8 strings with
   explicit `parsed`, `unsupported`, or `malformed` status and warnings.
+- Parses Sims 4 SimData `DATA` resources into read-only table, schema, and
+  column metadata with explicit `parsed`, `unsupported`, or `malformed` status.
 - Handles corrupted or unsupported package data with parser errors instead of
   silent success.
 - Uses verified Sims 4 resource type constants from
@@ -27,7 +29,8 @@ The old generated DBPF status report is archived at
 ## Not Implemented
 
 - RefPack decompression.
-- Full parsers for SimData, OBJD, image, mesh, and other resource payloads.
+- Full SimData row/value decoding, OBJD, image, mesh, and other resource
+  payload parsers.
 - STBL editing/writing, language inference, and non-v5 STBL parsing.
 - Broad curated third-party package corpus. Non-redistributable package testing
   remains local-only through `tests/fixtures/build_real_corpus.py`.

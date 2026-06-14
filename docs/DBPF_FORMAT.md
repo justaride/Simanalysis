@@ -247,7 +247,7 @@ Common resource type IDs used in The Sims 4:
 | Type ID      | Name            | Description | Parser Status |
 |--------------|-----------------|-------------|---------------|
 | `0x03B33DDF` | Generic Tuning  | Gameplay tuning files (XML) | ✅ `tuning.py` |
-| `0x545AC67A` | SimData         | Binary sim/object data | ❌ Raw bytes |
+| `0x545AC67A` | SimData         | Binary sim/object data | ✅ `simdata.py` metadata parser |
 | `0x220557DA` | STBL            | String tables (localized text) | ✅ `stbl.py` read-only v5 parser |
 | `0xC0DB5AE7` | OBJD            | Object definitions | ❌ Raw bytes |
 | `0x00B2D882` | _IMG            | Images (PNG, DDS) | ❌ Raw bytes |
