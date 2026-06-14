@@ -5,10 +5,11 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from simanalysis.exceptions import SimanalysisError
-from simanalysis.formats.types import is_tuning_type
-from simanalysis.models import Mod, ModType
+from simanalysis.formats.types import STBL, is_tuning_type
+from simanalysis.models import Mod, ModType, StringTableData
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.script import ScriptAnalyzer
+from simanalysis.parsers.stbl import STBLParser
 from simanalysis.parsers.tuning import TuningParser
 
 
@@ -30,6 +31,7 @@ class ModScanner:
         self,
         parse_tunings: bool = True,
         parse_scripts: bool = True,
+        parse_string_tables: bool = True,
         calculate_hashes: bool = True,
     ) -> None:
         """
@@ -38,10 +40,12 @@ class ModScanner:
         Args:
             parse_tunings: Whether to parse XML tunings from packages
             parse_scripts: Whether to analyze script files
+            parse_string_tables: Whether to parse STBL string table resources
             calculate_hashes: Whether to calculate file hashes
         """
         self.parse_tunings = parse_tunings
         self.parse_scripts = parse_scripts
+        self.parse_string_tables = parse_string_tables
         self.calculate_hashes = calculate_hashes
         self.mods_scanned = 0
         self.errors_encountered: list[tuple[Path, str]] = []
@@ -183,6 +187,11 @@ class ModScanner:
             if self.parse_tunings:
                 tunings = self._extract_tunings(reader)
 
+            # Parse STBL string tables if enabled
+            string_tables = []
+            if self.parse_string_tables:
+                string_tables = self._extract_string_tables(reader)
+
             # Detect pack requirements from tunings
             pack_requirements: set[str] = set()
             for tuning in tunings:
@@ -198,6 +207,7 @@ class ModScanner:
                 resources=resources,
                 tunings=tunings,
                 scripts=[],
+                string_tables=string_tables,
                 pack_requirements=pack_requirements,
             )
 
@@ -318,6 +328,35 @@ class ModScanner:
                     pass
 
         return tunings
+
+    def _extract_string_tables(self, reader: DBPFReader) -> list[StringTableData]:
+        """
+        Extract STBL string tables from a DBPF package.
+
+        Args:
+            reader: DBPF reader instance
+
+        Returns:
+            List of parsed STBL resources, including degraded parse statuses
+        """
+        string_tables: list[StringTableData] = []
+
+        for resource in reader.get_resources_by_type(int(STBL)):
+            try:
+                data = reader.get_resource(resource)
+                table = STBLParser.parse(data)
+            except Exception as e:  # nosec B110 - keep package scans non-fatal
+                table = StringTableData(
+                    version=0,
+                    parse_status="malformed",
+                    warnings=[f"Failed to read STBL resource: {e}"],
+                )
+
+            table.resource_group = resource.group
+            table.resource_instance = resource.instance
+            string_tables.append(table)
+
+        return string_tables
 
     def _calculate_hash(self, file_path: Path) -> str:
         """
