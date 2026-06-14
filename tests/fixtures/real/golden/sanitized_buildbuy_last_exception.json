@@ -1,0 +1,18 @@
+{
+  "reports": [
+    {
+      "be_advice": "Possible Cause: broken or outdated Build/Buy tuning. Review the most recent probe group before moving more files.",
+      "created": "2026-05-16 21:27:46",
+      "creator_tag": "redacted-creator",
+      "exception_class": "UnavailablePackSafeResourceError",
+      "frame_count": 3,
+      "frame_paths": [
+        "Core\\sims4\\utils.py",
+        "C:\\Users\\Simmer\\Documents\\Electronic Arts\\The Sims 4\\Mods\\BuildBuy03B\\RedactedMod\\probe_runner.py",
+        "/Users/Simmer/Documents/Electronic Arts/The Sims 4/Mods/BuildBuy03B/RedactedMod/build_buy.py"
+      ],
+      "game_version": "Local.1.124.55.1230",
+      "report_type": "desync"
+    }
+  ]
+}

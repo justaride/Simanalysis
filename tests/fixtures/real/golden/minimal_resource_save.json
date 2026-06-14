@@ -1,0 +1,13 @@
+{
+  "build_buy_resources": [
+    "0x515CA4CD:0x00000000:0x0000000000002222"
+  ],
+  "cas_resources": [
+    "0x034AEECB:0x00000000:0x0000000000001111"
+  ],
+  "other_resources": [
+    "0x545AC67A:0x00000000:0x0000000000003333"
+  ],
+  "save_name": "minimal_resource_refs",
+  "total_resources": 3
+}

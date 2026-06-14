@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "s4tk_minimal_buff_tuning",
+      "kind": "package",
+      "path": "packages/s4tk_minimal_buff_tuning.package",
+      "roles": ["tuning_mod"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned fixture XML generated into DBPF with @s4tk/models 0.6.14",
+      "source_url": "repo://tests/fixtures/real/source/s4tk_minimal_buff_tuning.xml",
+      "golden": "golden/s4tk_minimal_buff_tuning.json",
+      "notes": "Tiny redistributable package generated with S4TK from the committed XML source."
+    },
+    {
+      "id": "local_tuning_mod",
+      "kind": "package",
+      "path": "packages/local_tuning_mod.package",
+      "roles": ["tuning_mod"],
+      "redistribution": "local-only",
+      "license": "not-for-redistribution",
+      "source_url": "local://tests/fixtures/local/packages/local_tuning_mod.package",
+      "golden": "golden/local_tuning_mod.json",
+      "notes": "Populate with a small real tuning override package via tests/fixtures/build_real_corpus.py."
+    },
+    {
+      "id": "sanitized_buildbuy_last_exception",
+      "kind": "last_exception",
+      "path": "logs/sanitized_buildbuy_lastException.txt",
+      "roles": ["script_exception", "better_exceptions"],
+      "redistribution": "committed",
+      "license": "MIT; manually redacted local BetterExceptions log fixture",
+      "source_url": "local-redacted://lastException_63914194296",
+      "golden": "golden/sanitized_buildbuy_last_exception.json",
+      "notes": "Sanitized from a local probe log; usernames and third-party mod paths are replaced with generic placeholders."
+    },
+    {
+      "id": "minimal_probe_ts4script",
+      "kind": "ts4script",
+      "path": "scripts/minimal_probe.ts4script",
+      "roles": ["script_mod", "hook_probe"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned Python fixture packed as a .ts4script ZIP archive",
+      "source_url": "repo://tests/fixtures/real/source/ts4script_probe",
+      "golden": "golden/minimal_probe_ts4script.json",
+      "notes": "Deterministic ZIP archive generated from committed Python and metadata sources."
+    },
+    {
+      "id": "minimal_resource_save",
+      "kind": "save",
+      "path": "saves/minimal_resource_refs.save",
+      "roles": ["save_resource_refs"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned DBPF save-like fixture with no gameplay data",
+      "source_url": "repo://tests/fixtures/real/source/build_minimal_save_and_tray.py",
+      "golden": "golden/minimal_resource_save.json",
+      "notes": "Tiny DBPF file with CAS, Build/Buy, and other resource keys for SaveScanner."
+    },
+    {
+      "id": "minimal_household_tray",
+      "kind": "tray",
+      "path": "tray/minimal_household",
+      "roles": ["household_tray"],
+      "redistribution": "committed",
+      "license": "MIT; self-owned tray-shaped binary fixture with no gameplay data",
+      "source_url": "repo://tests/fixtures/real/source/build_minimal_save_and_tray.py",
+      "golden": "golden/minimal_household_tray.json",
+      "notes": "Tiny tray directory with a UTF-16LE name-bearing .trayitem and .hhi companion."
+    }
+  ]
+}

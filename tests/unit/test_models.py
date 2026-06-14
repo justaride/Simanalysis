@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from simanalysis.formats.types import TUNING_GENERIC
 from simanalysis.models import (
     AnalysisMetadata,
     AnalysisResult,
@@ -72,19 +73,19 @@ class TestDBPFResource:
     def test_resource_key(self) -> None:
         """Test resource key property."""
         resource = DBPFResource(
-            type=0x545238C9,
+            type=int(TUNING_GENERIC),
             group=0x00000000,
             instance=0x1234567890ABCDEF,
             offset=1000,
             size=500,
         )
 
-        assert resource.key == (0x545238C9, 0x00000000, 0x1234567890ABCDEF)
+        assert resource.key == (int(TUNING_GENERIC), 0x00000000, 0x1234567890ABCDEF)
 
     def test_not_compressed(self) -> None:
         """Test is_compressed for uncompressed resource."""
         resource = DBPFResource(
-            type=0x545238C9,
+            type=int(TUNING_GENERIC),
             group=0x00000000,
             instance=0x1234567890ABCDEF,
             offset=1000,
@@ -97,7 +98,7 @@ class TestDBPFResource:
     def test_compressed(self) -> None:
         """Test is_compressed for compressed resource."""
         resource = DBPFResource(
-            type=0x545238C9,
+            type=int(TUNING_GENERIC),
             group=0x00000000,
             instance=0x1234567890ABCDEF,
             offset=1000,
@@ -184,14 +185,14 @@ class TestMod:
             hash="abc123",
             resources=[
                 DBPFResource(
-                    type=0x545238C9,
+                    type=int(TUNING_GENERIC),
                     group=0x00000000,
                     instance=0x1111111111111111,
                     offset=1000,
                     size=500,
                 ),
                 DBPFResource(
-                    type=0x545238C9,
+                    type=int(TUNING_GENERIC),
                     group=0x00000000,
                     instance=0x2222222222222222,
                     offset=2000,
@@ -202,7 +203,7 @@ class TestMod:
 
         resource_keys = mod.resource_keys
         assert len(resource_keys) == 2
-        assert (0x545238C9, 0x00000000, 0x1111111111111111) in resource_keys
+        assert (int(TUNING_GENERIC), 0x00000000, 0x1111111111111111) in resource_keys
 
 
 class TestModConflict:

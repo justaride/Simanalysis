@@ -2,6 +2,13 @@
 // public functions and callback shape are unchanged, so the React views keep
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
+import { cleanupPlanOptions } from './cleanupApiModel';
+import {
+  inventoryFileEventsOptions,
+  inventoryHistoryOptions,
+  inventoryScanOptions,
+} from './inventoryApiModel';
+import { cleanupStageOptions } from './operatingTableApiModel';
 
 const TREATMENT_OUTCOMES = new Set(['same_issue', 'issue_gone', 'different_issue']);
 const TREATMENT_RESTORE_STEPS = new Set(['latest', 'all']);
@@ -76,6 +83,22 @@ export const api = {
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
   scanDoctor: (sims4Path, modsPath, callbacks) =>
     runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  scanInventory: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('inventory-scan', sims4Path, inventoryScanOptions(options), callbacks),
+  inventoryHistory: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('inventory-history', sims4Path, inventoryHistoryOptions(options), callbacks),
+  inventoryFileEvents: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('inventory-file-events', sims4Path, inventoryFileEventsOptions(options), callbacks),
+  cleanupPlan: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
+  cleanupStage: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('cleanup-stage', sims4Path, cleanupStageOptions(options), callbacks),
+  cleanupApply: (manifestPath, callbacks) =>
+    runAnalysis('cleanup-apply', manifestPath, {}, callbacks),
+  cleanupRestore: (manifestPath, callbacks) =>
+    runAnalysis('cleanup-restore', manifestPath, {}, callbacks),
+  cleanupStatus: (manifestPath, callbacks) =>
+    runAnalysis('cleanup-status', manifestPath, {}, callbacks),
   monitorLive: (sims4Path, modsPath, interval, callbacks) =>
     runAnalysis(
       'live-monitor',

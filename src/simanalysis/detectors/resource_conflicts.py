@@ -11,6 +11,7 @@ from simanalysis.detectors.base import (
     ConflictDetector,
     ConflictResolutions,
 )
+from simanalysis.formats.types import CASP, COBJ, OBJD, SIMDATA, type_name
 from simanalysis.models import ConflictType, Mod, ModConflict
 
 
@@ -32,10 +33,10 @@ class ResourceConflictDetector(ConflictDetector):
 
     # Critical resource types that affect gameplay
     CRITICAL_RESOURCE_TYPES: ClassVar[set[int]] = {
-        0x545503B2,  # SimData (core game data)
-        0x0333406C,  # OBJD (object definitions)
-        0x034AEECB,  # OBJK (object keys)
-        0x00B2D882,  # CAS Part (Create-A-Sim)
+        int(SIMDATA),
+        int(OBJD),
+        int(CASP),
+        int(COBJ),
     }
 
     def detect(self, mods: list[Mod]) -> list[ModConflict]:
@@ -205,18 +206,7 @@ class ResourceConflictDetector(ConflictDetector):
         Returns:
             Resource type name
         """
-        type_names = {
-            0x545503B2: "SimData",
-            0x0333406C: "Object Definition",
-            0x034AEECB: "Object Key",
-            0x00B2D882: "CAS Part",
-            0x319E4F1D: "String Table",
-            0x2E75C764: "Texture",
-            0x015A1849: "Geometry",
-            0x8EAF13DE: "Animation",
-            0x62B1D5C6: "Audio",
-        }
-        return type_names.get(resource_type, "Unknown")
+        return type_name(resource_type)
 
     def get_critical_conflicts(self, conflicts: list[ModConflict]) -> list[ModConflict]:
         """

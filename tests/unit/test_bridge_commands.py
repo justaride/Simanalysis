@@ -102,6 +102,204 @@ def test_analyze_save_rejects_missing_save_file(tmp_path):
         commands.analyze_save(args, Emitter(io.StringIO()))
 
 
+def test_inventory_scan_records_to_db_and_emits_snapshot(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    (sims4 / "Options.ini").write_text("uiscale = 100", encoding="utf-8")
+    db_path = tmp_path / "inventory.sqlite3"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=True)
+    commands.inventory_scan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["files_total"] == 1
+    assert result["added"] == 1
+    assert result["snapshot"]["files"][0]["relative_path"] == "Options.ini"
+    assert db_path.exists()
+
+
+def test_inventory_history_emits_latest_scans(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    options = sims4 / "Options.ini"
+    options.write_text("uiscale = 100", encoding="utf-8")
+    db_path = tmp_path / "inventory.sqlite3"
+
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+    options.write_text("uiscale = 90", encoding="utf-8")
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), limit=1)
+    commands.inventory_history(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["root_path"] == str(sims4.resolve())
+    assert len(result["scans"]) == 1
+    assert result["scans"][0]["modified"] == 1
+
+
+def test_inventory_file_events_emits_latest_changes(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    options = sims4 / "Options.ini"
+    options.write_text("uiscale = 100", encoding="utf-8")
+    db_path = tmp_path / "inventory.sqlite3"
+
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+    options.write_text("uiscale = 90", encoding="utf-8")
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), include_unchanged=False)
+    commands.inventory_file_events(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["root_path"] == str(sims4.resolve())
+    assert result["db_path"] == str(db_path)
+    assert result["summary"]["modified"] == 1
+    assert [(event["relative_path"], event["change_status"]) for event in result["events"]] == [
+        ("Options.ini", "modified")
+    ]
+
+
+def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (mods / "download.zip").write_bytes(b"archive")
+    db_path = tmp_path / "inventory.sqlite3"
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=None)
+    commands.cleanup_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert result["root_path"] == str(sims4.resolve())
+    assert result["db_path"] == str(db_path)
+    assert result["summary"]["archives"] == 1
+    assert not (sims4 / "_Simanalysis_Cleanup").exists()
+
+
+def test_cleanup_plan_command_exports_only_when_requested(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (mods / "download.zip").write_bytes(b"archive")
+    db_path = tmp_path / "inventory.sqlite3"
+    export_path = tmp_path / "cleanup-plan.json"
+    commands.inventory_scan(
+        argparse.Namespace(path=str(sims4), db=str(db_path), export=False),
+        Emitter(io.StringIO()),
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), db=str(db_path), export=str(export_path))
+    commands.cleanup_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    result = next(event["data"] for event in events if event["type"] == "result")
+    assert export_path.exists()
+    assert json.loads(export_path.read_text(encoding="utf-8")) == result
+
+
+def test_cleanup_stage_emits_operation_manifest(monkeypatch, tmp_path):
+    calls = {}
+
+    class FakeOperatingTable:
+        def stage_cleanup_plan_file(
+            self,
+            root,
+            plan,
+            *,
+            selected_action_ids=None,
+            all_actions=False,
+        ):
+            calls["stage"] = (root, plan, selected_action_ids, all_actions)
+            return {"manifest_path": "manifest.json", "status": "planned"}
+
+    monkeypatch.setattr(commands, "OperatingTable", lambda: FakeOperatingTable())
+
+    buf = io.StringIO()
+    commands.cleanup_stage(
+        argparse.Namespace(
+            path=str(tmp_path),
+            plan="plan.json",
+            action=["duplicate:1"],
+            all_actions=False,
+        ),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cleanup-stage"
+    assert events[1]["data"] == {"manifest_path": "manifest.json", "status": "planned"}
+    assert calls["stage"] == (tmp_path.resolve(), "plan.json", ["duplicate:1"], False)
+
+
+def test_cleanup_apply_restore_status_emit_results(monkeypatch):
+    calls = []
+
+    class FakeOperatingTable:
+        def apply(self, manifest_path):
+            calls.append(("apply", manifest_path))
+            return {"status": "applied"}
+
+        def restore(self, manifest_path):
+            calls.append(("restore", manifest_path))
+            return {"status": "restored"}
+
+        def load_status(self, manifest_path):
+            calls.append(("status", manifest_path))
+            return {"status": "planned"}
+
+    monkeypatch.setattr(commands, "OperatingTable", lambda: FakeOperatingTable())
+
+    for handler, task, status in (
+        (commands.cleanup_apply, "cleanup-apply", "applied"),
+        (commands.cleanup_restore, "cleanup-restore", "restored"),
+        (commands.cleanup_status, "cleanup-status", "planned"),
+    ):
+        buf = io.StringIO()
+        handler(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+        events = [json.loads(line) for line in buf.getvalue().splitlines()]
+        assert [event["type"] for event in events] == ["start", "result", "done"]
+        assert events[0]["task"] == task
+        assert events[1]["data"] == {"status": status}
+
+    assert calls == [
+        ("apply", "manifest.json"),
+        ("restore", "manifest.json"),
+        ("status", "manifest.json"),
+    ]
+
+
 def test_thumbnail_found(monkeypatch, tmp_path):
     f = tmp_path / "m.package"
     f.write_bytes(b"x")

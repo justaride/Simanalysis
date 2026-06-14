@@ -3,6 +3,7 @@
 import logging
 import struct
 
+from simanalysis.formats.types import CASP, GEOM, MODL, OBJD
 from simanalysis.models import ConflictType, DBPFResource, Mod, ModConflict, Severity
 from simanalysis.parsers.dbpf import DBPFReader
 
@@ -18,12 +19,12 @@ class MeshAnalyzer:
     """
 
     # Resource Types
-    TYPE_CAS_PART = 0x034AEECB
-    TYPE_OBJECT_DEF = 0xC0DB5AE7
+    TYPE_CAS_PART = int(CASP)
+    TYPE_OBJECT_DEF = int(OBJD)
 
     # Target Mesh Types
-    TYPE_GEOM = 0x015A1849  # CAS Geometry
-    TYPE_MODEL = 0x01661233  # Object Model
+    TYPE_GEOM = GEOM  # CAS Geometry
+    TYPE_MODEL = int(MODL)  # Object Model
 
     # Signatures to scan for (Little Endian)
     # We look for the Type ID, then assume Group (4) + Instance (8) follow.

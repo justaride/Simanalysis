@@ -1,0 +1,314 @@
+"""Contract tests for the real-file fixture corpus."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from simanalysis.parsers.dbpf import DBPFReader
+from simanalysis.parsers.exception_log import parse_exception_file
+from simanalysis.parsers.script import ScriptAnalyzer
+from simanalysis.scanners.mod_scanner import ModScanner
+from simanalysis.scanners.save_scanner import SaveScanner
+from simanalysis.scanners.tray_scanner import TrayScanner
+
+REAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "real"
+LOCAL_FIXTURES_DIR = Path(__file__).parents[1] / "fixtures" / "local"
+MANIFEST_PATH = REAL_FIXTURES_DIR / "corpus-manifest.json"
+
+
+def _manifest() -> dict[str, Any]:
+    with MANIFEST_PATH.open(encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _fixture_path(item: dict[str, Any]) -> Path:
+    root = LOCAL_FIXTURES_DIR if item["redistribution"] == "local-only" else REAL_FIXTURES_DIR
+    return root / item["path"]
+
+
+def _golden_path(item: dict[str, Any]) -> Path:
+    root = LOCAL_FIXTURES_DIR if item["redistribution"] == "local-only" else REAL_FIXTURES_DIR
+    return root / item["golden"]
+
+
+@pytest.mark.real
+def test_real_corpus_manifest_is_well_formed_and_documented() -> None:
+    """The real corpus must declare provenance before any file becomes a test source."""
+    assert (REAL_FIXTURES_DIR / "README.md").is_file()
+
+    manifest = _manifest()
+    assert manifest["schema_version"] == 1
+    assert isinstance(manifest["items"], list)
+
+    seen_ids: set[str] = set()
+    for item in manifest["items"]:
+        assert item["id"] not in seen_ids
+        seen_ids.add(item["id"])
+        assert item["kind"] in {
+            "package",
+            "ts4script",
+            "last_exception",
+            "save",
+            "tray",
+        }
+        assert item["redistribution"] in {"committed", "local-only"}
+        assert item["license"]
+        assert item["source_url"]
+        assert item["path"]
+
+        if item["kind"] == "package":
+            assert item.get("golden"), f"{item['id']} is missing a golden sidecar"
+
+
+@pytest.mark.real
+def test_real_package_goldens_match_available_files() -> None:
+    """Available real packages must match their golden DBPF metadata."""
+    package_items = [item for item in _manifest()["items"] if item["kind"] == "package"]
+    if not package_items:
+        pytest.skip("No real package fixtures declared yet")
+
+    checked = 0
+    for item in package_items:
+        package_path = _fixture_path(item)
+        if not package_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed real package fixture is missing: {package_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        with golden_path.open(encoding="utf-8") as handle:
+            golden = json.load(handle)
+
+        reader = DBPFReader(package_path)
+        header = reader.read_header()
+        resources = reader.read_index()
+
+        assert header.index_count == golden["header"]["index_count"]
+        assert len(resources) == golden["resource_count"]
+        assert {
+            f"0x{resource.type:08X}:0x{resource.group:08X}:0x{resource.instance:016X}"
+            for resource in resources
+        }.issuperset(golden["known_resource_keys"])
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared real package fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_tuning_package_extracts_nonzero_tunings() -> None:
+    """A real tuning package must prove tuning extraction is not circular."""
+    tuning_items = [
+        item
+        for item in _manifest()["items"]
+        if item["kind"] == "package" and "tuning_mod" in item.get("roles", [])
+    ]
+    if not tuning_items:
+        pytest.fail("Real corpus must declare at least one tuning_mod package")
+
+    for item in tuning_items:
+        package_path = _fixture_path(item)
+        if not package_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed tuning package fixture is missing: {package_path}")
+            continue
+
+        mod = ModScanner(parse_tunings=True, calculate_hashes=False).scan_file(package_path)
+        assert mod is not None
+        assert mod.tunings, f"{item['id']} extracted zero tunings"
+        golden_path = _golden_path(item)
+        if golden_path.exists():
+            golden = json.loads(golden_path.read_text(encoding="utf-8"))
+            assert [
+                {
+                    "instance_id": tuning.instance_id,
+                    "tuning_class": tuning.tuning_class,
+                    "tuning_name": tuning.tuning_name,
+                }
+                for tuning in mod.tunings
+            ] == golden["tunings"]
+        return
+
+    pytest.skip("Declared real tuning package is local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_last_exception_fixture_matches_golden() -> None:
+    """A sanitized real lastException log must parse to its expected crash report."""
+    exception_items = [item for item in _manifest()["items"] if item["kind"] == "last_exception"]
+    if not exception_items:
+        pytest.fail("Real corpus must declare at least one sanitized lastException log")
+
+    checked = 0
+    for item in exception_items:
+        exception_path = _fixture_path(item)
+        if not exception_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed lastException fixture is missing: {exception_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        reports = parse_exception_file(exception_path)
+
+        assert [
+            {
+                "report_type": report.report_type,
+                "exception_class": report.exception_class,
+                "creator_tag": report.creator_tag,
+                "created": report.created,
+                "game_version": report.game_version,
+                "be_advice": report.be_advice,
+                "frame_count": len(report.frames),
+                "frame_paths": [frame.raw_path for frame in report.frames],
+            }
+            for report in reports
+        ] == golden["reports"]
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared lastException fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_ts4script_fixture_matches_golden() -> None:
+    """A committed .ts4script ZIP must parse to expected metadata and module data."""
+    script_items = [item for item in _manifest()["items"] if item["kind"] == "ts4script"]
+    if not script_items:
+        pytest.fail("Real corpus must declare at least one .ts4script fixture")
+
+    checked = 0
+    for item in script_items:
+        script_path = _fixture_path(item)
+        if not script_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed .ts4script fixture is missing: {script_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        analyzer = ScriptAnalyzer(script_path)
+        metadata = analyzer.metadata
+        modules = analyzer.list_modules()
+        mod = ModScanner(parse_scripts=True, calculate_hashes=False).scan_file(script_path)
+
+        assert {
+            "metadata": {
+                "name": metadata.name,
+                "version": metadata.version,
+                "author": metadata.author,
+                "requires": metadata.requires,
+            },
+            "modules": [
+                {
+                    "name": module.name,
+                    "imports": sorted(module.imports),
+                    "hooks": module.hooks,
+                    "complexity": module.complexity,
+                }
+                for module in modules
+            ],
+            "scanner": {
+                "type": mod.type.value if mod else None,
+                "script_count": len(mod.scripts) if mod else 0,
+                "requires": sorted(mod.requires) if mod else [],
+            },
+        } == golden
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared .ts4script fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_save_fixture_matches_golden() -> None:
+    """A committed save-like DBPF fixture must expose expected resource categories."""
+    save_items = [item for item in _manifest()["items"] if item["kind"] == "save"]
+    if not save_items:
+        pytest.fail("Real corpus must declare at least one save fixture")
+
+    checked = 0
+    for item in save_items:
+        save_path = _fixture_path(item)
+        if not save_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed save fixture is missing: {save_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        save_data = SaveScanner().scan_save_file(save_path)
+
+        assert {
+            "save_name": save_data.save_name,
+            "total_resources": save_data.total_resources,
+            "cas_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.cas_resources)
+            ],
+            "build_buy_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.build_buy_resources)
+            ],
+            "other_resources": [
+                f"0x{type_:08X}:0x{group:08X}:0x{instance:016X}"
+                for type_, group, instance in sorted(save_data.other_resources)
+            ],
+        } == golden
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared save fixtures are local-only or not installed")
+
+
+@pytest.mark.real
+def test_real_tray_fixture_matches_golden() -> None:
+    """A committed Tray fixture group must scan to the expected stable item shape."""
+    tray_items = [item for item in _manifest()["items"] if item["kind"] == "tray"]
+    if not tray_items:
+        pytest.fail("Real corpus must declare at least one Tray fixture")
+
+    checked = 0
+    for item in tray_items:
+        tray_path = _fixture_path(item)
+        if not tray_path.exists():
+            if item["redistribution"] == "committed":
+                pytest.fail(f"Committed Tray fixture is missing: {tray_path}")
+            continue
+
+        golden_path = _golden_path(item)
+        if not golden_path.exists():
+            pytest.fail(f"Golden sidecar is missing for {item['id']}: {golden_path}")
+        golden = json.loads(golden_path.read_text(encoding="utf-8"))
+
+        scanned_items = TrayScanner().scan_directory(tray_path)
+
+        assert [
+            {
+                "name": tray_item.name,
+                "type": tray_item.type,
+                "file_count": len(tray_item.files),
+                "files": sorted(path.name for path in tray_item.files),
+                "size": tray_item.size,
+            }
+            for tray_item in scanned_items
+        ] == golden["items"]
+        checked += 1
+
+    if checked == 0:
+        pytest.skip("Declared Tray fixtures are local-only or not installed")

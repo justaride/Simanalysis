@@ -1,4 +1,8 @@
-# Review Clarification - What's Actually Implemented
+# Historical Snapshot: Review Clarification
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated clarification and must not be treated as current project
+> truth. See `../../../IMPLEMENTATION_STATUS.md` and `../../STATUS.md`.
 
 **Date:** 2025-10-22
 **Status:** All claimed "TODO" items are actually fully implemented

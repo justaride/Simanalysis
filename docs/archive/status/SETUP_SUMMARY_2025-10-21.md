@@ -1,4 +1,8 @@
-# Simanalysis Project Setup - Complete Summary
+# Historical Snapshot: Simanalysis Project Setup Summary
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older setup summary and must not be treated as current project truth. See
+> `../../../IMPLEMENTATION_STATUS.md` and `../../STATUS.md`.
 
 **Date:** 2025-10-21
 **Status:** ✅ Architecture Phase Complete - Ready for Implementation

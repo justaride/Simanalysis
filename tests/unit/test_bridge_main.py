@@ -73,6 +73,181 @@ def test_doctor_scan_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_inventory_scan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+
+    def fake_inventory_scan(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["export"] = args.export
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "inventory-scan", fake_inventory_scan)
+
+    code, events = _run(
+        monkeypatch,
+        ["inventory-scan", str(tmp_path), "--db", str(db_path), "--export"],
+    )
+
+    assert code == 0
+    assert called == {"path": str(tmp_path), "db": str(db_path), "export": True}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_inventory_history_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+
+    def fake_inventory_history(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["limit"] = args.limit
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "inventory-history", fake_inventory_history)
+
+    code, events = _run(
+        monkeypatch,
+        ["inventory-history", str(tmp_path), "--db", str(db_path), "--limit", "5"],
+    )
+
+    assert code == 0
+    assert called == {"path": str(tmp_path), "db": str(db_path), "limit": 5}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_inventory_file_events_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+
+    def fake_inventory_file_events(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["include_unchanged"] = args.include_unchanged
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "inventory-file-events", fake_inventory_file_events)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "inventory-file-events",
+            str(tmp_path),
+            "--db",
+            str(db_path),
+            "--include-unchanged",
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "db": str(db_path),
+        "include_unchanged": True,
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    db_path = tmp_path / "inventory.sqlite3"
+    export_path = tmp_path / "cleanup.json"
+
+    def fake_cleanup_plan(args, emit):
+        called["path"] = args.path
+        called["db"] = args.db
+        called["export"] = args.export
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cleanup-plan", fake_cleanup_plan)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "cleanup-plan",
+            str(tmp_path),
+            "--db",
+            str(db_path),
+            "--export",
+            str(export_path),
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "db": str(db_path),
+        "export": str(export_path),
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cleanup_stage_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    plan_path = tmp_path / "plan.json"
+
+    def fake_cleanup_stage(args, emit):
+        called["path"] = args.path
+        called["plan"] = args.plan
+        called["actions"] = args.action
+        called["all_actions"] = args.all_actions
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cleanup-stage", fake_cleanup_stage)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "cleanup-stage",
+            str(tmp_path),
+            "--plan",
+            str(plan_path),
+            "--action",
+            "duplicate:1",
+            "--action",
+            "archive:1",
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "path": str(tmp_path),
+        "plan": str(plan_path),
+        "actions": ["duplicate:1", "archive:1"],
+        "all_actions": False,
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cleanup_operation_commands_are_dispatched(monkeypatch):
+    calls = []
+
+    def fake_handler(args, emit):
+        calls.append((args.command, getattr(args, "manifest_path", None)))
+        emit.result({"ok": True})
+        emit.done()
+
+    for command in ("cleanup-apply", "cleanup-restore", "cleanup-status"):
+        monkeypatch.setitem(commands.DISPATCH, command, fake_handler)
+
+    for command in ("cleanup-apply", "cleanup-restore", "cleanup-status"):
+        code, events = _run(monkeypatch, [command, "manifest.json"])
+        assert code == 0
+        assert [event["type"] for event in events] == ["result", "done"]
+
+    assert calls == [
+        ("cleanup-apply", "manifest.json"),
+        ("cleanup-restore", "manifest.json"),
+        ("cleanup-status", "manifest.json"),
+    ]
+
+
 def test_treatment_plan_command_is_dispatched_with_save(monkeypatch, tmp_path):
     called = {}
 

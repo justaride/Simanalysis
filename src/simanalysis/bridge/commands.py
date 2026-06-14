@@ -15,6 +15,9 @@ from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.bridge.protocol import Emitter
+from simanalysis.cleanup import CleanupPlanner
+from simanalysis.inventory import InventoryScanner, default_inventory_db_path
+from simanalysis.operating_table import OperatingTable
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 from simanalysis.services.thumbnail_service import ThumbnailService
@@ -65,6 +68,93 @@ def analyze_save(args: argparse.Namespace, emit: Emitter) -> None:
         progress_callback=lambda stage, c, t: emit.progress(c, t, stage=stage),
     )
     emit.result(serialization.save_result_to_dict(analyzer, result))
+    emit.done()
+
+
+def inventory_scan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    scanner = InventoryScanner(db_path)
+
+    emit.start("inventory-scan")
+    result = scanner.scan(path).to_dict()
+    result["db_path"] = str(db_path)
+    if args.export:
+        result["snapshot"] = scanner.export_latest_snapshot(path)
+    emit.result(result)
+    emit.done()
+
+
+def inventory_history(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    scanner = InventoryScanner(db_path)
+
+    emit.start("inventory-history")
+    emit.result(
+        {
+            "root_path": str(path),
+            "db_path": str(db_path),
+            "scans": scanner.list_scan_history(path, limit=args.limit),
+        }
+    )
+    emit.done()
+
+
+def inventory_file_events(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    scanner = InventoryScanner(db_path)
+
+    emit.start("inventory-file-events")
+    result = scanner.latest_file_events(
+        path,
+        include_unchanged=args.include_unchanged,
+    )
+    result["db_path"] = str(db_path)
+    emit.result(result)
+    emit.done()
+
+
+def cleanup_plan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    db_path = Path(args.db).expanduser() if args.db else default_inventory_db_path()
+    planner = CleanupPlanner(db_path)
+
+    emit.start("cleanup-plan")
+    result = planner.export_plan(path, Path(args.export)) if args.export else planner.plan(path)
+    emit.result(result)
+    emit.done()
+
+
+def cleanup_stage(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("cleanup-stage")
+    result = OperatingTable().stage_cleanup_plan_file(
+        path,
+        args.plan,
+        selected_action_ids=args.action,
+        all_actions=args.all_actions,
+    )
+    emit.result(result)
+    emit.done()
+
+
+def cleanup_apply(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cleanup-apply")
+    emit.result(OperatingTable().apply(args.manifest_path))
+    emit.done()
+
+
+def cleanup_restore(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cleanup-restore")
+    emit.result(OperatingTable().restore(args.manifest_path))
+    emit.done()
+
+
+def cleanup_status(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cleanup-status")
+    emit.result(OperatingTable().load_status(args.manifest_path))
     emit.done()
 
 
@@ -332,6 +422,14 @@ DISPATCH = {
     "scan-mods": scan_mods,
     "scan-tray": scan_tray,
     "analyze-save": analyze_save,
+    "inventory-scan": inventory_scan,
+    "inventory-history": inventory_history,
+    "inventory-file-events": inventory_file_events,
+    "cleanup-plan": cleanup_plan,
+    "cleanup-stage": cleanup_stage,
+    "cleanup-apply": cleanup_apply,
+    "cleanup-restore": cleanup_restore,
+    "cleanup-status": cleanup_status,
     "thumbnail": thumbnail,
     "doctor-scan": doctor_scan,
     "treatment-plan": treatment_plan,

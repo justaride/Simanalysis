@@ -1,4 +1,8 @@
-# Sprint 1 Completion Summary - Simanalysis
+# Historical Snapshot: Sprint 1 Completion Summary
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older sprint summary and must not be treated as current project truth. See
+> `../../../IMPLEMENTATION_STATUS.md` and `../../STATUS.md`.
 **Derrick - The PhD in Simology**
 
 ---

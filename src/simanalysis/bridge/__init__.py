@@ -27,6 +27,41 @@ def build_parser() -> argparse.ArgumentParser:
     p_save.add_argument("save_path")
     p_save.add_argument("mods_path")
 
+    p_inventory = sub.add_parser("inventory-scan")
+    p_inventory.add_argument("path")
+    p_inventory.add_argument("--db", default=None)
+    p_inventory.add_argument("--export", action="store_true")
+
+    p_inventory_history = sub.add_parser("inventory-history")
+    p_inventory_history.add_argument("path")
+    p_inventory_history.add_argument("--db", default=None)
+    p_inventory_history.add_argument("--limit", type=int, default=20)
+
+    p_inventory_file_events = sub.add_parser("inventory-file-events")
+    p_inventory_file_events.add_argument("path")
+    p_inventory_file_events.add_argument("--db", default=None)
+    p_inventory_file_events.add_argument("--include-unchanged", action="store_true")
+
+    p_cleanup_plan = sub.add_parser("cleanup-plan")
+    p_cleanup_plan.add_argument("path")
+    p_cleanup_plan.add_argument("--db", default=None)
+    p_cleanup_plan.add_argument("--export", default=None)
+
+    p_cleanup_stage = sub.add_parser("cleanup-stage")
+    p_cleanup_stage.add_argument("path")
+    p_cleanup_stage.add_argument("--plan", required=True)
+    p_cleanup_stage.add_argument("--action", action="append", default=[])
+    p_cleanup_stage.add_argument("--all-actions", action="store_true")
+
+    p_cleanup_apply = sub.add_parser("cleanup-apply")
+    p_cleanup_apply.add_argument("manifest_path")
+
+    p_cleanup_restore = sub.add_parser("cleanup-restore")
+    p_cleanup_restore.add_argument("manifest_path")
+
+    p_cleanup_status = sub.add_parser("cleanup-status")
+    p_cleanup_status.add_argument("manifest_path")
+
     p_thumb = sub.add_parser("thumbnail")
     p_thumb.add_argument("path")
 

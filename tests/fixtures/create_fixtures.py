@@ -9,6 +9,8 @@ import zlib
 from pathlib import Path
 from typing import Optional
 
+from simanalysis.formats.types import TUNING_GENERIC
+
 
 def create_package_file(
     output_path: Path,
@@ -53,7 +55,7 @@ def create_package_file(
         resource_data = f"{name} {i}".encode()
         compressed_data = zlib.compress(resource_data)
         instance = tuning_id + i
-        index += struct.pack("<I", 0x545503B2)  # type (XML tuning)
+        index += struct.pack("<I", int(TUNING_GENERIC))  # type (generic tuning)
         index += struct.pack("<I", 0x00000000)  # group
         index += struct.pack("<I", instance >> 32)  # instance high
         index += struct.pack("<I", instance & 0xFFFFFFFF)  # instance low

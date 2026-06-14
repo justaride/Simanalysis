@@ -8,8 +8,11 @@ from zipfile import ZipFile
 import pytest
 
 from simanalysis.exceptions import SimanalysisError
+from simanalysis.formats.types import BinaryResourceType, TuningResourceType
 from simanalysis.models import ModType
 from simanalysis.scanners import ModScanner
+
+pytestmark = pytest.mark.synthetic
 
 
 class TestModScanner:
@@ -244,6 +247,61 @@ def test_function():
         assert mod is not None
         assert len(mod.resources) == 1
         assert mod.resources[0].type == 0x12345678
+
+    def test_scan_package_extracts_verified_tuning_types_and_skips_stbl(
+        self, scanner: ModScanner, test_directory: Path
+    ) -> None:
+        """Test tuning extraction uses real tuning resource types, not STBL."""
+        package_path = test_directory / "real_tuning_type.package"
+        tuning_xml = b"""<?xml version="1.0" encoding="utf-8"?>
+        <I c="Buff" i="buff_real" m="buffs.buff" s="12345">
+            <T n="mood_weight">10</T>
+        </I>
+        """
+        stbl_binary = b"\x00\x00\x00\x00not xml"
+        resources = [
+            (int(TuningResourceType.Buff), 0, 0x12345, tuning_xml),
+            (int(BinaryResourceType.StringTable), 0, 0x67890, stbl_binary),
+        ]
+
+        header = bytearray(96)
+        header[0:4] = b"DBPF"
+        header[4:8] = struct.pack("<I", 2)
+        header[8:12] = struct.pack("<I", 0)
+        header[36:40] = struct.pack("<I", len(resources))
+        index_size = 4 + 32 * len(resources)
+        header[44:48] = struct.pack("<I", index_size)
+        header[64:68] = struct.pack("<I", 96)
+
+        index = bytearray()
+        index += struct.pack("<I", 0)
+        data_blobs = []
+        current_offset = 96 + index_size
+        for resource_type, group, instance, data in resources:
+            compressed = zlib.compress(data)
+            index += struct.pack("<I", resource_type)
+            index += struct.pack("<I", group)
+            index += struct.pack("<I", instance >> 32)
+            index += struct.pack("<I", instance & 0xFFFFFFFF)
+            index += struct.pack("<I", current_offset)
+            index += struct.pack("<I", len(compressed))
+            index += struct.pack("<I", len(data))
+            index += struct.pack("<H", 0x5A42)
+            index += struct.pack("<H", 1)
+            data_blobs.append(compressed)
+            current_offset += len(compressed)
+
+        with package_path.open("wb") as handle:
+            handle.write(header)
+            handle.write(index)
+            for blob in data_blobs:
+                handle.write(blob)
+
+        mod = scanner.scan_file(package_path)
+
+        assert mod is not None
+        assert [tuning.instance_id for tuning in mod.tunings] == [12345]
+        assert mod.tunings[0].tuning_class == "Buff"
 
     def test_scan_script_with_metadata(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test script scanning extracts metadata."""

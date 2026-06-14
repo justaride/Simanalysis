@@ -29,7 +29,7 @@ class DBPFReader:
         >>> reader = DBPFReader("my_mod.package")
         >>> header = reader.read_header()
         >>> resources = reader.read_index()
-        >>> xml_resources = reader.get_resources_by_type(0x545238C9)
+        >>> tuning_resources = reader.get_resources_by_type(0x03B33DDF)
     """
 
     # DBPF format constants
@@ -288,7 +288,7 @@ class DBPFReader:
         Get all resources of a specific type.
 
         Args:
-            type_id: Resource type ID (e.g., 0x545238C9 for XML tuning)
+            type_id: Resource type ID (e.g., 0x03B33DDF for generic tuning)
 
         Returns:
             List of matching resources

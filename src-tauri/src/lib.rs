@@ -39,6 +39,22 @@ struct AnalysisOptions {
     outcome: Option<String>,
     #[serde(default)]
     step: Option<String>,
+    #[serde(default)]
+    db: Option<String>,
+    #[serde(default)]
+    export: bool,
+    #[serde(default)]
+    limit: Option<u32>,
+    #[serde(default)]
+    include_unchanged: bool,
+    #[serde(default)]
+    export_path: Option<String>,
+    #[serde(default)]
+    plan_path: Option<String>,
+    #[serde(default)]
+    actions: Vec<String>,
+    #[serde(default)]
+    all_actions: bool,
 }
 fn default_true() -> bool {
     true
@@ -83,6 +99,73 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("analyze-save".into());
             args.push(path.into());
             args.push(mods.into());
+        }
+        "inventory-scan" => {
+            args.push("inventory-scan".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if opts.export {
+                args.push("--export".into());
+            }
+        }
+        "inventory-history" => {
+            args.push("inventory-history".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if let Some(limit) = opts.limit {
+                args.push("--limit".into());
+                args.push(limit.to_string());
+            }
+        }
+        "inventory-file-events" => {
+            args.push("inventory-file-events".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if opts.include_unchanged {
+                args.push("--include-unchanged".into());
+            }
+        }
+        "cleanup-plan" => {
+            args.push("cleanup-plan".into());
+            args.push(path.into());
+            if let Some(db) = opts.db.as_deref() {
+                args.push("--db".into());
+                args.push(db.into());
+            }
+            if let Some(export_path) = opts.export_path.as_deref() {
+                args.push("--export".into());
+                args.push(export_path.into());
+            }
+        }
+        "cleanup-stage" => {
+            let plan_path = opts
+                .plan_path
+                .as_deref()
+                .ok_or("cleanup-stage requires options.planPath")?;
+            args.push("cleanup-stage".into());
+            args.push(path.into());
+            args.push("--plan".into());
+            args.push(plan_path.into());
+            for action in &opts.actions {
+                args.push("--action".into());
+                args.push(action.into());
+            }
+            if opts.all_actions {
+                args.push("--all-actions".into());
+            }
+        }
+        "cleanup-apply" | "cleanup-restore" | "cleanup-status" => {
+            args.push(kind.into());
+            args.push(path.into());
         }
         "doctor-scan" => {
             args.push("doctor-scan".into());
@@ -649,6 +732,151 @@ mod tests {
         };
         let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
         assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_inventory_scan_args_with_db_and_export() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            export: true,
+            ..Default::default()
+        };
+        let args = build_args("inventory-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-scan",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--export",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_inventory_history_args_with_db_and_limit() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            limit: Some(5),
+            ..Default::default()
+        };
+        let args = build_args("inventory-history", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-history",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--limit",
+                "5",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_inventory_file_events_args_with_db_and_include_unchanged() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            include_unchanged: true,
+            ..Default::default()
+        };
+        let args = build_args("inventory-file-events", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "inventory-file-events",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--include-unchanged",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_cleanup_plan_args_with_db_and_export() {
+        let opts = AnalysisOptions {
+            db: Some("/Sims/inventory.sqlite3".into()),
+            export_path: Some("/tmp/cleanup-plan.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("cleanup-plan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cleanup-plan",
+                "/Sims/The Sims 4",
+                "--db",
+                "/Sims/inventory.sqlite3",
+                "--export",
+                "/tmp/cleanup-plan.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_cleanup_stage_args_with_plan_and_actions() {
+        let opts = AnalysisOptions {
+            plan_path: Some("/tmp/cleanup-plan.json".into()),
+            actions: vec!["duplicate:1".into(), "archive:1".into()],
+            ..Default::default()
+        };
+        let args = build_args("cleanup-stage", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cleanup-stage",
+                "/Sims/The Sims 4",
+                "--plan",
+                "/tmp/cleanup-plan.json",
+                "--action",
+                "duplicate:1",
+                "--action",
+                "archive:1",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_cleanup_stage_args_with_all_actions() {
+        let opts = AnalysisOptions {
+            plan_path: Some("/tmp/cleanup-plan.json".into()),
+            all_actions: true,
+            ..Default::default()
+        };
+        let args = build_args("cleanup-stage", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cleanup-stage",
+                "/Sims/The Sims 4",
+                "--plan",
+                "/tmp/cleanup-plan.json",
+                "--all-actions",
+            ]
+        );
+    }
+
+    #[test]
+    fn cleanup_stage_requires_plan_path() {
+        let err = build_args(
+            "cleanup-stage",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap_err();
+        assert_eq!(err, "cleanup-stage requires options.planPath");
+    }
+
+    #[test]
+    fn builds_cleanup_operation_manifest_args() {
+        for kind in ["cleanup-apply", "cleanup-restore", "cleanup-status"] {
+            let args =
+                build_args(kind, "/Sims/manifest.json", &AnalysisOptions::default()).unwrap();
+            assert_eq!(args, vec![kind, "/Sims/manifest.json"]);
+        }
     }
 
     #[test]

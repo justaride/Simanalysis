@@ -1,0 +1,21 @@
+{
+  "header": {
+    "index_count": 1,
+    "index_offset": 216,
+    "index_size": 36,
+    "magic": "DBPF",
+    "major_version": 2,
+    "minor_version": 1
+  },
+  "known_resource_keys": [
+    "0x6017E896:0x00000000:0x00000000000181CD"
+  ],
+  "resource_count": 1,
+  "tunings": [
+    {
+      "instance_id": 98765,
+      "tuning_class": "Buff",
+      "tuning_name": "buff_fixture"
+    }
+  ]
+}

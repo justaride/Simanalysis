@@ -1,4 +1,8 @@
-# Requirements Verification Report
+# Historical Snapshot: Requirements Verification Report
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated requirements report and must not be treated as current project
+> truth. See `../../../IMPLEMENTATION_STATUS.md` and `../../STATUS.md`.
 
 **Date:** 2025-10-24
 **Project:** Simanalysis - The Sims 4 Mod Analyzer

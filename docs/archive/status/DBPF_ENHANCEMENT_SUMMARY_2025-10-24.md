@@ -1,4 +1,9 @@
-# DBPF Parser Enhancement Summary
+# Historical Snapshot: DBPF Parser Enhancement Summary
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated DBPF enhancement summary and must not be treated as current
+> parser truth. See `../../../DBPF_IMPLEMENTATION_STATUS.md` and
+> `../../STATUS.md`.
 
 **Date:** 2025-10-24
 **Task:** Build robust DBPF parser for The Sims 4 .package files
@@ -73,7 +78,7 @@ for res in resources:
 data = reader.get_resource(resources[0])
 
 # Filter by type
-xml_files = reader.get_resources_by_type(0x545503B2)
+tuning_files = reader.get_resources_by_type(0x03B33DDF)
 ```
 
 ### 2. Unit Tests (`tests/unit/parsers/test_dbpf_parser.py`)

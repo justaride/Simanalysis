@@ -7,6 +7,8 @@ from fastapi.testclient import TestClient
 
 from simanalysis.web.api import app
 
+pytestmark = pytest.mark.synthetic
+
 
 class TestWebApi:
     """Test Web API endpoints."""

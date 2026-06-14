@@ -135,7 +135,7 @@ The `.package` files use the DBPF format:
   - Index count (byte 40-43)
   - Index offset (bytes 44-47)
 - **Index Entries:** 32 bytes each
-  - Type ID: 0x545503B2 (XML tuning)
+  - Type ID: 0x03B33DDF (generic tuning)
   - Group ID: 0x00000000
   - Instance ID: unique per resource
   - File offset, sizes

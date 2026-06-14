@@ -1,0 +1,33 @@
+{
+  "metadata": {
+    "author": "Simanalysis Fixture",
+    "name": "Minimal Probe Script",
+    "requires": [
+      "sims4communitylib>=3.0"
+    ],
+    "version": "0.1.0"
+  },
+  "modules": [
+    {
+      "complexity": 6,
+      "hooks": [
+        "inject_to",
+        "inject",
+        "@inject_to"
+      ],
+      "imports": [
+        "sims4.commands",
+        "sims4.utils",
+        "sims4communitylib.utils"
+      ],
+      "name": "probe_mod/main.py"
+    }
+  ],
+  "scanner": {
+    "requires": [
+      "Sims4CommunityLibrary"
+    ],
+    "script_count": 1,
+    "type": "script"
+  }
+}

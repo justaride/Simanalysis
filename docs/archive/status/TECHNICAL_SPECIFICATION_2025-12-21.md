@@ -1,4 +1,9 @@
-# Simanalysis Technical Specification v2.1
+# Historical Snapshot: Simanalysis Technical Specification v2.1
+
+> Archived on 2026-06-11 during the Phase 0 truth pass. This file preserves an
+> older generated technical specification and must not be treated as current
+> architecture or project status truth. See `../../../IMPLEMENTATION_ROADMAP.md`,
+> `../../../IMPLEMENTATION_STATUS.md`, and `../../STATUS.md`.
 **Derrick - The PhD in Simology and Complexity Theory**
 
 ## Document Control
@@ -304,8 +309,8 @@ class DBPFReader:
 
 **Resource Type Constants:**
 ```python
-RESOURCE_TYPE_XML_TUNING = 0x545238C9
-RESOURCE_TYPE_SIMDATA = 0x0333406C
+RESOURCE_TYPE_XML_TUNING = 0x03B33DDF
+RESOURCE_TYPE_SIMDATA = 0x545AC67A
 RESOURCE_TYPE_SCRIPT = 0xD382BF57
 RESOURCE_TYPE_STRING = 0x220557DA
 ```
