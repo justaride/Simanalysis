@@ -15,6 +15,7 @@ reports.
 
 Current branch note: the read-only SQLite inventory ledger now records scan
 history plus per-file change events in `src/simanalysis/inventory.py`; the
+public CLI exposes `simanalysis ledger scan|history|events`, and the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings. Operating Table v1 adds manifest-first

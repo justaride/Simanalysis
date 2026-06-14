@@ -86,6 +86,9 @@ Implemented on this branch after the Phase 0 truth pass:
 - The desktop bridge and Tauri sidecar argument builder now expose
   `inventory-scan`, `inventory-history`, and `inventory-file-events` with
   optional `--db` routing.
+- The public CLI now exposes read-only `simanalysis ledger scan`, `simanalysis
+  ledger history`, and `simanalysis ledger events` commands with human text and
+  JSON output over the same inventory database and snapshot/event contracts.
 - The web API layer has non-visual wrappers for `scanInventory` and
   `inventoryHistory` plus `inventoryFileEvents`; the visual Inventory route is
   still pending design approval.

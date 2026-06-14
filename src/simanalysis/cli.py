@@ -363,6 +363,153 @@ def scan(mods_directory: str, recursive: bool, verbose: bool, tui: bool) -> None
     click.echo("\n⏱️  Scan completed")
 
 
+def _ledger_db_path(db: Optional[str]) -> Path:
+    from simanalysis.inventory import default_inventory_db_path
+
+    return Path(db).expanduser().resolve() if db else default_inventory_db_path()
+
+
+def _echo_json(payload: dict[str, Any]) -> None:
+    import json
+
+    click.echo(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
+    click.echo("Ledger scan complete")
+    click.echo(f"Root: {payload['root_path']}")
+    click.echo(f"DB: {payload['db_path']}")
+    click.echo(f"Files: {payload['files_total']}")
+    click.echo(
+        "Changes: "
+        f"added {payload['added']}, removed {payload['removed']}, moved {payload['moved']}, "
+        f"modified {payload['modified']}, unchanged {payload['unchanged']}"
+    )
+    click.echo(
+        "Packages: "
+        f"{payload['packages_total']} | Resources: {payload['resources_total']} | "
+        f"Package parse errors: {payload['package_parse_errors']}"
+    )
+    for warning in payload.get("warnings", []):
+        click.echo(click.style(f"Warning: {warning}", fg="yellow"))
+
+
+def _echo_ledger_history(payload: dict[str, Any]) -> None:
+    click.echo(f"Ledger history for {payload['root_path']}")
+    click.echo(f"DB: {payload['db_path']}")
+    scans = payload["scans"]
+    if not scans:
+        click.echo("No scans recorded")
+        return
+    for scan_row in scans:
+        click.echo(
+            f"#{scan_row['scan_id']} {scan_row['started_at']} "
+            f"files={scan_row['files_total']} "
+            f"added={scan_row['added']} removed={scan_row['removed']} "
+            f"moved={scan_row['moved']} modified={scan_row['modified']} "
+            f"unchanged={scan_row['unchanged']}"
+        )
+
+
+def _echo_ledger_events(payload: dict[str, Any]) -> None:
+    click.echo(f"Ledger events for {payload['root_path']}")
+    click.echo(f"DB: {payload['db_path']}")
+    summary = payload["summary"]
+    click.echo(
+        "Changes: "
+        f"added {summary['added']}, removed {summary['removed']}, moved {summary['moved']}, "
+        f"modified {summary['modified']}, unchanged {summary['unchanged']}"
+    )
+    events = payload["events"]
+    if not events:
+        click.echo("No file events to show")
+        return
+    for event in events:
+        previous = event.get("previous_relative_path")
+        suffix = f" <- {previous}" if previous else ""
+        click.echo(f"{event['change_status']}: {event['relative_path']}{suffix}")
+
+
+@cli.group()
+def ledger() -> None:
+    """Read-only Sims 4 library ledger commands."""
+
+
+@ledger.command("scan")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", type=click.Path(), default=None, help="Inventory database path")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+@click.option(
+    "--export-snapshot",
+    is_flag=True,
+    help="Include the latest snapshot in JSON output",
+)
+def ledger_scan(sims4_dir: str, db: Optional[str], fmt: str, export_snapshot: bool) -> None:
+    """Record a read-only inventory snapshot of a Sims 4 folder."""
+    from simanalysis.inventory import InventoryScanner
+
+    root = Path(sims4_dir).expanduser().resolve()
+    db_path = _ledger_db_path(db)
+    scanner = InventoryScanner(db_path)
+    summary = scanner.scan(root)
+    payload = summary.to_dict()
+    payload["db_path"] = str(db_path)
+    if export_snapshot and fmt == "json":
+        payload["snapshot"] = scanner.export_latest_snapshot(root)
+
+    if fmt == "json":
+        _echo_json(payload)
+    else:
+        _echo_ledger_scan_summary(payload)
+
+
+@ledger.command("history")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", type=click.Path(), default=None, help="Inventory database path")
+@click.option("--limit", type=int, default=20, help="Maximum scans to return")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ledger_history(sims4_dir: str, db: Optional[str], limit: int, fmt: str) -> None:
+    """Show recent read-only ledger scans for a Sims 4 folder."""
+    from simanalysis.inventory import InventoryScanner
+
+    root = Path(sims4_dir).expanduser().resolve()
+    db_path = _ledger_db_path(db)
+    scanner = InventoryScanner(db_path)
+    payload = {
+        "root_path": str(root),
+        "db_path": str(db_path),
+        "scans": scanner.list_scan_history(root, limit=limit),
+    }
+    if fmt == "json":
+        _echo_json(payload)
+    else:
+        _echo_ledger_history(payload)
+
+
+@ledger.command("events")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", type=click.Path(), default=None, help="Inventory database path")
+@click.option(
+    "--include-unchanged",
+    is_flag=True,
+    help="Include unchanged files in the latest scan events",
+)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ledger_events(sims4_dir: str, db: Optional[str], include_unchanged: bool, fmt: str) -> None:
+    """Show per-file changes from the latest ledger scan."""
+    from simanalysis.inventory import InventoryScanner
+
+    root = Path(sims4_dir).expanduser().resolve()
+    db_path = _ledger_db_path(db)
+    scanner = InventoryScanner(db_path)
+    payload = scanner.latest_file_events(root, include_unchanged=include_unchanged)
+    payload["db_path"] = str(db_path)
+    if fmt == "json":
+        _echo_json(payload)
+    else:
+        _echo_ledger_events(payload)
+
+
 @cli.command()
 @click.argument("report_file", type=click.Path(exists=True))
 def view(report_file: str) -> None:

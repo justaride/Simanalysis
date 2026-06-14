@@ -76,6 +76,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Simanalysis" in result.output
         assert "analyze" in result.output
+        assert "ledger" in result.output
         assert "scan" in result.output
 
     def test_analyze_help(self, runner: CliRunner) -> None:
@@ -278,6 +279,128 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Package files" in result.output or ".package" in result.output
         assert "Total size" in result.output
+
+    def test_ledger_scan_json_records_snapshot(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test ledger scan emits JSON and optional snapshot export."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        (sims4 / "Options.ini").write_text("uiscale = 100", encoding="utf-8")
+        db_path = tmp_path / "ledger.sqlite3"
+
+        result = runner.invoke(
+            cli,
+            [
+                "ledger",
+                "scan",
+                str(sims4),
+                "--db",
+                str(db_path),
+                "--format",
+                "json",
+                "--export-snapshot",
+            ],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["db_path"] == str(db_path)
+        assert data["files_total"] == 1
+        assert data["added"] == 1
+        assert data["snapshot"]["files"][0]["relative_path"] == "Options.ini"
+        assert db_path.exists()
+
+    def test_ledger_scan_text_summary(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test ledger scan default output is a human-readable summary."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        (sims4 / "Options.ini").write_text("uiscale = 100", encoding="utf-8")
+
+        result = runner.invoke(
+            cli,
+            ["ledger", "scan", str(sims4), "--db", str(tmp_path / "ledger.sqlite3")],
+        )
+
+        assert result.exit_code == 0
+        assert "Ledger scan complete" in result.output
+        assert "Files: 1" in result.output
+
+    def test_ledger_history_json_returns_latest_scans(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test ledger history emits recent scan summaries."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        options = sims4 / "Options.ini"
+        options.write_text("uiscale = 100", encoding="utf-8")
+        db_path = tmp_path / "ledger.sqlite3"
+
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+        options.write_text("uiscale = 90", encoding="utf-8")
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "ledger",
+                "history",
+                str(sims4),
+                "--db",
+                str(db_path),
+                "--limit",
+                "1",
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["root_path"] == str(sims4.resolve())
+        assert data["db_path"] == str(db_path)
+        assert len(data["scans"]) == 1
+        assert data["scans"][0]["modified"] == 1
+
+    def test_ledger_events_json_reports_latest_file_events(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test ledger events emits latest per-file changes."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        options = sims4 / "Options.ini"
+        options.write_text("uiscale = 100", encoding="utf-8")
+        db_path = tmp_path / "ledger.sqlite3"
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+        options.write_text("uiscale = 90", encoding="utf-8")
+        (sims4 / "new.txt").write_text("new", encoding="utf-8")
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+
+        result = runner.invoke(
+            cli,
+            ["ledger", "events", str(sims4), "--db", str(db_path), "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["db_path"] == str(db_path)
+        assert data["summary"] == {
+            "added": 1,
+            "removed": 0,
+            "moved": 0,
+            "modified": 1,
+            "unchanged": 0,
+        }
+        assert [(event["relative_path"], event["change_status"]) for event in data["events"]] == [
+            ("Options.ini", "modified"),
+            ("new.txt", "added"),
+        ]
 
     def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""
