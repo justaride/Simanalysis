@@ -1,6 +1,6 @@
 # Simanalysis Status Index
 
-**Last consolidated:** 2026-06-12
+**Last consolidated:** 2026-06-15
 
 Use this index to avoid mixing current Phase 0 truth with older generated status
 reports.
@@ -18,8 +18,9 @@ history plus per-file change events in `src/simanalysis/inventory.py`; the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings. Operating Table v1 adds manifest-first
-non-visual cleanup staging, apply, restore, and status plumbing. Visual
-inventory and cleanup routes remain pending design approval.
+non-visual cleanup staging, apply, restore, and status plumbing. The True Engine
+now has a conservative read-only STBL v5 parser wired into package scanning.
+Visual inventory and cleanup routes remain pending design approval.
 
 ## Historical Status Snapshots
 

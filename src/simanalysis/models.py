@@ -78,7 +78,7 @@ class DBPFResource:
     @property
     def is_compressed(self) -> bool:
         """Check if resource is compressed."""
-        return self.compressed_size > 0 and self.compressed_size != self.size
+        return self.compressed_size > 0
 
 
 @dataclass
@@ -237,6 +237,38 @@ class ScriptModule:
 
 
 @dataclass
+class StringTableEntry:
+    """One localized text entry from a Sims 4 STBL resource."""
+
+    key: int
+    text: str
+    flags: int = 0
+
+    @property
+    def key_hex(self) -> str:
+        """Return the STBL key in the usual eight-digit hex form."""
+        return f"0x{self.key:08X}"
+
+
+@dataclass
+class StringTableData:
+    """Parsed STBL resource data with explicit parse/degradation status."""
+
+    version: int
+    entries: list[StringTableEntry] = field(default_factory=list)
+    parse_status: str = "parsed"
+    warnings: list[str] = field(default_factory=list)
+    declared_entry_size: Optional[int] = None
+    resource_group: Optional[int] = None
+    resource_instance: Optional[int] = None
+
+    @property
+    def strings(self) -> dict[int, str]:
+        """Return a key -> text mapping for parsed entries."""
+        return {entry.key: entry.text for entry in self.entries}
+
+
+@dataclass
 class Mod:
     """Represents a single mod."""
 
@@ -250,6 +282,7 @@ class Mod:
     resources: list[DBPFResource] = field(default_factory=list)
     tunings: list[TuningData] = field(default_factory=list)
     scripts: list[ScriptModule] = field(default_factory=list)
+    string_tables: list[StringTableData] = field(default_factory=list)
 
     # Metadata
     version: Optional[str] = None

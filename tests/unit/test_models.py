@@ -108,6 +108,19 @@ class TestDBPFResource:
 
         assert resource.is_compressed
 
+    def test_equal_size_compressed_resource_still_uses_compression_flag(self) -> None:
+        """Test compression is based on index flags, not size ratio."""
+        resource = DBPFResource(
+            type=int(TUNING_GENERIC),
+            group=0x00000000,
+            instance=0x1234567890ABCDEF,
+            offset=1000,
+            size=500,
+            compressed_size=500,
+        )
+
+        assert resource.is_compressed
+
 
 class TestTuningData:
     """Tests for TuningData model."""

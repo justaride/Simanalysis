@@ -15,6 +15,27 @@ from simanalysis.scanners import ModScanner
 pytestmark = pytest.mark.synthetic
 
 
+def make_stbl(entries: list[tuple[int, str]]) -> bytes:
+    """Build a minimal TS4 STBL v5 payload."""
+    encoded_entries = [(key, text.encode("utf-8")) for key, text in entries]
+    declared_entry_size = sum(len(text_bytes) + 1 for _, text_bytes in encoded_entries)
+
+    payload = bytearray(b"STBL\x05")
+    payload += struct.pack("<H", 0)
+    payload += struct.pack("<I", len(encoded_entries))
+    payload += struct.pack("<H", 0)
+    payload += struct.pack("<I", 0)
+    payload += struct.pack("<I", declared_entry_size)
+
+    for key, text_bytes in encoded_entries:
+        payload += struct.pack("<I", key)
+        payload.append(0)
+        payload += struct.pack("<H", len(text_bytes))
+        payload += text_bytes
+
+    return bytes(payload)
+
+
 class TestModScanner:
     """Tests for ModScanner."""
 
@@ -113,6 +134,7 @@ def test_function():
         """Test scanner initializes correctly."""
         assert scanner.parse_tunings is True
         assert scanner.parse_scripts is True
+        assert scanner.parse_string_tables is True
         assert scanner.calculate_hashes is True
         assert scanner.mods_scanned == 0
         assert len(scanner.errors_encountered) == 0
@@ -122,11 +144,13 @@ def test_function():
         scanner = ModScanner(
             parse_tunings=False,
             parse_scripts=False,
+            parse_string_tables=False,
             calculate_hashes=False,
         )
 
         assert scanner.parse_tunings is False
         assert scanner.parse_scripts is False
+        assert scanner.parse_string_tables is False
         assert scanner.calculate_hashes is False
 
     def test_scan_directory_not_found(self, scanner: ModScanner) -> None:
@@ -302,6 +326,58 @@ def test_function():
         assert mod is not None
         assert [tuning.instance_id for tuning in mod.tunings] == [12345]
         assert mod.tunings[0].tuning_class == "Buff"
+
+    def test_scan_package_extracts_stbl_string_tables(
+        self, scanner: ModScanner, test_directory: Path
+    ) -> None:
+        """Test package scanning parses STBL resources with honest metadata."""
+        package_path = test_directory / "string_table.package"
+        stbl_binary = make_stbl([(0x12345678, "Hello Build/Buy")])
+        resources = [
+            (int(BinaryResourceType.StringTable), 0x80000000, 0x0B84CB2FC430848A, stbl_binary),
+        ]
+
+        header = bytearray(96)
+        header[0:4] = b"DBPF"
+        header[4:8] = struct.pack("<I", 2)
+        header[8:12] = struct.pack("<I", 0)
+        header[36:40] = struct.pack("<I", len(resources))
+        index_size = 4 + 32 * len(resources)
+        header[44:48] = struct.pack("<I", index_size)
+        header[64:68] = struct.pack("<I", 96)
+
+        index = bytearray()
+        index += struct.pack("<I", 0)
+        data_blobs = []
+        current_offset = 96 + index_size
+        for resource_type, group, instance, data in resources:
+            compressed = zlib.compress(data)
+            index += struct.pack("<I", resource_type)
+            index += struct.pack("<I", group)
+            index += struct.pack("<I", instance >> 32)
+            index += struct.pack("<I", instance & 0xFFFFFFFF)
+            index += struct.pack("<I", current_offset)
+            index += struct.pack("<I", len(compressed))
+            index += struct.pack("<I", len(data))
+            index += struct.pack("<H", 0x5A42)
+            index += struct.pack("<H", 1)
+            data_blobs.append(compressed)
+            current_offset += len(compressed)
+
+        with package_path.open("wb") as handle:
+            handle.write(header)
+            handle.write(index)
+            for blob in data_blobs:
+                handle.write(blob)
+
+        mod = scanner.scan_file(package_path)
+
+        assert mod is not None
+        assert len(mod.string_tables) == 1
+        assert mod.string_tables[0].parse_status == "parsed"
+        assert mod.string_tables[0].resource_group == 0x80000000
+        assert mod.string_tables[0].resource_instance == 0x0B84CB2FC430848A
+        assert mod.string_tables[0].strings == {0x12345678: "Hello Build/Buy"}
 
     def test_scan_script_with_metadata(self, scanner: ModScanner, sample_script: Path) -> None:
         """Test script scanning extracts metadata."""

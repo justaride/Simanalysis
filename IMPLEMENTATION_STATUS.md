@@ -1,7 +1,7 @@
 # Simanalysis Current Implementation Status
 
-**Last consolidated:** 2026-06-12
-**Status source:** Phase 0 truth pass on branch `codex/phase0-real-fixtures`
+**Last consolidated:** 2026-06-15
+**Status source:** Phase 0 truth pass plus subsequent merged True Engine/Ledger/Ops slices
 
 This file replaces the old generated status report that called the project
 production-ready. That report is archived at
@@ -42,6 +42,19 @@ Implemented on this branch:
   - minimal Tray item group
 - Added a local-only corpus builder for non-redistributable real-world files.
 - Wired CI to run `pytest -m real --no-cov` before the full coverage suite.
+
+## True Engine Progress
+
+Implemented after the Phase 0 truth pass:
+
+- Added a conservative read-only STBL version 5 parser that extracts keyed
+  UTF-8 strings and returns explicit `parsed`, `unsupported`, or `malformed`
+  status with warnings.
+- Wired STBL parsing into package scans as `mod.string_tables` while keeping
+  malformed resources non-fatal and visible.
+- Corrected DBPF compressed-resource detection so zlib-compressed resources are
+  treated as compressed from the index compression flag, even when compressed
+  and decompressed sizes are equal.
 
 ## Ledger / Local Truth Progress
 

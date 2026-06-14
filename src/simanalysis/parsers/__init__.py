@@ -2,6 +2,7 @@
 
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.script import ScriptAnalyzer
+from simanalysis.parsers.stbl import STBLParser
 from simanalysis.parsers.tuning import TuningParser
 
-__all__ = ["DBPFReader", "ScriptAnalyzer", "TuningParser"]
+__all__ = ["DBPFReader", "STBLParser", "ScriptAnalyzer", "TuningParser"]
