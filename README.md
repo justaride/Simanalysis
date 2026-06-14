@@ -88,13 +88,16 @@ Simanalysis is a **proactive conflict detection and analysis tool** for The Sims
 - Python 3.9 or higher
 - The Sims 4 (obviously!)
 
-### Install via pip (Recommended)
+### Install from PyPI
 
 ```bash
 pip install simanalysis
 ```
 
-### Install from source
+PyPI publishing is planned for the public v3 release. Until then, install from
+source for current development builds.
+
+### Install from source (Recommended for now)
 
 ```bash
 # Clone the repository
@@ -104,7 +107,7 @@ cd Simanalysis
 # Install in development mode
 pip install -e .
 
-# Or install dependencies manually
+# Or use the compatibility shim, which also installs from pyproject.toml
 pip install -r requirements.txt
 ```
 
@@ -397,7 +400,10 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 git clone https://github.com/justaride/Simanalysis.git
 cd Simanalysis
 
-# Install development dependencies
+# Install development dependencies from pyproject.toml extras
+pip install -e ".[dev,docs]"
+
+# Or use the compatibility shim
 pip install -r requirements-dev.txt
 
 # Install pre-commit hooks
