@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the read-only `simanalysis ledger scan|history|events` CLI surface with text and JSON output over the same inventory ledger.
 - Added a read-only Mods cleanup planner plus bridge/Tauri/web API `cleanup-plan` plumbing that consumes the inventory database and emits review-only findings for exact duplicates, inactive archives, nested `Resource.cfg`, support files, and misplaced Tray files without moving Sims files.
 - Added Operating Table v1 backend plumbing for manifest-first cleanup staging, apply, restore, and status commands, preserving explicit selection, Sims process guards, path/hash preflight, and restore-from-manifest behavior.
+- Added the manifest-first `simanalysis ops plan|commit|restore|undo` CLI surface; commits require explicit action IDs or `--all-actions` and still use Operating Table guards and manifests.
 
 ### Planned
 - Full DBPF package parser implementation
