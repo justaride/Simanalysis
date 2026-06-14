@@ -5,13 +5,14 @@ such as textures, meshes, audio files, or string tables.
 """
 
 from collections import defaultdict
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 from simanalysis.detectors.base import (
     ConflictDetector,
     ConflictResolutions,
 )
 from simanalysis.formats.types import CASP, COBJ, OBJD, SIMDATA, type_name
+from simanalysis.load_order import LoadOrderPlan
 from simanalysis.models import ConflictType, Mod, ModConflict
 
 
@@ -38,6 +39,10 @@ class ResourceConflictDetector(ConflictDetector):
         int(CASP),
         int(COBJ),
     }
+
+    def __init__(self, load_order: Optional[LoadOrderPlan] = None) -> None:
+        """Initialize detector with optional package load-order context."""
+        self.load_order = load_order
 
     def detect(self, mods: list[Mod]) -> list[ModConflict]:
         """
@@ -126,6 +131,14 @@ class ResourceConflictDetector(ConflictDetector):
             "is_critical_resource": is_critical,
             "affected_mod_names": [mod.name for mod in mod_list],
         }
+        if self.load_order is not None:
+            load_order_details = self._load_order_details(mod_list)
+            details["load_order"] = load_order_details
+            if load_order_details["winner_mod_name"]:
+                description += (
+                    f" Simulated winner: {load_order_details['winner_mod_name']} "
+                    f"({load_order_details['confidence']} confidence)."
+                )
 
         # Create conflict
         return self.create_conflict(
@@ -137,6 +150,30 @@ class ResourceConflictDetector(ConflictDetector):
             details=details,
             is_core_resource=is_critical,
         )
+
+    def _load_order_details(self, mod_list: list[Mod]) -> dict[str, Any]:
+        """Build JSON-safe load-order details for a resource conflict."""
+        verdict = self.load_order.explain_winner(mod_list) if self.load_order else None
+        if verdict is None:
+            return {}
+
+        return {
+            "confidence": verdict.confidence,
+            "winner": verdict.winner_relative_path,
+            "winner_mod_name": verdict.winner_mod_name,
+            "reason": verdict.reason,
+            "unmatched": list(verdict.unmatched_relative_paths),
+            "entries": [
+                {
+                    "mod_name": participant.mod_name,
+                    "relative_path": participant.relative_path,
+                    "load_index": participant.load_index,
+                    "priority": participant.priority,
+                    "rule_pattern": participant.rule_pattern,
+                }
+                for participant in verdict.participants
+            ],
+        }
 
     def _detect_hash_collisions(self, mods: list[Mod]) -> list[ModConflict]:
         """

@@ -414,10 +414,11 @@ class TestDBPFScalability:
                 f"({per_res * 1000:.4f}ms per resource)"
             )
 
-        # Verify linear scaling: time per resource should be relatively constant
-        # Allow for some variance due to I/O and caching
-        avg_per_resource = sum(times_per_resource) / len(times_per_resource)
-        for per_res in times_per_resource:
+        # Verify linear scaling on sizes large enough that fixed reader and CI
+        # scheduling overhead do not dominate the per-resource calculation.
+        large_package_rates = times_per_resource[2:]
+        avg_per_resource = sum(large_package_rates) / len(large_package_rates)
+        for per_res in large_package_rates:
             # Each should be within 4x of average (relaxed for CI/shared envs)
             assert per_res < avg_per_resource * 4
 

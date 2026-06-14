@@ -6,6 +6,7 @@ import pytest
 
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
 from simanalysis.formats.types import CASP, COBJ, DDS_IMAGE, GEOM, OBJD, SIMDATA
+from simanalysis.load_order import parse_resource_cfg_text, simulate_package_load_order
 from simanalysis.models import (
     ConflictType,
     DBPFResource,
@@ -239,6 +240,79 @@ class TestResourceConflictDetector:
         assert len(conflict.description) > 0
         assert "DDS Image" in conflict.description
         assert "2 mods" in conflict.description
+
+    def test_conflict_details_include_load_order_winner_when_available(
+        self, tmp_path: Path
+    ) -> None:
+        """Test conflict details include honest simulated load-order winner metadata."""
+        mods_dir = tmp_path / "Mods"
+        shared_resource = DBPFResource(
+            type=int(DDS_IMAGE),
+            group=0x00000000,
+            instance=0x12345678,
+            size=1000,
+            offset=0,
+            compressed_size=0,
+        )
+        base_mod = Mod(
+            name="base.package",
+            path=mods_dir / "base.package",
+            type=ModType.PACKAGE,
+            size=5000,
+            hash="base_hash",
+            resources=[shared_resource],
+        )
+        override_mod = Mod(
+            name="override.package",
+            path=mods_dir / "Overrides" / "override.package",
+            type=ModType.PACKAGE,
+            size=5000,
+            hash="override_hash",
+            resources=[shared_resource],
+        )
+        cfg = parse_resource_cfg_text(
+            """
+            Priority 500
+            PackedFile *.package
+            Priority 1000
+            PackedFile Overrides/*.package
+            """,
+            path=mods_dir / "Resource.cfg",
+        )
+        load_order = simulate_package_load_order(
+            mods_dir,
+            [override_mod.path, base_mod.path],
+            resource_cfg=cfg,
+        )
+        detector = ResourceConflictDetector(load_order=load_order)
+
+        conflicts = detector.detect([base_mod, override_mod])
+
+        conflict = conflicts[0]
+        assert conflict.details["load_order"] == {
+            "confidence": "configured",
+            "winner": "Overrides/override.package",
+            "winner_mod_name": "override.package",
+            "reason": "winner inferred from Resource.cfg priority and path order",
+            "unmatched": [],
+            "entries": [
+                {
+                    "mod_name": "base.package",
+                    "relative_path": "base.package",
+                    "load_index": 0,
+                    "priority": 500,
+                    "rule_pattern": "*.package",
+                },
+                {
+                    "mod_name": "override.package",
+                    "relative_path": "Overrides/override.package",
+                    "load_index": 1,
+                    "priority": 1000,
+                    "rule_pattern": "Overrides/*.package",
+                },
+            ],
+        }
+        assert "Simulated winner: override.package" in conflict.description
 
     def test_critical_resource_severity(
         self,
