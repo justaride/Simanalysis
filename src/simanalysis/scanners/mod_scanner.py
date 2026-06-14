@@ -5,10 +5,11 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from simanalysis.exceptions import SimanalysisError
-from simanalysis.formats.types import STBL, is_tuning_type
-from simanalysis.models import Mod, ModType, StringTableData
+from simanalysis.formats.types import SIMDATA, STBL, is_tuning_type
+from simanalysis.models import Mod, ModType, SimDataData, StringTableData
 from simanalysis.parsers.dbpf import DBPFReader
 from simanalysis.parsers.script import ScriptAnalyzer
+from simanalysis.parsers.simdata import SimDataParser
 from simanalysis.parsers.stbl import STBLParser
 from simanalysis.parsers.tuning import TuningParser
 
@@ -32,6 +33,7 @@ class ModScanner:
         parse_tunings: bool = True,
         parse_scripts: bool = True,
         parse_string_tables: bool = True,
+        parse_sim_data: bool = True,
         calculate_hashes: bool = True,
     ) -> None:
         """
@@ -41,11 +43,13 @@ class ModScanner:
             parse_tunings: Whether to parse XML tunings from packages
             parse_scripts: Whether to analyze script files
             parse_string_tables: Whether to parse STBL string table resources
+            parse_sim_data: Whether to parse SimData table/schema metadata
             calculate_hashes: Whether to calculate file hashes
         """
         self.parse_tunings = parse_tunings
         self.parse_scripts = parse_scripts
         self.parse_string_tables = parse_string_tables
+        self.parse_sim_data = parse_sim_data
         self.calculate_hashes = calculate_hashes
         self.mods_scanned = 0
         self.errors_encountered: list[tuple[Path, str]] = []
@@ -192,6 +196,11 @@ class ModScanner:
             if self.parse_string_tables:
                 string_tables = self._extract_string_tables(reader)
 
+            # Parse SimData metadata if enabled
+            sim_data = []
+            if self.parse_sim_data:
+                sim_data = self._extract_sim_data(reader)
+
             # Detect pack requirements from tunings
             pack_requirements: set[str] = set()
             for tuning in tunings:
@@ -208,6 +217,7 @@ class ModScanner:
                 tunings=tunings,
                 scripts=[],
                 string_tables=string_tables,
+                sim_data=sim_data,
                 pack_requirements=pack_requirements,
             )
 
@@ -357,6 +367,35 @@ class ModScanner:
             string_tables.append(table)
 
         return string_tables
+
+    def _extract_sim_data(self, reader: DBPFReader) -> list[SimDataData]:
+        """
+        Extract SimData metadata from a DBPF package.
+
+        Args:
+            reader: DBPF reader instance
+
+        Returns:
+            List of parsed SimData resources, including degraded parse statuses
+        """
+        sim_data: list[SimDataData] = []
+
+        for resource in reader.get_resources_by_type(int(SIMDATA)):
+            try:
+                data = reader.get_resource(resource)
+                parsed = SimDataParser.parse(data)
+            except Exception as e:  # nosec B110 - keep package scans non-fatal
+                parsed = SimDataData(
+                    version=0,
+                    parse_status="malformed",
+                    warnings=[f"Failed to read SimData resource: {e}"],
+                )
+
+            parsed.resource_group = resource.group
+            parsed.resource_instance = resource.instance
+            sim_data.append(parsed)
+
+        return sim_data
 
     def _calculate_hash(self, file_path: Path) -> str:
         """

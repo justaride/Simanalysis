@@ -52,6 +52,9 @@ Implemented after the Phase 0 truth pass:
   status with warnings.
 - Wired STBL parsing into package scans as `mod.string_tables` while keeping
   malformed resources non-fatal and visible.
+- Added a conservative read-only SimData parser that extracts `DATA` table,
+  schema, and column metadata as `mod.sim_data`; row/value decoding remains
+  future work.
 - Corrected DBPF compressed-resource detection so zlib-compressed resources are
   treated as compressed from the index compression flag, even when compressed
   and decompressed sizes are equal.

@@ -269,6 +269,76 @@ class StringTableData:
 
 
 @dataclass
+class SimDataColumn:
+    """One column definition from a Sims 4 SimData schema."""
+
+    name: Optional[str]
+    name_hash: int
+    data_type: int
+    flags: int
+    offset: int
+    schema_offset: Optional[int] = None
+
+    @property
+    def data_type_name(self) -> str:
+        """Return a readable SimData type name when known."""
+        return SIMDATA_TYPE_NAMES.get(self.data_type, f"unknown_{self.data_type:#x}")
+
+
+@dataclass
+class SimDataSchema:
+    """Schema metadata from a Sims 4 SimData resource."""
+
+    name: Optional[str]
+    name_hash: int
+    schema_hash: int
+    schema_size: int
+    columns: list[SimDataColumn] = field(default_factory=list)
+
+
+@dataclass
+class SimDataTable:
+    """Table metadata from a Sims 4 SimData resource."""
+
+    name: Optional[str]
+    name_hash: int
+    data_type: int
+    row_size: int
+    row_count: int
+    row_offset: Optional[int] = None
+    schema_offset: Optional[int] = None
+    schema_index: Optional[int] = None
+
+    @property
+    def data_type_name(self) -> str:
+        """Return a readable SimData type name when known."""
+        return SIMDATA_TYPE_NAMES.get(self.data_type, f"unknown_{self.data_type:#x}")
+
+
+@dataclass
+class SimDataData:
+    """Parsed SimData resource metadata with explicit parse/degradation status."""
+
+    version: int
+    tables: list[SimDataTable] = field(default_factory=list)
+    schemas: list[SimDataSchema] = field(default_factory=list)
+    parse_status: str = "parsed"
+    warnings: list[str] = field(default_factory=list)
+    resource_group: Optional[int] = None
+    resource_instance: Optional[int] = None
+
+    @property
+    def table_count(self) -> int:
+        """Return the parsed table count."""
+        return len(self.tables)
+
+    @property
+    def schema_count(self) -> int:
+        """Return the parsed schema count."""
+        return len(self.schemas)
+
+
+@dataclass
 class Mod:
     """Represents a single mod."""
 
@@ -283,6 +353,7 @@ class Mod:
     tunings: list[TuningData] = field(default_factory=list)
     scripts: list[ScriptModule] = field(default_factory=list)
     string_tables: list[StringTableData] = field(default_factory=list)
+    sim_data: list[SimDataData] = field(default_factory=list)
 
     # Metadata
     version: Optional[str] = None
@@ -385,6 +456,32 @@ RESOURCE_TYPE_SCRIPT = 0xD382BF57
 RESOURCE_TYPE_STRING = int(STBL)
 RESOURCE_TYPE_IMAGE = int(PNG_IMAGE)
 RESOURCE_TYPE_MESH = int(MODL)
+
+SIMDATA_TYPE_NAMES = {
+    0: "bool",
+    1: "char8",
+    2: "int8",
+    3: "uint8",
+    4: "int16",
+    5: "uint16",
+    6: "int32",
+    7: "uint32",
+    8: "int64",
+    9: "uint64",
+    10: "float",
+    11: "string8",
+    12: "hashedstring8",
+    13: "object",
+    14: "vector",
+    15: "float2",
+    16: "float3",
+    17: "float4",
+    18: "tablesetreference",
+    19: "resourcekey",
+    20: "lockey",
+    21: "variant",
+    22: "undefined",
+}
 
 # Pack prefixes
 PACK_PREFIXES = {

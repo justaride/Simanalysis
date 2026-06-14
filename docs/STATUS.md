@@ -19,8 +19,9 @@ bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings. Operating Table v1 adds manifest-first
 non-visual cleanup staging, apply, restore, and status plumbing. The True Engine
-now has a conservative read-only STBL v5 parser wired into package scanning.
-Visual inventory and cleanup routes remain pending design approval.
+now has conservative read-only STBL v5 and SimData metadata parsers wired into
+package scanning. Visual inventory and cleanup routes remain pending design
+approval.
 
 ## Historical Status Snapshots
 
