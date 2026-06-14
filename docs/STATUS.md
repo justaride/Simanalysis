@@ -22,12 +22,14 @@ for Mods-folder review findings. Operating Table v1 adds manifest-first
 non-visual cleanup staging, apply, restore, and status plumbing, plus the
 `simanalysis ops plan|commit|restore|undo` CLI surface. The shared read-only
 Doctor payload is now available through `simanalysis doctor`, combining script
-crash and UI exception autopsy without changing Sims files. The True Engine now
-has conservative read-only STBL v5 and SimData metadata parsers wired into
+crash and UI exception autopsy without changing Sims files, and the
+manifest-based Treatment/Auto-Bisect engine is available through
+`simanalysis bisect start|status|next|record-verdict|restore`. The True Engine
+now has conservative read-only STBL v5 and SimData metadata parsers wired into
 package scanning, with compact parser/resource truth exposed through CLI JSON,
 the desktop bridge, HTTP scan, and WebSocket scan responses. Visual inventory,
-visual cleanup, richer Doctor verdicts, and bisection session CLI remain
-pending design approval and follow-on slices.
+visual cleanup, richer Doctor verdicts, symptom playbooks, and handoff artifact
+generation remain pending design approval and follow-on slices.
 
 ## Historical Status Snapshots
 

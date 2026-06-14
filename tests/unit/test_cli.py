@@ -77,6 +77,7 @@ class TestCLI:
         assert result.exit_code == 0
         assert "Simanalysis" in result.output
         assert "analyze" in result.output
+        assert re.search(r"^\s+bisect\s+", result.output, re.MULTILINE)
         assert re.search(r"^\s+doctor\s+", result.output, re.MULTILINE)
         assert "ledger" in result.output
         assert re.search(r"^\s+ops\s+", result.output, re.MULTILINE)
@@ -617,6 +618,141 @@ class TestCLI:
 
         assert result.exit_code != 0
         assert "Invalid Mods directory path" in result.output
+
+    def test_bisect_start_json_creates_saved_manifest_from_doctor_json(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test bisect start creates a saved session from Doctor JSON without moving files."""
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        mods.mkdir(parents=True)
+        alpha = mods / "Alpha.ts4script"
+        beta = mods / "Beta.ts4script"
+        alpha.write_bytes(b"alpha")
+        beta.write_bytes(b"beta")
+        doctor_json = tmp_path / "doctor.json"
+        doctor_json.write_text(
+            json.dumps(
+                {
+                    "script_crashes": {
+                        "findings": [],
+                        "ranked_mods": [
+                            {"mod": "Alpha.ts4script", "status": "active", "confidence": "high"},
+                            {"mod": "Beta.ts4script", "status": "active", "confidence": "medium"},
+                        ],
+                    },
+                    "ui_crashes": {"findings": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "bisect",
+                "start",
+                str(sims4),
+                "--doctor-json",
+                str(doctor_json),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        session = json.loads(result.output)
+        manifest = Path(session["manifest_path"])
+        assert manifest.exists()
+        assert session["status"] == "planned"
+        assert [candidate["unit_name"] for candidate in session["active_candidates"]] == [
+            "Alpha.ts4script",
+            "Beta.ts4script",
+        ]
+        assert session["next_batch"] == [str(alpha.resolve())]
+        assert alpha.exists()
+        assert beta.exists()
+        assert not Path(session["disabled_dir"]).exists()
+
+        status = runner.invoke(cli, ["bisect", "status", str(manifest), "--format", "json"])
+
+        assert status.exit_code == 0, status.output
+        assert json.loads(status.output)["session_id"] == session["session_id"]
+
+    def test_bisect_next_record_and_restore_round_trip(
+        self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test bisect next, verdict, and restore operate through the manifest."""
+        import simanalysis.treatment as treatment
+
+        monkeypatch.setattr(treatment, "assert_sims_not_running", lambda: None)
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        mods.mkdir(parents=True)
+        alpha = mods / "Alpha.ts4script"
+        beta = mods / "Beta.ts4script"
+        alpha.write_bytes(b"alpha")
+        beta.write_bytes(b"beta")
+        doctor_json = tmp_path / "doctor.json"
+        doctor_json.write_text(
+            json.dumps(
+                {
+                    "script_crashes": {
+                        "findings": [],
+                        "ranked_mods": [
+                            {"mod": "Alpha.ts4script", "status": "active", "confidence": "high"},
+                            {"mod": "Beta.ts4script", "status": "active", "confidence": "medium"},
+                        ],
+                    },
+                    "ui_crashes": {"findings": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        start = runner.invoke(
+            cli,
+            ["bisect", "start", str(sims4), "--doctor-json", str(doctor_json), "--format", "json"],
+        )
+        manifest = Path(json.loads(start.output)["manifest_path"])
+
+        next_step = runner.invoke(cli, ["bisect", "next", str(manifest), "--format", "json"])
+
+        assert next_step.exit_code == 0, next_step.output
+        applied = json.loads(next_step.output)
+        disabled_alpha = Path(applied["disabled_dir"]) / "Alpha.ts4script"
+        assert applied["status"] == "awaiting_result"
+        assert not alpha.exists()
+        assert beta.exists()
+        assert disabled_alpha.exists()
+
+        verdict = runner.invoke(
+            cli,
+            [
+                "bisect",
+                "record-verdict",
+                str(manifest),
+                "--verdict",
+                "issue_gone",
+                "--format",
+                "json",
+            ],
+        )
+
+        assert verdict.exit_code == 0, verdict.output
+        recorded = json.loads(verdict.output)
+        assert recorded["status"] == "confirmed_candidate"
+        assert recorded["remaining_candidates"] == [str(alpha.resolve())]
+
+        restored = runner.invoke(
+            cli, ["bisect", "restore", str(manifest), "--step", "all", "--format", "json"]
+        )
+
+        assert restored.exit_code == 0, restored.output
+        restored_session = json.loads(restored.output)
+        assert restored_session["current_removed"] == []
+        assert alpha.exists()
+        assert beta.exists()
+        assert not disabled_alpha.exists()
 
     def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""
