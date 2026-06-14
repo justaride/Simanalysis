@@ -40,13 +40,17 @@ class TestWebApi:
 
         # Check structure
         assert "summary" in data
+        assert "mods" in data
         assert "conflicts" in data
         assert "performance" in data
         assert "recommendations" in data
+        assert "warnings" in data
 
         # Check content
         assert data["summary"]["total_mods"] == 5
+        assert data["mods"][0]["resource_summary"]["parse_status"]["string_tables"]["total"] >= 0
         assert len(data["conflicts"]) > 0
+        assert "details" in data["conflicts"][0]
         assert data["performance"]["total_size_mb"] >= 0
 
     def test_scan_invalid_directory(self, client):

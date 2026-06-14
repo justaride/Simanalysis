@@ -7,24 +7,103 @@ Intended as the single source of truth for both the desktop stdio bridge
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any
+
+from simanalysis.formats.types import type_name
+
+
+def _hex(value: Any, width: int) -> str | None:
+    if value is None:
+        return None
+    return f"0x{int(value):0{width}X}"
+
+
+def _resource_type_counts(resources: list[Any]) -> list[dict[str, Any]]:
+    counts: Counter[int] = Counter()
+    for resource in resources:
+        counts[int(resource.type)] += 1
+
+    return [
+        {
+            "type_id": resource_type,
+            "type_hex": _hex(resource_type, 8),
+            "name": type_name(resource_type),
+            "count": count,
+        }
+        for resource_type, count in sorted(counts.items())
+    ]
+
+
+def _parse_status_summary(items: list[Any]) -> dict[str, Any]:
+    statuses = Counter(str(getattr(item, "parse_status", None) or "unknown") for item in items)
+    warnings: list[dict[str, Any]] = []
+
+    for item in items:
+        status = str(getattr(item, "parse_status", None) or "unknown")
+        for warning in getattr(item, "warnings", []) or []:
+            warnings.append(
+                {
+                    "status": status,
+                    "message": str(warning),
+                    "resource_group": _hex(getattr(item, "resource_group", None), 8),
+                    "resource_instance": _hex(getattr(item, "resource_instance", None), 16),
+                }
+            )
+
+    return {
+        "total": len(items),
+        "statuses": dict(sorted(statuses.items())),
+        "warning_count": len(warnings),
+        "warnings": warnings,
+    }
+
+
+def _resource_summary(mod: Any) -> dict[str, Any]:
+    resources = list(getattr(mod, "resources", []) or [])
+    tunings = list(getattr(mod, "tunings", []) or [])
+    scripts = list(getattr(mod, "scripts", []) or [])
+    string_tables = list(getattr(mod, "string_tables", []) or [])
+    sim_data = list(getattr(mod, "sim_data", []) or [])
+
+    return {
+        "resource_count": len(resources),
+        "tuning_count": len(tunings),
+        "script_count": len(scripts),
+        "string_table_count": len(string_tables),
+        "sim_data_count": len(sim_data),
+        "resource_types": _resource_type_counts(resources),
+        "parse_status": {
+            "string_tables": _parse_status_summary(string_tables),
+            "sim_data": _parse_status_summary(sim_data),
+        },
+    }
+
+
+def _mod_to_dict(mod: Any, result: Any) -> dict[str, Any]:
+    summary = _resource_summary(mod)
+    return {
+        "name": mod.name,
+        "path": str(mod.path),
+        "type": mod.type.value,
+        "size": mod.size,
+        "hash": getattr(mod, "hash", None),
+        "author": mod.author or "Unknown",
+        "version": mod.version or "Unknown",
+        "conflicts": len([c for c in result.conflicts if mod.name in c.affected_mods]),
+        "resource_count": summary["resource_count"],
+        "tuning_count": summary["tuning_count"],
+        "script_count": summary["script_count"],
+        "string_table_count": summary["string_table_count"],
+        "sim_data_count": summary["sim_data_count"],
+        "resource_summary": summary,
+    }
 
 
 def mod_result_to_dict(analyzer: Any, result: Any) -> dict[str, Any]:
     return {
         "summary": analyzer.get_summary(result),
-        "mods": [
-            {
-                "name": m.name,
-                "path": str(m.path),
-                "type": m.type.value,
-                "size": m.size,
-                "author": m.author or "Unknown",
-                "version": m.version or "Unknown",
-                "conflicts": len([c for c in result.conflicts if m.name in c.affected_mods]),
-            }
-            for m in result.mods
-        ],
+        "mods": [_mod_to_dict(m, result) for m in result.mods],
         "conflicts": [
             {
                 "id": c.id,

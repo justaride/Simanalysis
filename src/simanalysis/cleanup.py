@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -103,7 +104,7 @@ class _InventorySnapshot:
 
 
 def _load_latest_inventory_files(db_path: Path, root: Path) -> _InventorySnapshot:
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.row_factory = sqlite3.Row
         snapshot = conn.execute(
             """

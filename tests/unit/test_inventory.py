@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import struct
 import zlib
+from contextlib import closing
 from hashlib import sha256
 from pathlib import Path
 
@@ -67,7 +68,7 @@ def test_inventory_scan_records_file_package_resource_snapshot_and_event(
     assert package_path.exists()
     assert options_path.exists()
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         conn.row_factory = sqlite3.Row
         files = conn.execute(
             "SELECT relative_path, extension, present FROM files ORDER BY relative_path"
@@ -124,7 +125,7 @@ def test_inventory_scan_reports_unchanged_files_on_second_run(tmp_path: Path) ->
     assert second.moved == 0
     assert second.unchanged == 2
 
-    with sqlite3.connect(tmp_path / "inventory.sqlite3") as conn:
+    with closing(sqlite3.connect(tmp_path / "inventory.sqlite3")) as conn:
         statuses = conn.execute(
             """
             SELECT sf.change_status
@@ -170,7 +171,7 @@ def test_inventory_scan_reports_added_removed_modified_and_moved_files(
     assert summary.moved == 1
     assert summary.unchanged == 0
 
-    with sqlite3.connect(tmp_path / "inventory.sqlite3") as conn:
+    with closing(sqlite3.connect(tmp_path / "inventory.sqlite3")) as conn:
         rows = conn.execute(
             """
             SELECT relative_path, present, scan_status
@@ -265,7 +266,7 @@ def test_inventory_scan_skips_symlinked_files_without_following_them(
     assert summary.resources_total == 0
     assert summary.warnings == ["Skipped symlinked path: Mods/linked.package"]
 
-    with sqlite3.connect(db_path) as conn:
+    with closing(sqlite3.connect(db_path)) as conn:
         rows = conn.execute("SELECT relative_path FROM files ORDER BY relative_path").fetchall()
 
     assert [row[0] for row in rows] == ["Options.ini"]

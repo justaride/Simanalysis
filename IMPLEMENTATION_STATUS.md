@@ -55,6 +55,10 @@ Implemented after the Phase 0 truth pass:
 - Added a conservative read-only SimData parser that extracts `DATA` table,
   schema, and column metadata as `mod.sim_data`; row/value decoding remains
   future work.
+- Exposed compact resource and parser truth in the public mod-analysis JSON
+  surface used by CLI reports, the desktop bridge, HTTP scan, and WebSocket
+  scan responses, including resource type names, per-mod counts,
+  STBL/SimData parse-status counts, parser warnings, and conflict details.
 - Corrected DBPF compressed-resource detection so zlib-compressed resources are
   treated as compressed from the index compression flag, even when compressed
   and decompressed sizes are equal.
