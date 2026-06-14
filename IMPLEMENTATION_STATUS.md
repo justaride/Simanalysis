@@ -117,6 +117,10 @@ Implemented on this branch after Cleanup Planner v1:
 - Apply and restore use the operation manifest, block while The Sims 4 is
   running, reject path escapes/symlinks/collisions, and never delete or
   overwrite files.
+- The public CLI now exposes `simanalysis ops plan`, `simanalysis ops commit`,
+  `simanalysis ops restore`, and `simanalysis ops undo`; commit stages an
+  operation manifest and applies only explicitly selected actions or an
+  explicit all-actions selection.
 - The desktop bridge and Tauri/web API plumbing expose `cleanup-stage`,
   `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; the visual cleanup
   route remains future work.

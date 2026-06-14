@@ -1,6 +1,7 @@
 """Tests for CLI interface."""
 
 import json
+import re
 import struct
 import zlib
 from pathlib import Path
@@ -77,6 +78,7 @@ class TestCLI:
         assert "Simanalysis" in result.output
         assert "analyze" in result.output
         assert "ledger" in result.output
+        assert re.search(r"^\s+ops\s+", result.output, re.MULTILINE)
         assert "scan" in result.output
 
     def test_analyze_help(self, runner: CliRunner) -> None:
@@ -401,6 +403,118 @@ class TestCLI:
             ("Options.ini", "modified"),
             ("new.txt", "added"),
         ]
+
+    def test_ops_plan_json_uses_latest_inventory(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test ops plan emits a read-only cleanup plan from the ledger."""
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        nested = mods / "Creator"
+        nested.mkdir(parents=True)
+        (mods / "keep.package").write_bytes(b"duplicate")
+        (nested / "extra.package").write_bytes(b"duplicate")
+        db_path = tmp_path / "ledger.sqlite3"
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+
+        result = runner.invoke(
+            cli,
+            ["ops", "plan", str(sims4), "--db", str(db_path), "--format", "json"],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["summary"]["duplicate_groups"] == 1
+        assert data["findings"][0]["actions"][0]["action_id"] == "duplicate:1"
+
+    def test_ops_commit_and_undo_round_trip_with_manifest(
+        self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test ops commit applies an explicit action and undo restores it."""
+        import simanalysis.operating_table as operating_table
+
+        monkeypatch.setattr(operating_table, "assert_sims_not_running", lambda: None)
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        nested = mods / "Creator"
+        nested.mkdir(parents=True)
+        keep = mods / "keep.package"
+        source = nested / "extra.package"
+        keep.write_bytes(b"duplicate")
+        source.write_bytes(b"duplicate")
+        db_path = tmp_path / "ledger.sqlite3"
+        plan_path = tmp_path / "cleanup-plan.json"
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+        assert (
+            runner.invoke(
+                cli,
+                ["ops", "plan", str(sims4), "--db", str(db_path), "--output", str(plan_path)],
+            ).exit_code
+            == 0
+        )
+
+        commit = runner.invoke(
+            cli,
+            [
+                "ops",
+                "commit",
+                str(sims4),
+                str(plan_path),
+                "--action",
+                "duplicate:1",
+                "--format",
+                "json",
+            ],
+        )
+
+        assert commit.exit_code == 0, commit.output
+        applied = json.loads(commit.output)
+        manifest_path = Path(applied["manifest_path"])
+        assert applied["status"] == "applied"
+        assert manifest_path.exists()
+        assert keep.exists()
+        assert not source.exists()
+        destination = Path(applied["actions"][0]["destination_path"])
+        assert destination.exists()
+
+        undo = runner.invoke(cli, ["ops", "undo", str(manifest_path), "--format", "json"])
+
+        assert undo.exit_code == 0, undo.output
+        restored = json.loads(undo.output)
+        assert restored["status"] == "restored"
+        assert source.exists()
+        assert not destination.exists()
+
+    def test_ops_commit_requires_explicit_action_selection(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test ops commit refuses to stage a plan without explicit actions."""
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        nested = mods / "Creator"
+        nested.mkdir(parents=True)
+        (mods / "keep.package").write_bytes(b"duplicate")
+        source = nested / "extra.package"
+        source.write_bytes(b"duplicate")
+        db_path = tmp_path / "ledger.sqlite3"
+        plan_path = tmp_path / "cleanup-plan.json"
+        assert (
+            runner.invoke(cli, ["ledger", "scan", str(sims4), "--db", str(db_path)]).exit_code == 0
+        )
+        assert (
+            runner.invoke(
+                cli,
+                ["ops", "plan", str(sims4), "--db", str(db_path), "--output", str(plan_path)],
+            ).exit_code
+            == 0
+        )
+
+        result = runner.invoke(cli, ["ops", "commit", str(sims4), str(plan_path)])
+
+        assert result.exit_code != 0
+        assert source.exists()
 
     def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""

@@ -510,6 +510,120 @@ def ledger_events(sims4_dir: str, db: Optional[str], include_unchanged: bool, fm
         _echo_ledger_events(payload)
 
 
+def _echo_ops_plan(plan: dict[str, Any], output: Optional[str]) -> None:
+    click.echo("Ops plan ready")
+    click.echo(f"Root: {plan['root_path']}")
+    if output:
+        click.echo(f"Wrote plan: {Path(output).expanduser().resolve()}")
+    summary = plan["summary"]
+    click.echo(
+        f"Findings: {summary['finding_count']} | Actions: {summary['action_count']} | "
+        f"Duplicate groups: {summary['duplicate_groups']}"
+    )
+    for finding in plan["findings"]:
+        click.echo(f"{finding['category']}: {finding['title']}")
+        for action in finding["actions"]:
+            click.echo(f"  {action['action_id']}: {action['source_relative_path']}")
+
+
+def _echo_ops_result(label: str, manifest: dict[str, Any]) -> None:
+    click.echo(f"Ops {label} complete")
+    click.echo(f"Status: {manifest['status']}")
+    click.echo(f"Manifest: {manifest['manifest_path']}")
+    click.echo(f"Actions: {len(manifest['actions'])}")
+    for action in manifest["actions"]:
+        click.echo(f"  {action['action_id']}: {action['status']}")
+
+
+@cli.group()
+def ops() -> None:
+    """Manifest-first cleanup operation commands."""
+
+
+@ops.command("plan")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--db", type=click.Path(), default=None, help="Inventory database path")
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write plan JSON to file")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ops_plan(sims4_dir: str, db: Optional[str], output: Optional[str], fmt: str) -> None:
+    """Create a read-only cleanup operation plan from the latest ledger scan."""
+    from simanalysis.cleanup import CleanupPlanner
+
+    root = Path(sims4_dir).expanduser().resolve()
+    db_path = _ledger_db_path(db)
+    planner = CleanupPlanner(db_path)
+    plan = planner.export_plan(root, output) if output else planner.plan(root)
+
+    if fmt == "json":
+        _echo_json(plan)
+    else:
+        _echo_ops_plan(plan, output)
+
+
+@ops.command("commit")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.argument("plan_file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--action",
+    "actions",
+    multiple=True,
+    help="Cleanup action ID to commit; may be passed multiple times",
+)
+@click.option("--all-actions", is_flag=True, help="Commit every action in the plan")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ops_commit(
+    sims4_dir: str,
+    plan_file: str,
+    actions: tuple[str, ...],
+    all_actions: bool,
+    fmt: str,
+) -> None:
+    """Stage and apply selected cleanup actions through an operation manifest."""
+    from simanalysis.operating_table import OperatingTable
+
+    root = Path(sims4_dir).expanduser().resolve()
+    table = OperatingTable()
+    staged = table.stage_cleanup_plan_file(
+        root,
+        plan_file,
+        selected_action_ids=list(actions),
+        all_actions=all_actions,
+    )
+    applied = table.apply(staged["manifest_path"])
+    if fmt == "json":
+        _echo_json(applied)
+    else:
+        _echo_ops_result("commit", applied)
+
+
+@ops.command("restore")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ops_restore(manifest_file: str, fmt: str) -> None:
+    """Restore a committed cleanup operation from its manifest."""
+    from simanalysis.operating_table import OperatingTable
+
+    restored = OperatingTable().restore(manifest_file)
+    if fmt == "json":
+        _echo_json(restored)
+    else:
+        _echo_ops_result("restore", restored)
+
+
+@ops.command("undo")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def ops_undo(manifest_file: str, fmt: str) -> None:
+    """Undo a committed cleanup operation from its manifest."""
+    from simanalysis.operating_table import OperatingTable
+
+    restored = OperatingTable().restore(manifest_file)
+    if fmt == "json":
+        _echo_json(restored)
+    else:
+        _echo_ops_result("undo", restored)
+
+
 @cli.command()
 @click.argument("report_file", type=click.Path(exists=True))
 def view(report_file: str) -> None:
