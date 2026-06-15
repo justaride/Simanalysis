@@ -181,6 +181,46 @@ def doctor_playbooks(summary: dict[str, Any]) -> list[dict[str, Any]]:
     return playbooks
 
 
+def _string_report_attr(report: Any, name: str) -> str | None:
+    value = getattr(report, name, None)
+    if value is None or value == "":
+        return None
+    return str(value)
+
+
+def _timeline_event(kind: str, report: Any) -> dict[str, Any]:
+    event: dict[str, Any] = {"kind": kind}
+    for attr in ("created", "source_file", "signature", "report_type", "message", "game_version"):
+        value = _string_report_attr(report, attr)
+        if value is not None:
+            event[attr] = value
+    source_files = getattr(report, "source_files", None)
+    if isinstance(source_files, list) and source_files:
+        event["source_files"] = [str(source) for source in source_files]
+    return event
+
+
+def doctor_timeline(
+    script_reports: Iterable[Any],
+    ui_reports: Iterable[Any],
+) -> list[dict[str, Any]]:
+    """Return a deterministic read-only timeline across script and UI evidence."""
+    events = [
+        *(_timeline_event("script", report) for report in script_reports),
+        *(_timeline_event("ui", report) for report in ui_reports),
+    ]
+    return sorted(
+        events,
+        key=lambda event: (
+            0 if event.get("created") else 1,
+            str(event.get("created") or ""),
+            str(event.get("source_file") or ""),
+            str(event.get("kind") or ""),
+            str(event.get("signature") or ""),
+        ),
+    )
+
+
 def build_doctor_payload(
     base: Path,
     mods_dir: Path,
@@ -250,6 +290,7 @@ def build_doctor_payload(
         "summary": summary,
         "verdicts": doctor_verdicts(summary),
         "playbooks": doctor_playbooks(summary),
+        "timeline": doctor_timeline(crash_reports, ui_reports),
         "script_crashes": crash_payload,
         "ui_crashes": ui_payload,
     }
@@ -315,6 +356,23 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
         lines.append("")
 
     safe_limit = max(limit, 0)
+    timeline = payload.get("timeline")
+    if isinstance(timeline, list) and timeline:
+        lines.append("Doctor timeline:")
+        for event in timeline[:safe_limit]:
+            if not isinstance(event, dict):
+                continue
+            kind = event.get("kind", "event")
+            created = event.get("created") or "unknown time"
+            source_file = Path(str(event.get("source_file", ""))).name or "unknown source"
+            message = event.get("message") or event.get("signature") or "no message"
+            lines.append(f"  - {kind} {created} - {source_file} - {message}")
+        hidden = len(timeline) - safe_limit
+        if hidden > 0:
+            plural = "event" if hidden == 1 else "events"
+            lines.append(f"  ... {hidden} more timeline {plural} hidden by --limit")
+        lines.append("")
+
     script_mods = [
         mod
         for mod in payload.get("script_crashes", {}).get("ranked_mods", [])

@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   BuildBuy03B-style replay test proving Doctor JSON can start a session, journal
   a move, record a verdict, restore the tree, and render a rollback handoff with
   the original verdict/playbook context.
+- Added a read-only Doctor timeline to JSON and text output, combining parsed
+  script and UI exception evidence in deterministic chronological order.
 
 ### Planned
 - Full DBPF package parser implementation
