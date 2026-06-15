@@ -315,6 +315,31 @@ def test_tray_protector_status_emits_read_only_tray_payload(tmp_path):
     assert orphan.exists()
 
 
+def test_update_staging_status_emits_read_only_update_payload(tmp_path):
+    staging = tmp_path / "Update Staging"
+    staging.mkdir()
+    archive = staging / "cool_mod.zip"
+    archive.write_bytes(b"not a zip")
+    package = staging / "loose.package"
+    package.write_bytes(b"package")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(staging))
+    commands.update_staging_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "update-staging-status"
+    result = events[1]["data"]
+    assert result["status"] == "review_recommended"
+    assert result["mutates_files"] is False
+    assert result["item_count"] == 2
+    assert result["archive_count"] == 1
+    assert result["package_count"] == 1
+    assert archive.exists()
+    assert package.exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

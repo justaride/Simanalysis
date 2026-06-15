@@ -88,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   corrupt ZIPs, archive path-escape risks, iCloud placeholders, AppleDouble
   files, symlinks, and case collisions without extracting archives or changing
   Mods.
+- Added desktop Update Desk v0 through `update-staging-status` bridge/Tauri
+  plumbing, an Update Desk route, and a staging-folder review surface over the
+  same read-only staged-download payload.
 
 ### Planned
 - Full DBPF package parser implementation

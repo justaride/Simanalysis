@@ -150,7 +150,7 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("cache-status".into());
             args.push(path.into());
         }
-        "save-protector-status" | "tray-protector-status" => {
+        "save-protector-status" | "tray-protector-status" | "update-staging-status" => {
             args.push(kind.into());
             args.push(path.into());
         }
@@ -898,6 +898,20 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["tray-protector-status", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_update_staging_status_args() {
+        let args = build_args(
+            "update-staging-status",
+            "/Sims/Downloads/Staging",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            args,
+            vec!["update-staging-status", "/Sims/Downloads/Staging"]
+        );
     }
 
     #[test]

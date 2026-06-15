@@ -261,6 +261,28 @@ def test_tray_protector_status_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_update_staging_status_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_update_staging_status(args, emit):
+        called["command"] = args.command
+        called["path"] = args.path
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(
+        commands.DISPATCH,
+        "update-staging-status",
+        fake_update_staging_status,
+    )
+
+    code, events = _run(monkeypatch, ["update-staging-status", str(tmp_path)])
+
+    assert code == 0
+    assert called == {"command": "update-staging-status", "path": str(tmp_path)}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
     called = {}
     db_path = tmp_path / "inventory.sqlite3"

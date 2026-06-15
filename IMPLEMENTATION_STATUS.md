@@ -248,6 +248,9 @@ Implemented after desktop Tray Protector v0:
   eviction markers, symlinked staging entries, non-file entries, orphan source
   sidecars, missing or invalid source bindings, and casefold path collisions as
   evidence-labeled signals.
+- Added desktop Update Desk v0 through `update-staging-status` bridge/Tauri
+  plumbing, an Update Desk route, and a staging-folder review surface for the
+  same read-only status payload.
 - Update Desk v0 never extracts archives, installs staged downloads, copies
   files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
   install-plan generation, approval, and commit remain future slices.
@@ -300,8 +303,9 @@ save/backups and filesystem trust signals, with a desktop route over the same
 payload and no save mutation support. Tray Protector v0 is available as a
 read-only CLI/backend and desktop route for reviewing Tray groups and
 dependency signals without editing Tray files. Update Desk v0 is available as a
-read-only CLI/backend for reviewing staged external downloads, source sidecars,
-and safe archive-listing signals without extracting archives or changing Mods.
+read-only CLI/backend and desktop route for reviewing staged external
+downloads, source sidecars, and safe archive-listing signals without extracting
+archives or changing Mods.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
