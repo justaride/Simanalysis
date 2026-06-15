@@ -290,7 +290,7 @@ test('update install plan action rows keep blockers and review-only archive acti
     ]);
 });
 
-test('update install plan exposes only planned copy actions as commit eligible', () => {
+test('update install plan exposes planned loose-file and ZIP-member actions as commit eligible', () => {
     const rows = toUpdatePlanActionRows(UPDATE_PLAN);
 
     assert.deepEqual(getCommitEligibleUpdateActionRows(rows), [
@@ -310,6 +310,26 @@ test('update install plan exposes only planned copy actions as commit eligible',
             archiveLabel: 'Not Archive',
             blockers: [],
             reviewNotes: [],
+        },
+        {
+            id: 'update-archive-member-003',
+            type: 'stage_archive_member',
+            typeLabel: 'Stage Archive Member',
+            status: 'planned',
+            statusLabel: 'Planned',
+            sourceName: 'cool.zip: Mods/cool.package',
+            sourceRelativePath: 'cool.zip',
+            archiveMemberPath: 'Mods/cool.package',
+            destinationRelativePath: 'cool.package',
+            extractionStagingRelativePath: '_Simanalysis_UpdateDesk/archive-members/cool/cool.package',
+            extractsDirectlyToMods: false,
+            expectedSizeLabel: '1 KB',
+            sourceStatus: 'missing',
+            sourceLabel: 'Missing',
+            archiveStatus: 'readable_zip',
+            archiveLabel: 'Readable Zip',
+            blockers: [],
+            reviewNotes: ['archive_member_requires_extraction_staging'],
         },
     ]);
 });

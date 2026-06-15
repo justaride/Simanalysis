@@ -638,7 +638,7 @@ function UpdateDesk() {
 
     const commitSelected = () => {
         if (!canCommitSelected) {
-            toast.error('Choose planned copy actions and keep a Plan JSON path.');
+            toast.error('Choose planned install actions and keep a Plan JSON path.');
             return;
         }
 
@@ -851,7 +851,7 @@ function UpdateDesk() {
                                             className="flex h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/20 px-3 text-sm font-medium text-emerald-100 hover:bg-emerald-900/30 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             <CheckSquare size={16} />
-                                            Select Copy Actions
+                                            Select Install Actions
                                         </button>
                                         <button
                                             onClick={() => setSelectedActionIds([])}

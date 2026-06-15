@@ -137,6 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script members now produce extraction-staging actions with destination
   evidence, while corrupt, path-escaping, symlink-like, duplicate-destination,
   `.rar`, and `.7z` archives remain blocked or review-only without extraction.
+- Added guarded ZIP member commit/undo support for Update Desk: selected safe
+  `.package`/`.ts4script` members extract to staging first, verify hash/size
+  evidence, and only then copy into Mods.
 - Hardened Update Desk plan/commit/undo invariants so tampered plan manifests
   must still declare snapshot-required, read-only, no-Mods-mutation gates before
   commit, with tests for stale source size, partial-copy undo recovery, and

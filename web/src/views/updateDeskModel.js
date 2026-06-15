@@ -175,7 +175,8 @@ export function toUpdatePlanActionRows(payload = {}) {
 }
 
 export function getCommitEligibleUpdateActionRows(rows = []) {
-    return rows.filter((row) => row.type === 'copy_staged_file' && row.status === 'planned');
+    const eligibleTypes = new Set(['copy_staged_file', 'stage_archive_member']);
+    return rows.filter((row) => eligibleTypes.has(row.type) && row.status === 'planned');
 }
 
 export function toggleUpdateActionSelection(current = [], actionId, checked) {

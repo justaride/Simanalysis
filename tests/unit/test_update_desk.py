@@ -553,6 +553,76 @@ def test_update_installer_commits_and_undoes_selected_copy_action(
     assert restored["actions"][0]["status"] == "undone"
 
 
+def test_update_installer_commits_zip_member_through_extraction_staging(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    archive = staging / "cool_mod.zip"
+    with ZipFile(archive, "w") as zip_file:
+        zip_file.writestr("nested/cool.package", b"package")
+    plan = build_update_install_plan(staging, mods)
+    member_action = next(
+        action for action in plan["actions"] if action["action_type"] == "stage_archive_member"
+    )
+
+    manifest = UpdateInstaller(clock=lambda: "2026-06-15T09:00:00Z").commit_plan(
+        plan,
+        selected_action_ids=[member_action["action_id"]],
+    )
+
+    destination = mods / "cool.package"
+    extraction_path = Path(manifest["actions"][0]["extraction_staging_path"])
+    assert manifest["status"] == "applied"
+    assert manifest["actions"][0]["action_type"] == "stage_archive_member"
+    assert manifest["actions"][0]["extracts_directly_to_mods"] is False
+    assert extraction_path.read_bytes() == b"package"
+    assert destination.read_bytes() == b"package"
+    assert archive.exists()
+    assert extraction_path.is_relative_to(staging.resolve())
+    assert not extraction_path.is_relative_to(mods.resolve())
+
+    restored = UpdateInstaller().undo(manifest["manifest_path"])
+
+    assert restored["status"] == "undone"
+    assert not destination.exists()
+    assert extraction_path.exists()
+
+
+def test_update_installer_refuses_stale_zip_member_before_extracting(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    archive = staging / "cool_mod.zip"
+    with ZipFile(archive, "w") as zip_file:
+        zip_file.writestr("nested/cool.package", b"package")
+    plan = build_update_install_plan(staging, mods)
+    member_action = next(
+        action for action in plan["actions"] if action["action_type"] == "stage_archive_member"
+    )
+    with ZipFile(archive, "w") as zip_file:
+        zip_file.writestr("nested/cool.package", b"changed")
+
+    with pytest.raises(ValueError, match="no longer matches update plan evidence"):
+        UpdateInstaller().commit_plan(plan, selected_action_ids=[member_action["action_id"]])
+
+    assert not (mods / "cool.package").exists()
+    assert not Path(member_action["extraction_staging_path"]).exists()
+
+
 def test_update_installer_requires_explicit_action_selection(tmp_path: Path) -> None:
     staging = tmp_path / "Staging"
     mods = tmp_path / "Mods"

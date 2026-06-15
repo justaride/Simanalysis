@@ -58,6 +58,7 @@ UPDATE_REQUIRED_ACTION_KEYS = {
     "status",
     "error",
 }
+UPDATE_COMMITTABLE_ACTION_TYPES = {"copy_staged_file", "stage_archive_member"}
 
 
 def _utc_now() -> str:
@@ -882,7 +883,8 @@ class UpdateInstaller:
                 _ensure_safe_update_destination_parent(manifest, destination)
                 if destination.exists():
                     raise ValueError(f"Update destination already exists: {destination}")
-                shutil.copy2(str(action["source_path"]), str(destination))
+                copy_source = _prepare_update_copy_source(manifest, action)
+                shutil.copy2(str(copy_source), str(destination))
                 copy_completed = True
                 installed = {
                     "size": destination.stat().st_size,
@@ -1014,7 +1016,7 @@ def _selected_update_action_ids(
     selected = list(selected_action_ids or [])
     if selected and all_actions:
         raise ValueError("Choose explicit update actions or --all-actions, not both")
-    available = [_update_plan_action_id(action) for action in _copy_plan_actions(plan)]
+    available = [_update_plan_action_id(action) for action in _committable_plan_actions(plan)]
     if all_actions:
         selected = available
     if not selected:
@@ -1023,7 +1025,7 @@ def _selected_update_action_ids(
         raise ValueError("Duplicate update action selected")
     missing = sorted(set(selected) - set(available))
     if missing:
-        raise ValueError(f"Unknown or non-copy update action: {', '.join(missing)}")
+        raise ValueError(f"Unknown or non-committable update action: {', '.join(missing)}")
     return selected
 
 
@@ -1032,6 +1034,14 @@ def _copy_plan_actions(plan: dict[str, Any]) -> list[dict[str, Any]]:
         action
         for action in plan["actions"]
         if isinstance(action, dict) and action.get("action_type") == "copy_staged_file"
+    ]
+
+
+def _committable_plan_actions(plan: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        action
+        for action in plan["actions"]
+        if isinstance(action, dict) and action.get("action_type") in UPDATE_COMMITTABLE_ACTION_TYPES
     ]
 
 
@@ -1044,10 +1054,10 @@ def _update_plan_action_id(action: dict[str, Any]) -> str:
 
 def _find_update_plan_action(plan: dict[str, Any], action_id: str) -> dict[str, Any]:
     matches = [
-        action for action in _copy_plan_actions(plan) if action.get("action_id") == action_id
+        action for action in _committable_plan_actions(plan) if action.get("action_id") == action_id
     ]
     if len(matches) != 1:
-        raise ValueError(f"Update action must map to exactly one copy action: {action_id}")
+        raise ValueError(f"Update action must map to exactly one committable action: {action_id}")
     return matches[0]
 
 
@@ -1060,6 +1070,8 @@ def _update_manifest_action(
     action = _find_update_plan_action(plan, action_id)
     if action.get("status") != "planned":
         raise ValueError(f"Update action is not planned: {action_id}")
+    if action.get("action_type") == "stage_archive_member":
+        return _update_archive_member_manifest_action(action, action_id, staging_root, mods_root)
     source_relative = str(action.get("source_relative_path", ""))
     destination_relative = str(action.get("destination_relative_path", ""))
     source_path = _resolve_update_source(staging_root, source_relative)
@@ -1093,6 +1105,64 @@ def _update_manifest_action(
     }
 
 
+def _update_archive_member_manifest_action(
+    action: dict[str, Any],
+    action_id: str,
+    staging_root: Path,
+    mods_root: Path,
+) -> dict[str, Any]:
+    source_relative = str(action.get("source_relative_path", ""))
+    destination_relative = str(action.get("destination_relative_path", ""))
+    extraction_relative = str(action.get("extraction_staging_relative_path", ""))
+    member_path = str(action.get("archive_member_path", ""))
+    archive_member_kind = action.get("archive_member_kind")
+    source_path = _resolve_update_source(staging_root, source_relative)
+    destination_path = _resolve_update_destination(mods_root, destination_relative)
+    extraction_path = _resolve_update_extraction_staging(staging_root, extraction_relative)
+    if _logical_absolute(Path(str(action.get("source_path", "")))) != source_path:
+        raise ValueError("Update archive source path does not match relative path")
+    if _logical_absolute(Path(str(action.get("destination_path", "")))) != destination_path:
+        raise ValueError("Update destination path does not match relative path")
+    if _logical_absolute(Path(str(action.get("extraction_staging_path", "")))) != extraction_path:
+        raise ValueError("Update extraction staging path does not match relative path")
+    if not member_path or _unsafe_archive_member(member_path):
+        raise ValueError("Update archive member path is unsafe")
+    if archive_member_kind not in {"package", "script"}:
+        raise ValueError("Update archive member kind is not committable")
+    if action.get("extracts_directly_to_mods") is not False:
+        raise ValueError("Update archive member must extract to staging before Mods")
+    _reject_symlinked_path(source_path, "symlinked update archive source")
+    _reject_symlinked_existing_ancestors(destination_path, "symlinked update destination")
+    _reject_symlinked_existing_ancestors(extraction_path, "symlinked update extraction staging")
+    expected = action.get("expected")
+    if not isinstance(expected, dict):
+        raise ValueError("Update action expected evidence must be an object")
+    _validate_update_expected(expected)
+    return {
+        "action_id": action_id,
+        "action_type": "stage_archive_member",
+        "source_name": action.get("source_name"),
+        "source_relative_path": source_relative,
+        "destination_relative_path": destination_relative,
+        "source_path": str(source_path),
+        "destination_path": str(destination_path),
+        "archive_member_path": member_path,
+        "archive_member_kind": archive_member_kind,
+        "extraction_staging_relative_path": extraction_relative,
+        "extraction_staging_path": str(extraction_path),
+        "extracts_directly_to_mods": False,
+        "expected": {
+            "size": int(expected["size"]),
+            "sha256": str(expected["sha256"]),
+        },
+        "installed": None,
+        "source_binding": action.get("source_binding", {"status": "unknown"}),
+        "archive_scan": action.get("archive_scan", {"status": "unknown"}),
+        "status": "pending",
+        "error": None,
+    }
+
+
 def _resolve_update_source(staging_root: Path, relative_path: str) -> Path:
     if not relative_path or Path(relative_path).is_absolute():
         raise ValueError("Update source must be a relative staging path")
@@ -1102,6 +1172,26 @@ def _resolve_update_source(staging_root: Path, relative_path: str) -> Path:
     except ValueError as exc:
         raise ValueError("Update source must be under staging") from exc
     return source
+
+
+def _resolve_update_extraction_staging(staging_root: Path, relative_path: str) -> Path:
+    if not relative_path or Path(relative_path).is_absolute():
+        raise ValueError("Update extraction staging path must be relative")
+    extraction_path = _logical_absolute(staging_root / relative_path)
+    try:
+        extraction_path.relative_to(staging_root)
+    except ValueError as exc:
+        raise ValueError("Update extraction staging path must be under staging") from exc
+    session_root = _logical_absolute(staging_root / UPDATE_SESSION_ROOT_NAME)
+    try:
+        extraction_path.relative_to(session_root)
+    except ValueError as exc:
+        raise ValueError(
+            "Update extraction staging path must be under Update Desk staging"
+        ) from exc
+    if extraction_path == session_root:
+        raise ValueError("Update extraction staging path must be a file path")
+    return extraction_path
 
 
 def _resolve_update_destination(mods_root: Path, relative_path: str) -> Path:
@@ -1233,7 +1323,7 @@ def _validate_update_action_contract(manifest: dict[str, Any], action: dict[str,
     ):
         if not isinstance(action[key], str) or not action[key]:
             raise ValueError(f"Update manifest action {key} must be a non-empty string")
-    if action["action_type"] != "copy_staged_file":
+    if action["action_type"] not in UPDATE_COMMITTABLE_ACTION_TYPES:
         raise ValueError(f"Unsupported update action type: {action['action_type']}")
     if action["status"] not in UPDATE_ACTION_STATUSES:
         raise ValueError(f"Unsupported update action status: {action['status']}")
@@ -1257,10 +1347,17 @@ def _validate_update_action_contract(manifest: dict[str, Any], action: dict[str,
         str(action["destination_relative_path"]),
     ):
         raise ValueError("Update destination path does not match relative path")
+    if action["action_type"] == "stage_archive_member":
+        _validate_archive_member_manifest_action(action, staging_root)
 
 
 def _preflight_update_actions(manifest: dict[str, Any], actions: list[dict[str, Any]]) -> None:
-    _reject_duplicate_update_paths(actions, "source_path", "source")
+    copy_actions = [action for action in actions if action.get("action_type") == "copy_staged_file"]
+    archive_actions = [
+        action for action in actions if action.get("action_type") == "stage_archive_member"
+    ]
+    _reject_duplicate_update_paths(copy_actions, "source_path", "source")
+    _reject_duplicate_update_paths(archive_actions, "extraction_staging_path", "extraction staging")
     _reject_duplicate_update_paths(actions, "destination_path", "destination")
     for action in actions:
         _preflight_update_action(manifest, action)
@@ -1278,7 +1375,10 @@ def _preflight_update_action(manifest: dict[str, Any], action: dict[str, Any]) -
     _reject_symlinked_existing_ancestors(destination, "symlinked update destination")
     if destination.exists():
         raise ValueError(f"Update destination already exists: {destination}")
-    _validate_update_path_identity(action, source, "Update source path", "plan")
+    if action["action_type"] == "copy_staged_file":
+        _validate_update_path_identity(action, source, "Update source path", "plan")
+    else:
+        _preflight_archive_member_action(action)
 
 
 def _preflight_update_undo_actions(
@@ -1318,6 +1418,189 @@ def _reject_duplicate_update_paths(
                 f"Duplicate update action {label} path: {path} ({previous_action_id}, {action_id})"
             )
         seen[path] = action_id
+
+
+def _validate_archive_member_manifest_action(
+    action: dict[str, Any],
+    staging_root: Path,
+) -> None:
+    for key in (
+        "archive_member_path",
+        "archive_member_kind",
+        "extraction_staging_relative_path",
+        "extraction_staging_path",
+    ):
+        if not isinstance(action.get(key), str) or not action[key]:
+            raise ValueError(f"Update archive member action {key} must be a non-empty string")
+    if action.get("extracts_directly_to_mods") is not False:
+        raise ValueError("Update archive member must extract to staging before Mods")
+    if action["archive_member_kind"] not in {"package", "script"}:
+        raise ValueError("Update archive member kind is not committable")
+    member_path = str(action["archive_member_path"])
+    if _unsafe_archive_member(member_path):
+        raise ValueError("Update archive member path is unsafe")
+    if _archive_member_kind(member_path) != action["archive_member_kind"]:
+        raise ValueError("Update archive member kind does not match member path")
+    extraction_path = _absolute_update_action_path(
+        action,
+        "extraction_staging_path",
+        "Update extraction staging path",
+    )
+    if extraction_path != _resolve_update_extraction_staging(
+        staging_root,
+        str(action["extraction_staging_relative_path"]),
+    ):
+        raise ValueError("Update extraction staging path does not match relative path")
+
+
+def _preflight_archive_member_action(action: dict[str, Any]) -> None:
+    archive_path = Path(str(action["source_path"]))
+    if archive_path.suffix.casefold() != ".zip":
+        raise ValueError("Update archive member source must be a ZIP archive")
+    if not is_zipfile(archive_path):
+        raise ValueError(f"Update archive source is not a readable ZIP: {archive_path}")
+    extraction_path = Path(str(action["extraction_staging_path"]))
+    _reject_symlinked_existing_ancestors(
+        extraction_path,
+        "symlinked update extraction staging",
+    )
+    if extraction_path.exists():
+        _reject_symlinked_path(extraction_path, "symlinked update extraction staging")
+        if not extraction_path.is_file():
+            raise ValueError(f"Update extraction staging path is not a file: {extraction_path}")
+        _validate_update_path_identity(
+            action,
+            extraction_path,
+            "Update extraction staging path",
+            "plan",
+        )
+        return
+    _validate_zip_member_evidence(archive_path, action)
+
+
+def _validate_zip_member_evidence(archive_path: Path, action: dict[str, Any]) -> None:
+    expected = _validate_update_expected(action["expected"])
+    member_path = str(action["archive_member_path"])
+    try:
+        with ZipFile(archive_path) as archive:
+            info = archive.getinfo(member_path)
+            if _zip_member_is_symlink(info) or _unsafe_archive_member(info.filename):
+                raise ValueError("Update archive member path is unsafe")
+            if _archive_member_kind(info.filename) != action["archive_member_kind"]:
+                raise ValueError("Update archive member kind does not match member path")
+            if int(info.file_size) != int(expected["size"]):
+                raise ValueError(
+                    f"Update archive member no longer matches update plan evidence: {member_path}"
+                )
+            digest = sha256()
+            size = 0
+            with archive.open(info) as file:
+                for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                    size += len(chunk)
+                    digest.update(chunk)
+    except KeyError as exc:
+        raise ValueError(f"Update archive member is missing: {member_path}") from exc
+    except BadZipFile as exc:
+        raise ValueError(f"Update archive source is not a readable ZIP: {archive_path}") from exc
+    if size != int(expected["size"]) or digest.hexdigest() != str(expected["sha256"]):
+        raise ValueError(
+            f"Update archive member no longer matches update plan evidence: {member_path}"
+        )
+
+
+def _prepare_update_copy_source(manifest: dict[str, Any], action: dict[str, Any]) -> Path:
+    if action["action_type"] == "copy_staged_file":
+        return Path(str(action["source_path"]))
+    return _extract_update_archive_member_to_staging(manifest, action)
+
+
+def _extract_update_archive_member_to_staging(
+    manifest: dict[str, Any],
+    action: dict[str, Any],
+) -> Path:
+    _validate_update_action_contract(manifest, action)
+    archive_path = Path(str(action["source_path"]))
+    extraction_path = Path(str(action["extraction_staging_path"]))
+    if extraction_path.exists():
+        _validate_update_path_identity(
+            action,
+            extraction_path,
+            "Update extraction staging path",
+            "plan",
+        )
+        return extraction_path
+    _ensure_safe_update_extraction_parent(manifest, extraction_path)
+    _write_zip_member_to_extraction_staging(archive_path, action, extraction_path)
+    _validate_update_path_identity(
+        action,
+        extraction_path,
+        "Update extraction staging path",
+        "plan",
+    )
+    return extraction_path
+
+
+def _ensure_safe_update_extraction_parent(manifest: dict[str, Any], extraction_path: Path) -> None:
+    staging_root = _manifest_update_staging(manifest)
+    extraction_path = _logical_absolute(extraction_path)
+    try:
+        relative_parent = extraction_path.parent.relative_to(staging_root)
+    except ValueError as exc:
+        raise ValueError("Update extraction staging path must be under staging") from exc
+    _ensure_safe_update_directory_component(staging_root, extraction_path)
+    current = staging_root
+    for part in relative_parent.parts:
+        current = current / part
+        _ensure_safe_update_directory_component(current, extraction_path)
+
+
+def _write_zip_member_to_extraction_staging(
+    archive_path: Path,
+    action: dict[str, Any],
+    extraction_path: Path,
+) -> None:
+    expected = _validate_update_expected(action["expected"])
+    member_path = str(action["archive_member_path"])
+    try:
+        with ZipFile(archive_path) as archive:
+            info = archive.getinfo(member_path)
+            if _zip_member_is_symlink(info) or _unsafe_archive_member(info.filename):
+                raise ValueError("Update archive member path is unsafe")
+            fd = os.open(extraction_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                digest = sha256()
+                size = 0
+                with os.fdopen(fd, "wb") as output, archive.open(info) as file:
+                    fd = -1
+                    for chunk in iter(lambda: file.read(1024 * 1024), b""):
+                        size += len(chunk)
+                        digest.update(chunk)
+                        output.write(chunk)
+                    output.flush()
+                    os.fsync(output.fileno())
+            finally:
+                if fd != -1:
+                    os.close(fd)
+    except FileExistsError:
+        _validate_update_path_identity(
+            action,
+            extraction_path,
+            "Update extraction staging path",
+            "plan",
+        )
+        return
+    except KeyError as exc:
+        raise ValueError(f"Update archive member is missing: {member_path}") from exc
+    except BadZipFile as exc:
+        raise ValueError(f"Update archive source is not a readable ZIP: {archive_path}") from exc
+    except Exception:
+        extraction_path.unlink(missing_ok=True)
+        raise
+    if size != int(expected["size"]) or digest.hexdigest() != str(expected["sha256"]):
+        extraction_path.unlink(missing_ok=True)
+        raise ValueError(
+            f"Update archive member no longer matches update plan evidence: {member_path}"
+        )
 
 
 def _ensure_safe_update_destination_parent(manifest: dict[str, Any], destination: Path) -> None:

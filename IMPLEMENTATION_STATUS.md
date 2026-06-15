@@ -314,14 +314,15 @@ Implemented after desktop Tray Protector v0:
   installed-file undo refusal.
 - Added desktop Update Desk commit/undo controls over the same guarded
   contract. The route now requires a Plan JSON export path, explicit planned
-  copy-action selection, and a confirm gate before committing loose
-  `.package`/`.ts4script` actions; it can also refresh the operation manifest
-  and undo copied files through `update-staging-operation-status` and
-  `update-staging-undo`.
-- Update Desk v0 still never extracts archives, installs archive contents,
-  overwrites existing Mods files, or deletes staged downloads. Desktop can show
-  ZIP member planning rows, but archive-member rows remain review/staging-plan
-  evidence and are not selectable for commit.
+  install-action selection, and a confirm gate before committing loose
+  `.package`/`.ts4script` actions or safe ZIP member actions; it can also
+  refresh the operation manifest and undo copied files through
+  `update-staging-operation-status` and `update-staging-undo`.
+- Update Desk can now commit safe ZIP `.package`/`.ts4script` members by
+  extracting them under staging `_Simanalysis_UpdateDesk/archive-members/`,
+  verifying member hash/size evidence, and then copying the staged member to
+  Mods. It still never extracts archives directly into Mods, overwrites existing
+  Mods files, deletes staged downloads, or commits `.rar`/`.7z` and unsafe ZIPs.
 - Added `docs/public-v3-workplan.md` and
   `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
   roadmap/workplan and executive presentation artifacts.
@@ -454,10 +455,11 @@ archives. `simanalysis updates plan` can generate a copy/review/blocker
 manifest for staged downloads and can represent readable ZIP package/script
 members as extraction-staging plan rows without extracting to Mods.
 `simanalysis updates commit|undo` can now journal and reverse explicit
-loose-file copy actions into Mods. Desktop Update Desk can now export a Plan
-JSON, commit explicitly selected loose-file copy actions, refresh the operation
-manifest, and undo through the same guarded bridge/Tauri contract; archive
-install/extraction remains unavailable. Classification v1 is available as a
+loose-file copy actions and safe ZIP member actions into Mods. Desktop Update
+Desk can now export a Plan JSON, commit explicitly selected install actions,
+refresh the operation manifest, and undo through the same guarded bridge/Tauri
+contract; archive extraction still never targets Mods directly and
+`.rar`/`.7z` stay unsupported/review-only. Classification v1 is available as a
 conservative evidence layer in Doctor, Patch Day, and Update Desk, but it does
 not mark mods safe and does not replace manual post-patch review. Conflict
 Engine v2 metadata now makes existing resource/hash/tuning conflicts more
@@ -469,7 +471,7 @@ Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware operations
-beyond the current specific flows, safe archive update installation,
+beyond the current specific flows, archive engines beyond safe ZIP members,
 profile-aware Patch Day re-enable workflows, signed/notarized public release
 artifacts, and broader real-world corpus coverage.
 

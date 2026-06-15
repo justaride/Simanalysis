@@ -19,7 +19,8 @@ The current codebase has several verified foundations:
 - Doctor, Crash Autopsy, Treatment, Operating Table, Patch Day, Cache Doctor,
   Save Protector, Tray Protector, and Update Desk surfaces.
 - Manifest-first mutating flows for selected cleanup, cache quarantine, treatment
-  steps, and explicit loose-file Update Desk copy actions.
+  steps, explicit loose-file Update Desk copy actions, and safe ZIP-member
+  Update Desk actions via staging.
 - Conservative classification, conflict metadata, and static script-risk signals.
 - Tauri desktop shell with Python sidecar, release smoke harness, and SBOM/security
   gate.
@@ -39,8 +40,9 @@ Simanalysis can help you inspect a Sims 4 user folder before launching the game:
 - Review saves, Tray groups, and known cache targets with evidence labels.
 - Stage, apply, and undo only the mutating actions that already have manifest
   support and explicit user approval.
-- Generate Update Desk plans for staged downloads, including ZIP member review
-  rows, without extracting archives directly into Mods.
+- Generate Update Desk plans for staged downloads and commit selected safe ZIP
+  package/script members through extraction staging, without extracting archives
+  directly into Mods.
 - Generate release SBOMs and run Python, web, npm, and Cargo lock security gates.
 
 ## What It Does Not Claim Yet
@@ -90,7 +92,7 @@ simanalysis cache status "~/Documents/Electronic Arts/The Sims 4" --format json
 simanalysis save-protector status "~/Documents/Electronic Arts/The Sims 4" --format json
 simanalysis tray status "~/Documents/Electronic Arts/The Sims 4" --format json
 
-# Update Desk planning and guarded loose-file copy actions
+# Update Desk planning and guarded loose-file or ZIP-member actions
 simanalysis updates plan /path/to/staging --mods "~/Documents/Electronic Arts/The Sims 4/Mods" --format json
 simanalysis updates commit /path/to/plan.json --action update-001 --format json
 simanalysis updates undo /path/to/update-manifest.json --format json
