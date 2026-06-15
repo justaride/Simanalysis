@@ -705,6 +705,142 @@ def _finalize_status(session: dict[str, Any]) -> None:
     session["next_batch"] = _next_batch(session)
 
 
+def _quote_command_arg(value: object) -> str:
+    return str(value).replace('"', '\\"')
+
+
+def _count_items(session: dict[str, Any], key: str) -> int:
+    value = session.get(key, [])
+    return len(value) if isinstance(value, list) else 0
+
+
+def _append_paths(lines: list[str], paths: list[Any]) -> None:
+    if not paths:
+        lines.append("- None")
+        return
+    for path in paths:
+        lines.append(f"- `{path}`")
+
+
+def _append_candidate(lines: list[str], candidate: dict[str, Any]) -> None:
+    name = candidate.get("unit_name") or Path(str(candidate.get("unit_path", ""))).name
+    kind = candidate.get("unit_kind", "unknown")
+    unit_path = candidate.get("unit_path", "")
+    lines.append(f"- `{name}` - {kind} - `{unit_path}`")
+    evidence_items = candidate.get("evidence", [])
+    if not isinstance(evidence_items, list):
+        return
+    for evidence in evidence_items:
+        if not isinstance(evidence, dict):
+            continue
+        source = evidence.get("source", "unknown")
+        finding = evidence.get("finding", "unknown finding")
+        reason = evidence.get("reason", "no reason recorded")
+        path = evidence.get("path", "")
+        lines.append(f"  - Evidence: `{source}` - {finding} - {reason} - `{path}`")
+
+
+def render_handoff(session: dict[str, Any]) -> str:
+    """Render a read-only Markdown handoff for a Treatment/Auto-Bisect session."""
+    manifest = session.get("manifest_path") or "(not saved)"
+    session_id = session.get("session_id", "unknown")
+    status = session.get("status", "unknown")
+    manifest_arg = _quote_command_arg(manifest)
+
+    lines = [
+        "# Simanalysis Bisect Handoff",
+        "",
+        "Handoff generation is read-only; it does not move, restore, or edit Sims files.",
+        "",
+        "## Session",
+        f"Session: `{session_id}`",
+        f"Status: `{status}`",
+        f"Manifest: `{manifest}`",
+        f"Sims 4 Folder: `{session.get('sims4_dir', '')}`",
+        f"Mods Folder: `{session.get('mods_dir', '')}`",
+        f"Disabled Folder: `{session.get('disabled_dir', '')}`",
+        f"Created: `{session.get('created_at', 'unknown')}`",
+        f"Updated: `{session.get('updated_at', 'unknown')}`",
+        "",
+        "## Current State",
+        f"Candidates: {_count_items(session, 'active_candidates')}",
+        f"Remaining: {_count_items(session, 'remaining_candidates')}",
+        f"Current Removed: {_count_items(session, 'current_removed')}",
+        "",
+        "### Next Batch",
+    ]
+    _append_paths(lines, cast(list[Any], session.get("next_batch", [])))
+    lines.extend(["", "### Current Removed"])
+    _append_paths(lines, cast(list[Any], session.get("current_removed", [])))
+
+    lines.extend(["", "## Candidates"])
+    candidates = session.get("active_candidates", [])
+    if isinstance(candidates, list) and candidates:
+        for candidate in candidates:
+            if isinstance(candidate, dict):
+                _append_candidate(lines, candidate)
+    else:
+        lines.append("- None")
+
+    lines.extend(["", "## Steps"])
+    steps = session.get("steps", [])
+    if isinstance(steps, list) and steps:
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            step_id = step.get("step_id", "unknown")
+            step_status = step.get("status", "unknown")
+            outcome = step.get("outcome") or "pending"
+            lines.append(f"- Step `{step_id}` - `{step_status}` - outcome `{outcome}`")
+            removed_units = step.get("removed_units", [])
+            if not isinstance(removed_units, list):
+                continue
+            for record in removed_units:
+                if not isinstance(record, dict):
+                    continue
+                name = Path(str(record.get("source", ""))).name
+                record_status = record.get("status", "unknown")
+                source = record.get("source", "")
+                destination = record.get("destination", "")
+                lines.append(f"  - `{name}` - `{record_status}` - `{source}` -> `{destination}`")
+    else:
+        lines.append("- No steps have been applied yet.")
+
+    lines.extend(["", "## Warnings"])
+    _append_paths(lines, cast(list[Any], session.get("warnings", [])))
+    lines.extend(["", "## Blockers"])
+    _append_paths(lines, cast(list[Any], session.get("blockers", [])))
+
+    lines.extend(
+        [
+            "",
+            "## Recovery Commands",
+            f'- Inspect: `simanalysis bisect status "{manifest_arg}"`',
+            f'- Apply next step: `simanalysis bisect next "{manifest_arg}"`',
+            (
+                f"- Record same issue: `simanalysis bisect record-verdict "
+                f'"{manifest_arg}" --verdict same_issue`'
+            ),
+            (
+                f"- Record issue gone: `simanalysis bisect record-verdict "
+                f'"{manifest_arg}" --verdict issue_gone`'
+            ),
+            (
+                f"- Record different issue: `simanalysis bisect record-verdict "
+                f'"{manifest_arg}" --verdict different_issue`'
+            ),
+            f'- Restore latest step: `simanalysis bisect restore "{manifest_arg}"`',
+            f'- Restore all: `simanalysis bisect restore "{manifest_arg}" --step all`',
+            "",
+            "## Trust Notes",
+            "- Treat candidates as suspects until a user-recorded game test confirms them.",
+            "- Restore or continue only through the manifest-based commands above.",
+            "- Do not edit saves; this handoff is for Mods-folder bisection only.",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def record_outcome(manifest_path: str | Path, outcome: str) -> dict[str, Any]:
     if outcome not in VALID_OUTCOMES:
         raise ValueError(f"Unsupported treatment outcome: {outcome}")
