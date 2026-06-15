@@ -271,9 +271,18 @@ Implemented after desktop Tray Protector v0:
   block while The Sims 4 is running, reject stale plan evidence, path escapes,
   symlinked sources/destinations, destination collisions, and modified files on
   undo, and can undo a copied file left behind by a crash during `copying`.
+- Added desktop Update Desk commit/undo controls over the same guarded
+  contract. The route now requires a Plan JSON export path, explicit planned
+  copy-action selection, and a confirm gate before committing loose
+  `.package`/`.ts4script` actions; it can also refresh the operation manifest
+  and undo copied files through `update-staging-operation-status` and
+  `update-staging-undo`.
 - Update Desk v0 still never extracts archives, installs archive contents,
-  overwrites existing Mods files, or deletes staged downloads. The desktop
-  Update Desk route remains preview-only and exposes no install/apply control.
+  overwrites existing Mods files, or deletes staged downloads. Archive rows
+  remain review-only in desktop.
+- Added `docs/public-v3-workplan.md` and
+  `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
+  roadmap/workplan and executive presentation artifacts.
 
 ## Current Product Reality
 
@@ -328,13 +337,15 @@ downloads, source sidecars, and safe archive-listing signals without extracting
 archives. `simanalysis updates plan` can generate a copy/review/blocker
 manifest for staged downloads, and `simanalysis updates commit|undo` can now
 journal and reverse explicit loose-file copy actions into Mods. Desktop Update
-Desk still exposes no install/apply control.
+Desk can now export a Plan JSON, commit explicitly selected loose-file copy
+actions, refresh the operation manifest, and undo through the same guarded
+bridge/Tauri contract; archive install/extraction remains unavailable.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
 operations, broader reversible workflows beyond cleanup and loose update copy
-actions, cache-clearing operations, desktop update install/apply controls,
+actions, cache-clearing operations, safe archive update installation,
 profile-aware Patch Day re-enable workflows, and broader real-world corpus
 coverage.
 

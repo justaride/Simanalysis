@@ -30,6 +30,8 @@ from simanalysis.update_desk import (
     UpdateInstaller,
     build_update_install_plan,
     build_update_staging_status,
+    load_update_manifest,
+    write_update_install_plan,
 )
 
 
@@ -177,7 +179,10 @@ def update_staging_plan(args: argparse.Namespace, emit: Emitter) -> None:
     staging_path = Path(args.path).expanduser().resolve()
     mods_path = Path(args.mods_path).expanduser().resolve()
     emit.start("update-staging-plan")
-    emit.result(build_update_install_plan(staging_path, mods_path))
+    plan = build_update_install_plan(staging_path, mods_path)
+    if getattr(args, "export", None):
+        plan = write_update_install_plan(plan, args.export)
+    emit.result(plan)
     emit.done()
 
 
@@ -196,6 +201,12 @@ def update_staging_commit(args: argparse.Namespace, emit: Emitter) -> None:
 def update_staging_undo(args: argparse.Namespace, emit: Emitter) -> None:
     emit.start("update-staging-undo")
     emit.result(UpdateInstaller().undo(args.path))
+    emit.done()
+
+
+def update_staging_operation_status(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("update-staging-operation-status")
+    emit.result(load_update_manifest(args.path))
     emit.done()
 
 
@@ -484,6 +495,7 @@ DISPATCH = {
     "update-staging-plan": update_staging_plan,
     "update-staging-commit": update_staging_commit,
     "update-staging-undo": update_staging_undo,
+    "update-staging-operation-status": update_staging_operation_status,
     "cleanup-plan": cleanup_plan,
     "cleanup-stage": cleanup_stage,
     "cleanup-apply": cleanup_apply,

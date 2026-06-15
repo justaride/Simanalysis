@@ -1,0 +1,1026 @@
+<!doctype html>
+<html lang="no">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Simanalysis Public v3 - rapport og produktpresentasjon</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #171512;
+        --muted: #625d52;
+        --paper: #f7f1e6;
+        --panel: #fffaf0;
+        --line: #d9cdb8;
+        --coal: #25221c;
+        --green: #1f7a5c;
+        --red: #b83d2f;
+        --gold: #bd8a2d;
+        --blue: #2f6792;
+        --shadow: 0 22px 60px rgba(43, 35, 22, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(90deg, rgba(37, 34, 28, 0.05) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(37, 34, 28, 0.05) 1px, transparent 1px),
+          var(--paper);
+        background-size: 32px 32px;
+        color: var(--ink);
+        font-family: Georgia, "Times New Roman", serif;
+        line-height: 1.5;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(circle at 18% 18%, rgba(189, 138, 45, 0.18), transparent 24rem),
+          radial-gradient(circle at 84% 8%, rgba(47, 103, 146, 0.15), transparent 22rem),
+          linear-gradient(135deg, rgba(31, 122, 92, 0.08), transparent 42%);
+        mix-blend-mode: multiply;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .deck {
+        position: relative;
+        width: min(1180px, calc(100% - 36px));
+        margin: 0 auto;
+        padding: 28px 0 80px;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 12px;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 10px 12px;
+        margin-bottom: 22px;
+        border: 1px solid rgba(37, 34, 28, 0.16);
+        background: rgba(255, 250, 240, 0.88);
+        box-shadow: 0 10px 34px rgba(43, 35, 22, 0.12);
+        backdrop-filter: blur(16px);
+        max-width: 100%;
+        overflow: hidden;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: var(--coal);
+      }
+
+      .brand-mark {
+        display: inline-grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 2px solid var(--coal);
+        background: #f0d792;
+        font-weight: 900;
+      }
+
+      .nav {
+        display: flex;
+        gap: 6px;
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        overflow-x: auto;
+        padding-bottom: 1px;
+      }
+
+      .nav a,
+      .print-button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0 11px;
+        border: 1px solid rgba(37, 34, 28, 0.18);
+        background: rgba(255, 255, 255, 0.42);
+        color: var(--coal);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      .print-button:hover,
+      .nav a:hover {
+        background: var(--coal);
+        color: #fff7e8;
+      }
+
+      .slide {
+        position: relative;
+        min-height: min(760px, calc(100vh - 88px));
+        margin: 0 0 28px;
+        padding: clamp(28px, 5vw, 64px);
+        overflow: hidden;
+        border: 1px solid rgba(37, 34, 28, 0.18);
+        background: rgba(255, 250, 240, 0.92);
+        box-shadow: var(--shadow);
+      }
+
+      .slide::after {
+        content: attr(data-kicker);
+        position: absolute;
+        right: 22px;
+        bottom: 16px;
+        color: rgba(37, 34, 28, 0.28);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.08fr) minmax(320px, 0.92fr);
+        gap: clamp(30px, 6vw, 74px);
+        align-items: center;
+        background:
+          linear-gradient(110deg, rgba(255, 250, 240, 0.94), rgba(255, 250, 240, 0.72)),
+          repeating-linear-gradient(45deg, rgba(37, 34, 28, 0.05) 0 2px, transparent 2px 14px),
+          var(--panel);
+      }
+
+      .eyebrow {
+        margin: 0 0 18px;
+        color: var(--green);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        line-height: 0.96;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        max-width: 720px;
+        font-size: clamp(52px, 7.2vw, 96px);
+      }
+
+      h2 {
+        max-width: 900px;
+        font-size: clamp(40px, 6.2vw, 78px);
+      }
+
+      h3 {
+        font-size: clamp(22px, 3.1vw, 34px);
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+        font-size: clamp(17px, 1.65vw, 23px);
+        overflow-wrap: anywhere;
+      }
+
+      .lead {
+        max-width: 770px;
+        margin-top: 22px;
+        color: #383229;
+        font-size: clamp(21px, 2.35vw, 32px);
+        line-height: 1.25;
+      }
+
+      .sublead {
+        max-width: 760px;
+        margin-top: 20px;
+      }
+
+      .stamp {
+        align-self: stretch;
+        display: grid;
+        min-width: 0;
+        max-width: 100%;
+        min-height: 430px;
+        padding: 28px;
+        border: 2px solid var(--coal);
+        background:
+          linear-gradient(135deg, rgba(31, 122, 92, 0.15), transparent 44%),
+          #f2e1bd;
+        transform: rotate(1.5deg);
+      }
+
+      .stamp-inner {
+        display: grid;
+        align-content: space-between;
+        gap: 34px;
+        min-width: 0;
+        padding: 24px;
+        border: 1px solid rgba(37, 34, 28, 0.34);
+      }
+
+      .stamp-title {
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+      }
+
+      .stamp-code {
+        color: var(--coal);
+        font-family: "Courier New", monospace;
+        font-size: clamp(48px, 8vw, 94px);
+        font-weight: 900;
+        line-height: 0.9;
+      }
+
+      .stamp-note {
+        color: var(--coal);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 14px;
+        font-weight: 800;
+        line-height: 1.4;
+      }
+
+      .grid {
+        display: grid;
+        gap: 18px;
+        margin-top: 34px;
+      }
+
+      .cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .card,
+      .callout,
+      .timeline-item {
+        border: 1px solid rgba(37, 34, 28, 0.18);
+        background: rgba(255, 255, 255, 0.48);
+      }
+
+      .card {
+        min-height: 180px;
+        padding: 22px;
+      }
+
+      .card h3 {
+        margin-bottom: 12px;
+        color: var(--coal);
+      }
+
+      .card p,
+      .timeline-item p,
+      li {
+        color: var(--muted);
+        font-size: 17px;
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 34px;
+      }
+
+      .metric {
+        min-height: 156px;
+        padding: 18px;
+        border: 1px solid rgba(37, 34, 28, 0.2);
+        background: var(--coal);
+        color: #fff8e9;
+      }
+
+      .metric strong {
+        display: block;
+        font-family: "Courier New", monospace;
+        font-size: clamp(30px, 4vw, 52px);
+        line-height: 1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 12px;
+        color: #e7d8bb;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .ribbon {
+        display: inline-flex;
+        align-items: center;
+        min-height: 34px;
+        padding: 0 12px;
+        margin-top: 22px;
+        border: 1px solid rgba(37, 34, 28, 0.2);
+        background: #f0d792;
+        color: var(--coal);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .diagram {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(120px, 1fr));
+        gap: 10px;
+        margin-top: 42px;
+      }
+
+      .node {
+        position: relative;
+        min-height: 132px;
+        padding: 18px 14px;
+        border: 2px solid var(--coal);
+        background: #fff7e8;
+      }
+
+      .node::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        right: -12px;
+        width: 12px;
+        border-top: 2px solid var(--coal);
+      }
+
+      .node:last-child::before {
+        display: none;
+      }
+
+      .node strong {
+        display: block;
+        margin-bottom: 8px;
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .node span {
+        color: var(--muted);
+        font-size: 15px;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(320px, 1.05fr);
+        gap: clamp(28px, 5vw, 64px);
+        align-items: start;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 12px;
+      }
+
+      .timeline-item {
+        display: grid;
+        grid-template-columns: 86px minmax(0, 1fr);
+        gap: 18px;
+        padding: 18px;
+      }
+
+      .timeline-item time {
+        color: var(--green);
+        font-family: "Courier New", monospace;
+        font-size: 18px;
+        font-weight: 900;
+      }
+
+      .timeline-item strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--coal);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .roadmap {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 34px;
+      }
+
+      .roadmap-stage {
+        min-height: 390px;
+        padding: 22px;
+        border: 1px solid rgba(37, 34, 28, 0.2);
+        background: rgba(255, 255, 255, 0.46);
+      }
+
+      .roadmap-stage:nth-child(1) {
+        border-top: 8px solid var(--green);
+      }
+
+      .roadmap-stage:nth-child(2) {
+        border-top: 8px solid var(--gold);
+      }
+
+      .roadmap-stage:nth-child(3) {
+        border-top: 8px solid var(--blue);
+      }
+
+      .roadmap-stage:nth-child(4) {
+        border-top: 8px solid var(--red);
+      }
+
+      .roadmap-stage h3 {
+        margin-bottom: 16px;
+      }
+
+      ul {
+        padding-left: 1.1em;
+        margin: 0;
+      }
+
+      li + li {
+        margin-top: 10px;
+      }
+
+      .callout {
+        margin-top: 30px;
+        padding: 22px;
+        border-left: 8px solid var(--green);
+      }
+
+      .callout p {
+        color: #302a22;
+      }
+
+      .quote {
+        max-width: 900px;
+        margin-top: 34px;
+        padding-left: 28px;
+        border-left: 8px solid var(--coal);
+        color: var(--coal);
+        font-size: clamp(30px, 4.3vw, 58px);
+        line-height: 1.04;
+      }
+
+      .source-list {
+        columns: 2;
+        column-gap: 46px;
+        margin-top: 34px;
+      }
+
+      .source-list li {
+        break-inside: avoid;
+        margin-bottom: 12px;
+        font-size: 15px;
+      }
+
+      .footer-note {
+        margin-top: 36px;
+        color: var(--muted);
+        font-family: "Trebuchet MS", Verdana, sans-serif;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      @media (max-width: 880px) {
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+          overflow: visible;
+        }
+
+        .print-button {
+          flex: 0 0 auto;
+        }
+
+        .nav {
+          flex-wrap: wrap;
+          overflow-x: visible;
+        }
+
+        .hero,
+        .split,
+        .cols-2,
+        .cols-3,
+        .metric-row,
+        .roadmap {
+          grid-template-columns: 1fr;
+        }
+
+        .diagram {
+          grid-template-columns: 1fr;
+        }
+
+        .node::before {
+          display: none;
+        }
+
+        .stamp {
+          min-height: 280px;
+          transform: none;
+        }
+
+        .source-list {
+          columns: 1;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .deck {
+          width: 100%;
+          padding: 14px 14px 64px;
+        }
+
+        .slide {
+          width: 100%;
+          padding: 28px;
+        }
+
+        .topbar {
+          position: relative;
+          top: 0;
+          width: 100%;
+        }
+
+        .nav a {
+          flex: 0 1 auto;
+        }
+
+        h1 {
+          font-size: clamp(42px, 13.4vw, 52px);
+        }
+
+        h2 {
+          font-size: clamp(34px, 11vw, 46px);
+        }
+
+        .lead {
+          font-size: 21px;
+        }
+
+        .stamp {
+          padding: 18px;
+        }
+
+        .stamp-inner {
+          padding: 20px;
+        }
+
+        .stamp-code {
+          font-size: 58px;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        body::before,
+        .topbar {
+          display: none;
+        }
+
+        .deck {
+          width: 100%;
+          padding: 0;
+        }
+
+        .slide {
+          min-height: 100vh;
+          margin: 0;
+          border: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="deck">
+      <header class="topbar" aria-label="Presentasjonsnavigasjon">
+        <div class="brand">
+          <span class="brand-mark">S</span>
+          <span>Simanalysis / Public v3 brief</span>
+        </div>
+        <nav class="nav" aria-label="Slides">
+          <a href="#start">Start</a>
+          <a href="#what">Hva</a>
+          <a href="#capabilities">Kan</a>
+          <a href="#progress">Utvikling</a>
+          <a href="#roadmap">Roadmap</a>
+          <a href="#release">Release</a>
+        </nav>
+        <button class="print-button" type="button" onclick="window.print()">Skriv ut / PDF</button>
+      </header>
+
+      <section class="slide hero" id="start" data-kicker="01 / Executive">
+        <div>
+          <p class="eyebrow">Rapport og presentasjon / 15. juni 2026</p>
+          <h1>Simanalysis</h1>
+          <p class="lead">
+            Et lokalt Sims 4 Doctor-verktøy som analyserer Mods, forklarer risiko,
+            hjelper brukeren å teste trygt, og gjør filendringer bare når de er
+            eksplisitte, journalførte og reversible.
+          </p>
+          <p class="sublead">
+            Produktet har beveget seg fra konflikt-scanner til en bredere
+            sikkerhetsflate for mod-samlinger: inventory, Doctor, Treatment,
+            Patch Day, Save/Tray/Cache-beskyttelse og Update Desk.
+          </p>
+        </div>
+        <aside class="stamp" aria-label="Produktstatus">
+          <div class="stamp-inner">
+            <div class="stamp-title">Status</div>
+            <div class="stamp-code">v3</div>
+            <div class="stamp-note">
+              Ikke “ferdig produkt” ennå. Men fundamentet er nå sterkt:
+              lokal sannhet, eksplisitte planer, manifest-baserte handlinger,
+              og rollback som produktregel.
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="slide" id="what" data-kicker="02 / Hva er det">
+        <p class="eyebrow">Produktfortelling</p>
+        <h2>Fra mod-kaos til kontrollerte valg.</h2>
+        <p class="lead">
+          Simanalysis er et desktop- og CLI-verktøy for spillere og skapere som
+          bruker Sims 4 mods og custom content. Det leser lokale filer før spillet
+          starter, bygger evidens, og foreslår neste trygge steg.
+        </p>
+        <div class="diagram" aria-label="Arbeidsflyt">
+          <div class="node">
+            <strong>Les</strong>
+            <span>Scanner Mods, Tray, saves, cache og staging uten å endre filer.</span>
+          </div>
+          <div class="node">
+            <strong>Forstå</strong>
+            <span>Parser DBPF, ressursnøkler, STBL, SimData, logs og historikk.</span>
+          </div>
+          <div class="node">
+            <strong>Forklar</strong>
+            <span>Viser konflikter, krasjbevis, patch-risiko og filsignaler.</span>
+          </div>
+          <div class="node">
+            <strong>Stage</strong>
+            <span>Lager planer og manifester før noe flyttes eller kopieres.</span>
+          </div>
+          <div class="node">
+            <strong>Rollback</strong>
+            <span>Handlinger skal kunne reverseres fra journalen, ikke gjettes.</span>
+          </div>
+        </div>
+        <div class="quote">Analyze first, stage second, mutate third, rollback always.</div>
+      </section>
+
+      <section class="slide" id="capabilities" data-kicker="03 / Hva den kan">
+        <p class="eyebrow">Nåværende kapabiliteter</p>
+        <h2>Et sikkerhetslag rundt hele Sims 4-mappen.</h2>
+        <div class="grid cols-3">
+          <article class="card">
+            <h3>Mod-analyse</h3>
+            <p>
+              Scanner `.package` og `.ts4script`, hasher filer, leser DBPF-ressurser,
+              finner tuning/resource-overlapp og eksporterer strukturert analyse.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Doctor</h3>
+            <p>
+              Kombinerer script- og UI-exception autopsy, timeline, ledger-kontekst,
+              verdicts og playbooks uten å mutere Sims-filer.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Treatment</h3>
+            <p>
+              Auto-Bisect med manifest-first flyttinger, restore, verdict logging,
+              handoff og game-process/path/symlink guards.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Inventory Ledger</h3>
+            <p>
+              SQLite-basert lokal sannhet: scans, snapshots, ressurser, historikk,
+              endringer siden sist og per-fil events.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Operating Table</h3>
+            <p>
+              Cleanup-planer kan stages, applyes og restores via manifest. Ingen
+              sletting, ingen overskriving, ingen handling mens spillet kjører.
+            </p>
+          </article>
+          <article class="card">
+            <h3>Trust Protectors</h3>
+            <p>
+              Patch Day, Profile Manager Light, Cache Doctor, Save Protector og
+              Tray Protector er read-only eller app-state-only sikkerhetsflater.
+            </p>
+          </article>
+        </div>
+        <div class="metric-row" aria-label="Produktmålinger">
+          <div class="metric">
+            <strong>564</strong>
+            <span>Python tests passet i siste v3-gate</span>
+          </div>
+          <div class="metric">
+            <strong>92</strong>
+            <span>Web node tests passet</span>
+          </div>
+          <div class="metric">
+            <strong>40</strong>
+            <span>Rust/Tauri lib tests passet</span>
+          </div>
+          <div class="metric">
+            <strong>0</strong>
+            <span>Desktop install/apply-knapp for Update Desk ennå</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-kicker="04 / Produktflater">
+        <p class="eyebrow">Flater brukeren møter</p>
+        <h2>CLI for presisjon. Desktop for trygg gjennomgang.</h2>
+        <div class="split">
+          <div>
+            <p class="lead">
+              Simanalysis har samme sikkerhetskontrakter gjennom Python-core,
+              bridge, Tauri og React. Det gjør at CLI, tester og desktop ikke
+              trenger å være tre forskjellige sannheter.
+            </p>
+            <div class="callout">
+              <p>
+                Den viktigste produktbeslutningen er at “vis meg status” og
+                “gjør en filhandling” er separate nivåer. Read-only kommer først.
+                Mutasjon krever eksplisitt plan, manifest og rollback.
+              </p>
+            </div>
+          </div>
+          <div class="grid">
+            <article class="card">
+              <h3>Desktop</h3>
+              <p>
+                Dashboard, Mods, Inventory, Cleanup, Doctor, Treatment, Live
+                Monitor, Patch Day, Cache, Save, Tray, Update Desk og Settings.
+              </p>
+            </article>
+            <article class="card">
+              <h3>CLI</h3>
+              <p>
+                `doctor`, `bisect`, `ledger`, `ops`, `patch-day`, `cache`,
+                `save-protector`, `tray`, og `updates` for scriptbar drift.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Bridge</h3>
+              <p>
+                NDJSON sidecar-kontrakter binder desktop til samme backend-logikk
+                som testene og CLI-en bruker.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" id="progress" data-kicker="05 / Siste uker">
+        <p class="eyebrow">Hva har utviklet seg de siste ukene</p>
+        <h2>Fra scanner til operasjonssikkert lokalt system.</h2>
+        <div class="timeline">
+          <div class="timeline-item">
+            <time>Uke 1</time>
+            <div>
+              <strong>True Engine og real corpus</strong>
+              <p>
+                Falske ressurskonstanter ble erstattet med S4TK-verifisert registry,
+                real-fixture kontrakt kom inn, og parser-output ble mer ærlig.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <time>Uke 2</time>
+            <div>
+              <strong>Ledger og Cleanup foundation</strong>
+              <p>
+                SQLite inventory, snapshots, event-log og read-only Cleanup Planner
+                ga prosjektet lokal sannhet og trygge planflater.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <time>Uke 3</time>
+            <div>
+              <strong>Operating Table og Doctor gates</strong>
+              <p>
+                Manifest-first cleanup apply/restore, Doctor CLI, bisection handoff,
+                replay gates, timeline og ledger-kontekst ble samlet.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <time>Uke 4</time>
+            <div>
+              <strong>Trust polish</strong>
+              <p>
+                Patch Day Shield, Profile Manager Light, Cache Doctor, Save Protector
+                og Tray Protector flyttet produktet nærmere en trygg hverdagsapp.
+              </p>
+            </div>
+          </div>
+          <div class="timeline-item">
+            <time>Nå</time>
+            <div>
+              <strong>Update Desk</strong>
+              <p>
+                Staged downloads kan klassifiseres, planlegges og nå også commit/undo
+                på løse `.package` og `.ts4script` med hash, symlink, path, collision,
+                game-process og crash-recovery guards. Desktop er fortsatt preview-only.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="slide" data-kicker="06 / Sikkerhet">
+        <p class="eyebrow">Produktprinsipper</p>
+        <h2>Trygghet er ikke pynt. Det er arkitekturen.</h2>
+        <div class="grid cols-2">
+          <article class="card">
+            <h3>Hard boundaries</h3>
+            <ul>
+              <li>Ingen automatisk permanent sletting av brukerfiler.</li>
+              <li>Ingen filmutasjon mens The Sims 4 kjører.</li>
+              <li>Ingen path escapes, symlinkede operasjonsmål eller stille overskriving.</li>
+              <li>Ingen “unknown mod is safe”-påstander etter patch.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Trust mechanics</h3>
+            <ul>
+              <li>Read-only status først.</li>
+              <li>Plan og snapshot før handling.</li>
+              <li>Manifest/journal før copy eller move.</li>
+              <li>Undo/restore basert på journalert evidens.</li>
+            </ul>
+          </article>
+        </div>
+        <p class="lead">
+          Dette gjør Simanalysis mer konservativ enn mange “rydd opp for meg”-verktøy.
+          Den konservatismen er et produktfortrinn: Sims-brukere skal føle at appen
+          hjelper dem å forstå, ikke at den tar eierskap over samlingen deres.
+        </p>
+      </section>
+
+      <section class="slide" id="roadmap" data-kicker="07 / Roadmap">
+        <p class="eyebrow">Roadmap til ferdig produkt</p>
+        <h2>Fire etapper fra dagens v3 til public-ready.</h2>
+        <div class="roadmap">
+          <article class="roadmap-stage">
+            <h3>1. Close v3 Safety</h3>
+            <ul>
+              <li>Desktop Update Desk install/apply-kontroller.</li>
+              <li>Trygg arkivinstallering med traversal-, symlink- og corrupt-archive gates.</li>
+              <li>Flere crash-recovery og property-test scenarier.</li>
+              <li>Browser-QA for alle nye desktop-operasjoner.</li>
+            </ul>
+          </article>
+          <article class="roadmap-stage">
+            <h3>2. Trust Polish</h3>
+            <ul>
+              <li>Cache-clearing som manifestert quarantine, ikke delete.</li>
+              <li>Patch Day re-enable workflow bundet til profiler.</li>
+              <li>Save Protector v1 med profile/save-sammenheng.</li>
+              <li>Tray dependency signals med tydelig usikkerhet.</li>
+            </ul>
+          </article>
+          <article class="roadmap-stage">
+            <h3>3. Intelligence</h3>
+            <ul>
+              <li>Classification v1: CAS, Build/Buy, UI, script, gameplay, default replacement.</li>
+              <li>Conflict Engine v2 med override-intensjon og profile awareness.</li>
+              <li>Script Security Analyzer som statisk risikosignal, aldri runtime execution.</li>
+              <li>Exception Analyzer v2 for flere loggformater.</li>
+            </ul>
+          </article>
+          <article class="roadmap-stage">
+            <h3>4. Release Package</h3>
+            <ul>
+              <li>SBOM, signering/notarisering og sikkerhetsgjennomgang.</li>
+              <li>Ærlig README, changelog og “not EA/Maxis official” branding.</li>
+              <li>Installer/distribusjon for desktop.</li>
+              <li>Public v3 smoke test på frisk maskin og real-world corpus.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="slide" id="release" data-kicker="08 / Ferdig produkt">
+        <p class="eyebrow">Definition of done</p>
+        <h2>Når er Simanalysis “ferdig nok” for Public v3?</h2>
+        <div class="grid cols-2">
+          <article class="card">
+            <h3>Produktkrav</h3>
+            <ul>
+              <li>Brukeren kan forstå Mods-helse uten terminal.</li>
+              <li>Alle muterende workflows har preview, explicit approval og undo.</li>
+              <li>Patch/update/cache/save/tray-flater har samme trust language.</li>
+              <li>Appen er ærlig om begrensninger og ukjent kompatibilitet.</li>
+            </ul>
+          </article>
+          <article class="card">
+            <h3>Releasekrav</h3>
+            <ul>
+              <li>Python, Rust, web og real-corpus gates grønt.</li>
+              <li>Desktop QA uten horisontal overflow på desktop og mobil-bredder.</li>
+              <li>Signert/notarisert desktop build der plattformen krever det.</li>
+              <li>README og changelog matcher faktisk shipped surface.</li>
+            </ul>
+          </article>
+        </div>
+        <div class="callout">
+          <p>
+            Kort sagt: Public v3 bør lanseres når Simanalysis trygt kan si
+            “jeg kan hjelpe deg å rydde, teste og oppdatere” uten å skjule at
+            brukeren fortsatt er beslutningstakeren.
+          </p>
+        </div>
+      </section>
+
+      <section class="slide" data-kicker="09 / Executive close">
+        <p class="eyebrow">Oppsummering</p>
+        <h2>Simanalysis er blitt et lokalt kontrollrom for Sims 4 mods.</h2>
+        <p class="lead">
+          De siste ukene har prosjektet fått den typen fundament som skiller et
+          nyttig hobbyverktøy fra et produkt brukere kan stole på: verifisert
+          parser-sannhet, lokal ledger, read-only reviewflater, manifest-first
+          handlinger og en konsekvent filosofi om at brukerfiler ikke er noe man
+          “fikser” uten sporbarhet.
+        </p>
+        <p class="sublead">
+          Neste fase handler ikke om å legge til mest mulig. Den handler om å
+          lukke Update Desk trygt, polere trust-flater, bevise releasepakken,
+          og bare deretter åpne for mer intelligente integrationslag.
+        </p>
+        <span class="ribbon">Neste gate: desktop Update Desk apply + trygg arkivpipeline</span>
+      </section>
+
+      <section class="slide" data-kicker="10 / Kilder">
+        <p class="eyebrow">Kilder i repoet</p>
+        <h2>Rapporten er bygget fra gjeldende prosjektstatus.</h2>
+        <ol class="source-list">
+          <li><code>README.md</code> for produktforklaring, CLI/API og differensiering mot runtime error tools.</li>
+          <li><code>IMPLEMENTATION_STATUS.md</code> for nåværende shipped status og ærlige begrensninger.</li>
+          <li><code>docs/STATUS.md</code> for konsolidert statusindeks og pending follow-on slices.</li>
+          <li><code>IMPLEMENTATION_ROADMAP.md</code> for produktretning, utviklingsspor, sikkerhetsgrenser og releaseprosess.</li>
+          <li><code>CHANGELOG.md</code> for Unreleased-endringer og siste Update Desk commit/undo-slice.</li>
+          <li><code>git log --since 2026-06-01</code> for rekkefølgen på de siste ukers PR-slices.</li>
+        </ol>
+        <p class="footer-note">
+          Filen er selvstendig HTML. Åpne direkte i nettleser, bruk toppknappen
+          for print/PDF, eller legg den ved som produktbrief.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

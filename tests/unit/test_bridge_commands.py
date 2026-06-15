@@ -365,6 +365,28 @@ def test_update_staging_plan_emits_read_only_install_plan(tmp_path):
     assert not (mods / "loose.package").exists()
 
 
+def test_update_staging_plan_writes_explicit_plan_manifest(tmp_path):
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    package = staging / "loose.package"
+    package.write_bytes(b"package")
+    output = tmp_path / "plans" / "update-plan.json"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(staging), mods_path=str(mods), export=str(output))
+    commands.update_staging_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    result = events[1]["data"]
+    assert output.exists()
+    assert result["manifest_path"] == str(output.resolve())
+    saved = json.loads(output.read_text(encoding="utf-8"))
+    assert saved["manifest_path"] == str(output.resolve())
+    assert saved["actions"][0]["action_type"] == "copy_staged_file"
+
+
 def test_update_staging_commit_emits_applied_manifest(monkeypatch, tmp_path):
     import simanalysis.update_desk as update_desk
 
@@ -421,6 +443,33 @@ def test_update_staging_undo_emits_undone_manifest(monkeypatch, tmp_path):
     assert events[0]["task"] == "update-staging-undo"
     assert events[1]["data"]["status"] == "undone"
     assert not (mods / "loose.package").exists()
+
+
+def test_update_staging_operation_status_emits_manifest_without_mutation(monkeypatch, tmp_path):
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "loose.package").write_bytes(b"package")
+    manifest = update_desk.UpdateInstaller().commit_plan(
+        update_desk.build_update_install_plan(staging, mods),
+        selected_action_ids=["update-copy-001"],
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(manifest["manifest_path"]))
+    commands.update_staging_operation_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "update-staging-operation-status"
+    result = events[1]["data"]
+    assert result["status"] == "applied"
+    assert result["manifest_path"] == manifest["manifest_path"]
+    assert (mods / "loose.package").exists()
 
 
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):

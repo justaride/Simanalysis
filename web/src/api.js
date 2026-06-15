@@ -9,6 +9,7 @@ import { saveProtectorOptions } from './saveProtectorApiModel';
 import { trayProtectorOptions } from './trayProtectorApiModel';
 import {
   updateDeskCommitOptions,
+  updateDeskOperationStatusOptions,
   updateDeskOptions,
   updateDeskPlanOptions,
   updateDeskUndoOptions,
@@ -112,12 +113,19 @@ export const api = {
     runAnalysis('tray-protector-status', sims4Path, trayProtectorOptions(options), callbacks),
   updateDeskStatus: (stagingPath, callbacks, options = {}) =>
     runAnalysis('update-staging-status', stagingPath, updateDeskOptions(options), callbacks),
-  updateDeskPlan: (stagingPath, modsPath, callbacks) =>
-    runAnalysis('update-staging-plan', stagingPath, updateDeskPlanOptions(modsPath), callbacks),
+  updateDeskPlan: (stagingPath, modsPath, callbacks, options = {}) =>
+    runAnalysis('update-staging-plan', stagingPath, updateDeskPlanOptions(modsPath, options), callbacks),
   updateDeskCommit: (planPath, callbacks, options = {}) =>
     runAnalysis('update-staging-commit', planPath, updateDeskCommitOptions(options), callbacks),
   updateDeskUndo: (manifestPath, callbacks) =>
     runAnalysis('update-staging-undo', manifestPath, updateDeskUndoOptions(), callbacks),
+  updateDeskOperationStatus: (manifestPath, callbacks) =>
+    runAnalysis(
+      'update-staging-operation-status',
+      manifestPath,
+      updateDeskOperationStatusOptions(),
+      callbacks,
+    ),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>

@@ -163,6 +163,10 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push(path.into());
             args.push("--mods".into());
             args.push(mods.into());
+            if let Some(export_path) = opts.export_path.as_deref() {
+                args.push("--output".into());
+                args.push(export_path.into());
+            }
         }
         "update-staging-commit" => {
             args.push("update-staging-commit".into());
@@ -175,8 +179,8 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
                 args.push("--all-actions".into());
             }
         }
-        "update-staging-undo" => {
-            args.push("update-staging-undo".into());
+        "update-staging-undo" | "update-staging-operation-status" => {
+            args.push(kind.into());
             args.push(path.into());
         }
         "cleanup-plan" => {
@@ -958,6 +962,27 @@ mod tests {
     }
 
     #[test]
+    fn builds_update_staging_plan_args_with_export_path() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/The Sims 4/Mods".into()),
+            export_path: Some("/tmp/update-plan.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("update-staging-plan", "/Sims/Downloads/Staging", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-plan",
+                "/Sims/Downloads/Staging",
+                "--mods",
+                "/Sims/The Sims 4/Mods",
+                "--output",
+                "/tmp/update-plan.json",
+            ]
+        );
+    }
+
+    #[test]
     fn update_staging_plan_requires_mods_path() {
         let err = build_args(
             "update-staging-plan",
@@ -1017,6 +1042,23 @@ mod tests {
             args,
             vec![
                 "update-staging-undo",
+                "/Sims/The Sims 4/Mods/_Simanalysis_UpdateDesk/manifests/update-op.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_update_staging_operation_status_args() {
+        let args = build_args(
+            "update-staging-operation-status",
+            "/Sims/The Sims 4/Mods/_Simanalysis_UpdateDesk/manifests/update-op.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-operation-status",
                 "/Sims/The Sims 4/Mods/_Simanalysis_UpdateDesk/manifests/update-op.json",
             ]
         );

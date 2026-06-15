@@ -2,12 +2,15 @@ export function updateDeskOptions() {
     return {};
 }
 
-export function updateDeskPlanOptions(modsPath) {
+export function updateDeskPlanOptions(modsPath, options = {}) {
     const trimmedModsPath = String(modsPath || '').trim();
     if (!trimmedModsPath) {
         throw new Error('updateDeskPlan requires modsPath');
     }
-    return { modsPath: trimmedModsPath };
+    const trimmedExportPath = String(options.exportPath || '').trim();
+    return trimmedExportPath
+        ? { modsPath: trimmedModsPath, exportPath: trimmedExportPath }
+        : { modsPath: trimmedModsPath };
 }
 
 export function updateDeskCommitOptions(options = {}) {
@@ -25,5 +28,9 @@ export function updateDeskCommitOptions(options = {}) {
 }
 
 export function updateDeskUndoOptions() {
+    return {};
+}
+
+export function updateDeskOperationStatusOptions() {
     return {};
 }
