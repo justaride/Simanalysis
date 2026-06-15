@@ -283,6 +283,37 @@ def test_update_staging_status_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_update_staging_plan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    mods_path = tmp_path / "Mods"
+
+    def fake_update_staging_plan(args, emit):
+        called["command"] = args.command
+        called["path"] = args.path
+        called["mods_path"] = args.mods_path
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(
+        commands.DISPATCH,
+        "update-staging-plan",
+        fake_update_staging_plan,
+    )
+
+    code, events = _run(
+        monkeypatch,
+        ["update-staging-plan", str(tmp_path), "--mods", str(mods_path)],
+    )
+
+    assert code == 0
+    assert called == {
+        "command": "update-staging-plan",
+        "path": str(tmp_path),
+        "mods_path": str(mods_path),
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
     called = {}
     db_path = tmp_path / "inventory.sqlite3"

@@ -94,6 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added read-only Update Desk install-plan generation through `simanalysis
   updates plan`, producing copy/review/blocker actions and optional manifest
   JSON without extracting archives, writing snapshots, or changing Mods.
+- Added `update-staging-plan` bridge/Tauri plumbing for the same read-only
+  install-plan payload, requiring an explicit Mods path and exposing no desktop
+  apply/commit operation.
 
 ### Planned
 - Full DBPF package parser implementation

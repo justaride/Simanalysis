@@ -154,6 +154,16 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push(kind.into());
             args.push(path.into());
         }
+        "update-staging-plan" => {
+            let mods = opts
+                .mods_path
+                .as_deref()
+                .ok_or("update-staging-plan requires options.modsPath")?;
+            args.push("update-staging-plan".into());
+            args.push(path.into());
+            args.push("--mods".into());
+            args.push(mods.into());
+        }
         "cleanup-plan" => {
             args.push("cleanup-plan".into());
             args.push(path.into());
@@ -912,6 +922,35 @@ mod tests {
             args,
             vec!["update-staging-status", "/Sims/Downloads/Staging"]
         );
+    }
+
+    #[test]
+    fn builds_update_staging_plan_args() {
+        let opts = AnalysisOptions {
+            mods_path: Some("/Sims/The Sims 4/Mods".into()),
+            ..Default::default()
+        };
+        let args = build_args("update-staging-plan", "/Sims/Downloads/Staging", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-plan",
+                "/Sims/Downloads/Staging",
+                "--mods",
+                "/Sims/The Sims 4/Mods",
+            ]
+        );
+    }
+
+    #[test]
+    fn update_staging_plan_requires_mods_path() {
+        let err = build_args(
+            "update-staging-plan",
+            "/Sims/Downloads/Staging",
+            &AnalysisOptions::default(),
+        )
+        .unwrap_err();
+        assert_eq!(err, "update-staging-plan requires options.modsPath");
     }
 
     #[test]

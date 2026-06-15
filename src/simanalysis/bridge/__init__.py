@@ -62,6 +62,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_update_staging_status = sub.add_parser("update-staging-status")
     p_update_staging_status.add_argument("path")
 
+    p_update_staging_plan = sub.add_parser("update-staging-plan")
+    p_update_staging_plan.add_argument("path")
+    p_update_staging_plan.add_argument("--mods", dest="mods_path", required=True)
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)
