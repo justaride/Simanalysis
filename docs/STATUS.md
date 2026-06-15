@@ -81,7 +81,9 @@ escapes, iCloud placeholders, AppleDouble files, symlinks, and case collisions
 without extracting archives or changing Mods. `simanalysis updates plan` can
 generate a read-only staged-download manifest with copy, archive-review, and
 blocker actions without writing to Mods, and the same payload is available to
-the sidecar/Tauri contract as `update-staging-plan`. Profile-aware file
+the sidecar/Tauri contract as `update-staging-plan`; desktop Update Desk can
+preview that plan with explicit Mods path input and snapshot/no-mutation gate
+labels, but still exposes no install/apply control. Profile-aware file
 operations, cache-clearing operations, update commit workflows, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 

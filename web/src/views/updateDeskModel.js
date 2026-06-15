@@ -4,6 +4,12 @@ const STATUS_LABELS = {
     no_staged_files_found: ['No staged files found', 'green'],
 };
 
+const PLAN_STATUS_LABELS = {
+    ready_for_review: ['Ready for review', 'green'],
+    blocked: ['Blocked', 'red'],
+    empty: ['Empty', 'blue'],
+};
+
 const KIND_ORDER = {
     archive: 0,
     package: 1,
@@ -97,4 +103,52 @@ export function toUpdateSignalRows(payload = {}) {
         location: signal.path || '',
         detail: Array.isArray(signal.paths) ? signal.paths.join(', ') : '',
     }));
+}
+
+export function summarizeUpdateInstallPlan(payload = {}) {
+    const [statusLabel, tone] = PLAN_STATUS_LABELS[payload.status] || ['Unknown', 'blue'];
+    return {
+        status: payload.status || 'unknown',
+        statusLabel,
+        tone,
+        planId: payload.plan_id || null,
+        generatedAt: payload.generated_at || null,
+        stagingPath: payload.staging_path || null,
+        modsPath: payload.mods_path || null,
+        manifestPath: payload.manifest_path || null,
+        actionCount: count(payload.action_count),
+        copyCount: count(payload.copy_count),
+        archiveReviewCount: count(payload.archive_review_count),
+        blockedCount: count(payload.blocked_count),
+        warningCount: Array.isArray(payload.warnings) ? payload.warnings.length : 0,
+        recommendationCount: Array.isArray(payload.recommendations) ? payload.recommendations.length : 0,
+        requiresSnapshotLabel: payload.requires_snapshot ? 'Snapshot required' : 'Snapshot not required',
+        readOnlyLabel: payload.mutates_files ? 'Mutation reported' : 'Read-only',
+        modsMutationLabel: payload.mutates_mods ? 'Mods mutation reported' : 'No Mods mutation',
+    };
+}
+
+export function toUpdatePlanActionRows(payload = {}) {
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+    return actions.map((action, index) => {
+        const sourceStatus = action.source_binding?.status || 'unknown';
+        const archiveStatus = action.archive_scan?.status || 'not_archive';
+        return {
+            id: action.action_id || `update-action-${index}`,
+            type: action.action_type || 'unknown',
+            typeLabel: words(action.action_type),
+            status: action.status || 'unknown',
+            statusLabel: words(action.status),
+            sourceName: action.source_name || 'Unknown source',
+            sourceRelativePath: action.source_relative_path || '',
+            destinationRelativePath: action.destination_relative_path || 'Review archive contents',
+            expectedSizeLabel: formatUpdateBytes(action.expected?.size),
+            sourceStatus,
+            sourceLabel: words(sourceStatus),
+            archiveStatus,
+            archiveLabel: words(archiveStatus),
+            blockers: Array.isArray(action.blockers) ? action.blockers : [],
+            reviewNotes: Array.isArray(action.review_notes) ? action.review_notes : [],
+        };
+    });
 }

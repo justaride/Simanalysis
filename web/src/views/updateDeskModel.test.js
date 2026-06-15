@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    summarizeUpdateInstallPlan,
     summarizeUpdateDeskStatus,
+    toUpdatePlanActionRows,
     toUpdateItemRows,
     toUpdateSignalRows,
 } from './updateDeskModel.js';
@@ -59,6 +61,56 @@ const UPDATE_PAYLOAD = {
                 member_count: 3,
                 unsafe_members: [],
             },
+        },
+    ],
+};
+
+const UPDATE_PLAN = {
+    version: 1,
+    plan_id: 'update-plan-20260615T0715',
+    generated_at: '2026-06-15T07:15:00Z',
+    status: 'ready_for_review',
+    staging_status: 'review_recommended',
+    staging_path: '/Profiles/Main/Simanalysis Staging',
+    mods_path: '/Profiles/Main/The Sims 4/Mods',
+    manifest_path: null,
+    action_count: 3,
+    copy_count: 2,
+    archive_review_count: 1,
+    blocked_count: 0,
+    requires_snapshot: true,
+    mutates_files: false,
+    mutates_mods: false,
+    warnings: [],
+    recommendations: [
+        'Review this plan before any snapshot-backed commit step.',
+    ],
+    actions: [
+        {
+            action_id: 'update-copy-001',
+            action_type: 'copy_staged_file',
+            status: 'planned',
+            source_name: 'loose.package',
+            source_relative_path: 'loose.package',
+            destination_relative_path: 'loose.package',
+            expected: { size: 2048, sha256: 'abc123' },
+            source_binding: { status: 'bound', creator: 'Creator' },
+            archive_scan: { status: 'not_archive' },
+            blockers: [],
+            review_notes: [],
+        },
+        {
+            action_id: 'update-archive-002',
+            action_type: 'review_archive',
+            status: 'review_required',
+            source_name: 'cool.zip',
+            source_relative_path: 'cool.zip',
+            destination_relative_path: null,
+            expected: { size: 4096, sha256: 'def456' },
+            source_binding: { status: 'missing' },
+            archive_scan: { status: 'readable_zip', member_count: 2 },
+            blockers: [],
+            review_notes: ['archive_requires_explicit_review'],
         },
     ],
 };
@@ -135,6 +187,67 @@ test('update signal rows preserve severity and archive member context', () => {
     ]);
 });
 
+test('update install plan summary preserves snapshot and mutation gates', () => {
+    assert.deepEqual(summarizeUpdateInstallPlan(UPDATE_PLAN), {
+        status: 'ready_for_review',
+        statusLabel: 'Ready for review',
+        tone: 'green',
+        planId: 'update-plan-20260615T0715',
+        generatedAt: '2026-06-15T07:15:00Z',
+        stagingPath: '/Profiles/Main/Simanalysis Staging',
+        modsPath: '/Profiles/Main/The Sims 4/Mods',
+        manifestPath: null,
+        actionCount: 3,
+        copyCount: 2,
+        archiveReviewCount: 1,
+        blockedCount: 0,
+        warningCount: 0,
+        recommendationCount: 1,
+        requiresSnapshotLabel: 'Snapshot required',
+        readOnlyLabel: 'Read-only',
+        modsMutationLabel: 'No Mods mutation',
+    });
+});
+
+test('update install plan action rows keep blockers and review-only archive actions visible', () => {
+    assert.deepEqual(toUpdatePlanActionRows(UPDATE_PLAN), [
+        {
+            id: 'update-copy-001',
+            type: 'copy_staged_file',
+            typeLabel: 'Copy Staged File',
+            status: 'planned',
+            statusLabel: 'Planned',
+            sourceName: 'loose.package',
+            sourceRelativePath: 'loose.package',
+            destinationRelativePath: 'loose.package',
+            expectedSizeLabel: '2 KB',
+            sourceStatus: 'bound',
+            sourceLabel: 'Bound',
+            archiveStatus: 'not_archive',
+            archiveLabel: 'Not Archive',
+            blockers: [],
+            reviewNotes: [],
+        },
+        {
+            id: 'update-archive-002',
+            type: 'review_archive',
+            typeLabel: 'Review Archive',
+            status: 'review_required',
+            statusLabel: 'Review Required',
+            sourceName: 'cool.zip',
+            sourceRelativePath: 'cool.zip',
+            destinationRelativePath: 'Review archive contents',
+            expectedSizeLabel: '4 KB',
+            sourceStatus: 'missing',
+            sourceLabel: 'Missing',
+            archiveStatus: 'readable_zip',
+            archiveLabel: 'Readable Zip',
+            blockers: [],
+            reviewNotes: ['archive_requires_explicit_review'],
+        },
+    ]);
+});
+
 test('update desk model falls back without inventing mutation support', () => {
     assert.equal(summarizeUpdateDeskStatus({}).readOnlyLabel, 'Read-only');
     assert.equal(
@@ -143,4 +256,7 @@ test('update desk model falls back without inventing mutation support', () => {
     );
     assert.deepEqual(toUpdateItemRows({}), []);
     assert.deepEqual(toUpdateSignalRows({}), []);
+    assert.equal(summarizeUpdateInstallPlan({}).readOnlyLabel, 'Read-only');
+    assert.equal(summarizeUpdateInstallPlan({ mutates_mods: true }).modsMutationLabel, 'Mods mutation reported');
+    assert.deepEqual(toUpdatePlanActionRows({}), []);
 });
