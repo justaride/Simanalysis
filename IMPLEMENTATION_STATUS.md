@@ -206,9 +206,12 @@ Implemented after Cache Doctor v0:
 - Save Protector v0 surfaces AppleDouble sidecar files, iCloud placeholder or
   eviction markers, symlinked save entries, non-file entries, and casefold path
   collisions as evidence-labeled signals.
-- Save Protector v0 never edits, rewrites, restores, or deletes saves. Desktop
-  bridge/UI, Tray dependency signals, and any future save-adjacent operations
-  remain future slices.
+- Added desktop Save Protector v0 through `save-protector-status` bridge/Tauri
+  plumbing, a route, read-only view-models, and profile-aware Sims 4 folder
+  defaults.
+- Save Protector v0 never edits, rewrites, restores, or deletes saves. Tray
+  dependency signals and any future save-adjacent operations remain future
+  slices.
 
 ## Current Product Reality
 
@@ -254,15 +257,15 @@ those paths as input defaults without scanning or mutating files on load. Cache
 Doctor v0 is available as a read-only CLI/backend and desktop route for
 reviewing known cache targets and symlink warnings without deleting or moving
 files. Save Protector v0 is available as a read-only CLI/backend for reviewing
-save/backups and filesystem trust signals without editing saves.
+save/backups and filesystem trust signals, with a desktop route over the same
+payload and no save mutation support.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
 operations, reversible workflows beyond cleanup actions, cache-clearing
-operations, desktop Save Protector flows, Tray dependency signals, update
-staging, profile-aware Patch Day re-enable workflows, and broader real-world
-corpus coverage.
+operations, Tray dependency signals, update staging, profile-aware Patch Day
+re-enable workflows, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

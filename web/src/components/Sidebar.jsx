@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope, RadioTower, Stethoscope, ClipboardList, Database, ShieldCheck, HardDrive } from 'lucide-react';
+import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope, RadioTower, Stethoscope, ClipboardList, Database, ShieldCheck, HardDrive, Save } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function isCompactViewport() {
@@ -48,6 +48,7 @@ function Sidebar() {
         { path: '/treatment', icon: Stethoscope, label: 'Treatment' },
         { path: '/patch-day', icon: ShieldCheck, label: 'Patch Day' },
         { path: '/cache-doctor', icon: HardDrive, label: 'Cache Doctor' },
+        { path: '/save-protector', icon: Save, label: 'Save Protector' },
         { path: '/settings', icon: Settings, label: 'Settings' },
     ];
 

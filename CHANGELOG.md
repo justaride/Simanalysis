@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added read-only Save Protector v0 CLI/backend through `simanalysis
   save-protector status`, grouping save/backups and surfacing AppleDouble,
   iCloud-placeholder, symlink, and case-collision signals without editing saves.
+- Added desktop Save Protector v0 through `save-protector-status` bridge/Tauri
+  plumbing, a Save Protector route, and profile-aware Sims 4 folder defaults
+  over the same read-only save status payload.
 
 ### Planned
 - Full DBPF package parser implementation
