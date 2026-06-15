@@ -15,6 +15,10 @@ from pathlib import Path
 from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
+MACOS_APP_REQUIRED_FILES = (
+    Path("Contents/MacOS/simanalysis-desktop"),
+    Path("Contents/MacOS/simanalysis-bridge"),
+)
 
 
 @dataclass(frozen=True)
@@ -210,6 +214,108 @@ def run_security_checks(*, include_cargo_audit: bool = False) -> None:
         raise SystemExit(f"Release security checks failed: {', '.join(failed)}")
 
 
+def _run_status(cmd: list[str]) -> dict[str, object]:
+    if not shutil.which(cmd[0]):
+        return {
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": f"{cmd[0]} is not available",
+        }
+    completed = subprocess.run(cmd, check=False, capture_output=True, text=True)
+    return {
+        "available": True,
+        "returncode": completed.returncode,
+        "stdout": completed.stdout.strip(),
+        "stderr": completed.stderr.strip(),
+    }
+
+
+def _codesign_status(path: Path) -> dict[str, object]:
+    result = _run_status(["codesign", "--verify", "--deep", "--strict", "--verbose=2", str(path)])
+    if not result["available"]:
+        return {"status": "not_checked", **result}
+    if result["returncode"] == 0:
+        return {"status": "verified", **result}
+    stderr = str(result.get("stderr", "")).lower()
+    if (
+        "not signed" in stderr
+        or "code object is not signed" in stderr
+        or "bundle format unrecognized" in stderr
+        or "unsuitable" in stderr
+    ):
+        return {"status": "unsigned", **result}
+    return {"status": "failed", **result}
+
+
+def _notarization_status(path: Path, codesign: dict[str, object]) -> dict[str, object]:
+    if codesign.get("status") != "verified":
+        return {
+            "status": "not_verified",
+            "reason": "codesign verification must pass before notarization is trusted",
+        }
+    result = _run_status(["xcrun", "stapler", "validate", str(path)])
+    if not result["available"]:
+        return {"status": "not_checked", **result}
+    if result["returncode"] == 0:
+        return {"status": "verified", **result}
+    return {"status": "not_verified", **result}
+
+
+def _verify_macos_app(path: Path) -> dict[str, object]:
+    missing = [
+        required.as_posix()
+        for required in MACOS_APP_REQUIRED_FILES
+        if not (path / required).exists()
+    ]
+    codesign = _codesign_status(path) if path.exists() else {"status": "missing"}
+    notarization = _notarization_status(path, codesign)
+    ready = (
+        not missing
+        and codesign.get("status") == "verified"
+        and notarization.get("status") == "verified"
+    )
+    return {
+        "path": str(path),
+        "artifact_type": "macos_app",
+        "exists": path.exists(),
+        "required_files_present": not missing,
+        "missing_files": missing,
+        "codesign": codesign,
+        "notarization": notarization,
+        "distribution_ready": ready,
+    }
+
+
+def _verify_unknown_artifact(path: Path) -> dict[str, object]:
+    return {
+        "path": str(path),
+        "artifact_type": "unsupported",
+        "exists": path.exists(),
+        "distribution_ready": False,
+        "reason": "No release verifier is defined for this artifact type",
+    }
+
+
+def verify_release_artifacts(paths: list[Path], *, strict: bool = False) -> dict[str, object]:
+    artifacts = [
+        _verify_macos_app(path) if path.name.endswith(".app") else _verify_unknown_artifact(path)
+        for path in paths
+    ]
+    ready = bool(artifacts) and all(
+        bool(artifact.get("distribution_ready")) for artifact in artifacts
+    )
+    report: dict[str, object] = {
+        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "distribution_ready": ready,
+        "artifacts": artifacts,
+        "claim": "Do not distribute as signed/notarized unless distribution_ready is true.",
+    }
+    if strict and not ready:
+        raise SystemExit("Release artifacts are not distribution-ready")
+    return report
+
+
 def signing_status() -> dict[str, object]:
     return {
         "macos": {
@@ -234,6 +340,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--mode", choices=("sbom", "check", "full"), default="check")
     parser.add_argument("--output", type=Path, default=ROOT / "dist" / "sbom")
     parser.add_argument("--include-cargo-audit", action="store_true")
+    parser.add_argument(
+        "--artifact",
+        action="append",
+        type=Path,
+        default=[],
+        help="Release artifact path to verify for distribution readiness.",
+    )
+    parser.add_argument(
+        "--strict-signing",
+        action="store_true",
+        help="Fail if provided release artifacts are not distribution-ready.",
+    )
     return parser.parse_args(argv)
 
 
@@ -248,6 +366,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.mode == "full":
         _write_json(args.output / "signing-status.json", signing_status())
         print(f"PASS: signing status checklist written to {args.output / 'signing-status.json'}")
+    if args.artifact:
+        report = verify_release_artifacts(args.artifact)
+        path = args.output / "release-artifact-status.json"
+        _write_json(path, report)
+        status = "PASS" if report["distribution_ready"] else "BLOCKED"
+        print(f"{status}: release artifact status written to {path}")
+        if args.strict_signing and not report["distribution_ready"]:
+            raise SystemExit("Release artifacts are not distribution-ready")
     return 0
 
 

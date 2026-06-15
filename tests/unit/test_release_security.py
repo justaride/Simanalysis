@@ -3,7 +3,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.release_security import generate_sboms, signing_status
+import pytest
+
+import scripts.release_security as release_security
+from scripts.release_security import generate_sboms, main, signing_status, verify_release_artifacts
 
 
 def test_generate_sboms_writes_cyclonedx_files(tmp_path: Path) -> None:
@@ -36,3 +39,83 @@ def test_signing_status_never_claims_signed_artifacts() -> None:
     assert status["macos"]["status"] == "pending"
     assert status["windows"]["status"] == "pending"
     assert "Do not describe artifacts as signed" in status["claim"]
+
+
+def test_verify_release_artifacts_reports_unsigned_macos_app(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = tmp_path / "Simanalysis.app"
+    macos = app / "Contents" / "MacOS"
+    macos.mkdir(parents=True)
+    (macos / "simanalysis-desktop").write_text("desktop", encoding="utf-8")
+    (macos / "simanalysis-bridge").write_text("bridge", encoding="utf-8")
+    monkeypatch.setattr(
+        release_security,
+        "_run_status",
+        lambda _cmd: {
+            "available": True,
+            "returncode": 1,
+            "stdout": "",
+            "stderr": "code object is not signed at all",
+        },
+    )
+
+    report = verify_release_artifacts([app])
+
+    artifact = report["artifacts"][0]
+    assert report["distribution_ready"] is False
+    assert artifact["artifact_type"] == "macos_app"
+    assert artifact["required_files_present"] is True
+    assert artifact["codesign"]["status"] == "unsigned"
+    assert artifact["notarization"]["status"] == "not_verified"
+
+
+def test_verify_release_artifacts_blocks_missing_sidecar(tmp_path: Path) -> None:
+    app = tmp_path / "Simanalysis.app"
+    macos = app / "Contents" / "MacOS"
+    macos.mkdir(parents=True)
+    (macos / "simanalysis-desktop").write_text("desktop", encoding="utf-8")
+
+    report = verify_release_artifacts([app])
+
+    artifact = report["artifacts"][0]
+    assert report["distribution_ready"] is False
+    assert artifact["required_files_present"] is False
+    assert "Contents/MacOS/simanalysis-bridge" in artifact["missing_files"]
+
+
+def test_verify_release_artifacts_strict_mode_refuses_unsigned_artifacts(tmp_path: Path) -> None:
+    app = tmp_path / "Simanalysis.app"
+    macos = app / "Contents" / "MacOS"
+    macos.mkdir(parents=True)
+    (macos / "simanalysis-desktop").write_text("desktop", encoding="utf-8")
+    (macos / "simanalysis-bridge").write_text("bridge", encoding="utf-8")
+
+    with pytest.raises(SystemExit, match="not distribution-ready"):
+        verify_release_artifacts([app], strict=True)
+
+
+def test_release_security_cli_writes_artifact_report_before_strict_failure(
+    tmp_path: Path,
+) -> None:
+    app = tmp_path / "Simanalysis.app"
+    macos = app / "Contents" / "MacOS"
+    macos.mkdir(parents=True)
+    output = tmp_path / "sbom"
+
+    with pytest.raises(SystemExit, match="not distribution-ready"):
+        main(
+            [
+                "--mode",
+                "sbom",
+                "--output",
+                str(output),
+                "--artifact",
+                str(app),
+                "--strict-signing",
+            ]
+        )
+
+    report = json.loads((output / "release-artifact-status.json").read_text())
+    assert report["distribution_ready"] is False
+    assert report["artifacts"][0]["artifact_type"] == "macos_app"
