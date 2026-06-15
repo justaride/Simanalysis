@@ -199,6 +199,24 @@ def test_patch_day_commands_are_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in record_events] == ["result", "done"]
 
 
+def test_cache_status_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+
+    def fake_cache_status(args, emit):
+        called["command"] = args.command
+        called["path"] = args.path
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cache-status", fake_cache_status)
+
+    code, events = _run(monkeypatch, ["cache-status", str(tmp_path)])
+
+    assert code == 0
+    assert called == {"command": "cache-status", "path": str(tmp_path)}
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
 def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
     called = {}
     db_path = tmp_path / "inventory.sqlite3"

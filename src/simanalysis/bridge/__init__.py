@@ -50,6 +50,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_patch_day_record.add_argument("path")
     p_patch_day_record.add_argument("--state", default=None)
 
+    p_cache_status = sub.add_parser("cache-status")
+    p_cache_status.add_argument("path")
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)

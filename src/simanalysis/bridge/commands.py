@@ -16,6 +16,7 @@ from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.bridge.protocol import Emitter
+from simanalysis.cache_doctor import build_cache_status
 from simanalysis.cleanup import CleanupPlanner
 from simanalysis.inventory import InventoryScanner, default_inventory_db_path
 from simanalysis.operating_table import OperatingTable
@@ -134,6 +135,13 @@ def patch_day_record(args: argparse.Namespace, emit: Emitter) -> None:
     path = _require_dir(args.path)
     emit.start("patch-day-record")
     emit.result(record_patch_baseline(path, state_path=_patch_day_state_path(args)))
+    emit.done()
+
+
+def cache_status(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("cache-status")
+    emit.result(build_cache_status(path))
     emit.done()
 
 
@@ -415,6 +423,7 @@ DISPATCH = {
     "inventory-file-events": inventory_file_events,
     "patch-day-status": patch_day_status,
     "patch-day-record": patch_day_record,
+    "cache-status": cache_status,
     "cleanup-plan": cleanup_plan,
     "cleanup-stage": cleanup_stage,
     "cleanup-apply": cleanup_apply,

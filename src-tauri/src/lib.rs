@@ -146,6 +146,10 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
                 args.push(state.into());
             }
         }
+        "cache-status" => {
+            args.push("cache-status".into());
+            args.push(path.into());
+        }
         "cleanup-plan" => {
             args.push("cleanup-plan".into());
             args.push(path.into());
@@ -857,6 +861,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["patch-day-record", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_cache_status_args() {
+        let args = build_args(
+            "cache-status",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["cache-status", "/Sims/The Sims 4"]);
     }
 
     #[test]

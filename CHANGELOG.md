@@ -68,6 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added read-only Cache Doctor v0 CLI/backend through `simanalysis cache
   status`, reporting known cache targets and symlink warnings without deleting
   or moving files.
+- Added desktop Cache Doctor v0 through `cache-status` bridge/Tauri plumbing,
+  a Cache Doctor route, and profile-aware Sims 4 folder defaults over the same
+  read-only cache status payload.
 
 ### Planned
 - Full DBPF package parser implementation
