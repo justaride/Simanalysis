@@ -17,7 +17,8 @@ Current branch note: the read-only SQLite inventory ledger now records scan
 history plus per-file change events in `src/simanalysis/inventory.py`; the
 public CLI exposes `simanalysis ledger scan|history|events`, and the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
-`inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
+`inventory-file-events`, now exposed in the desktop Inventory route as a
+read-only ledger surface. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings, now exposed in the desktop Cleanup route as a
 read-only review surface. Operating Table v1 adds manifest-first non-visual
 cleanup staging, apply, restore, and status plumbing, plus the `simanalysis ops
@@ -32,9 +33,9 @@ copy, and download that Markdown handoff from a saved session without moving
 files. The True Engine now has conservative read-only STBL v5 and SimData
 metadata parsers wired into package scanning, with
 compact parser/resource truth exposed through CLI JSON, the desktop bridge, HTTP
-scan, and WebSocket scan responses. Visual inventory, visual cleanup, richer
-Doctor verdicts, and symptom playbooks remain pending design approval and
-follow-on slices.
+scan, and WebSocket scan responses. Visual cleanup staging/apply/restore,
+richer Doctor verdicts, and symptom playbooks remain pending design approval
+and follow-on slices.
 
 ## Historical Status Snapshots
 
