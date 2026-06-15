@@ -95,6 +95,81 @@ def test_verify_release_artifacts_strict_mode_refuses_unsigned_artifacts(tmp_pat
         verify_release_artifacts([app], strict=True)
 
 
+def test_verify_release_artifacts_reports_signed_windows_exe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    exe = tmp_path / "Simanalysis.exe"
+    exe.write_text("desktop", encoding="utf-8")
+    monkeypatch.setattr(release_security, "_powershell_executable", lambda: "powershell")
+    monkeypatch.setattr(
+        release_security,
+        "_run_status",
+        lambda _cmd: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(
+                {
+                    "Status": "Valid",
+                    "StatusMessage": "Signature verified.",
+                    "Subject": "CN=Simanalysis Test",
+                    "Thumbprint": "ABC123",
+                }
+            ),
+            "stderr": "",
+        },
+    )
+
+    report = verify_release_artifacts([exe])
+
+    artifact = report["artifacts"][0]
+    assert report["distribution_ready"] is True
+    assert artifact["artifact_type"] == "windows_executable"
+    assert artifact["signature"]["status"] == "verified"
+    assert artifact["signature"]["subject"] == "CN=Simanalysis Test"
+
+
+def test_verify_release_artifacts_blocks_unsigned_windows_installer(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    installer = tmp_path / "Simanalysis.msi"
+    installer.write_text("installer", encoding="utf-8")
+    monkeypatch.setattr(release_security, "_powershell_executable", lambda: "powershell")
+    monkeypatch.setattr(
+        release_security,
+        "_run_status",
+        lambda _cmd: {
+            "available": True,
+            "returncode": 0,
+            "stdout": json.dumps(
+                {
+                    "Status": "NotSigned",
+                    "StatusMessage": "The file is not digitally signed.",
+                    "Subject": None,
+                    "Thumbprint": None,
+                }
+            ),
+            "stderr": "",
+        },
+    )
+
+    report = verify_release_artifacts([installer])
+
+    artifact = report["artifacts"][0]
+    assert report["distribution_ready"] is False
+    assert artifact["artifact_type"] == "windows_installer"
+    assert artifact["signature"]["status"] == "unsigned"
+
+
+def test_verify_release_artifacts_blocks_missing_windows_exe(tmp_path: Path) -> None:
+    report = verify_release_artifacts([tmp_path / "missing.exe"])
+
+    artifact = report["artifacts"][0]
+    assert report["distribution_ready"] is False
+    assert artifact["artifact_type"] == "windows_executable"
+    assert artifact["exists"] is False
+    assert artifact["signature"]["status"] == "missing"
+
+
 def test_release_security_cli_writes_artifact_report_before_strict_failure(
     tmp_path: Path,
 ) -> None:

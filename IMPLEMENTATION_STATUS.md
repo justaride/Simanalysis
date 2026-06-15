@@ -332,8 +332,8 @@ Implemented after desktop Tray Protector v0:
   CycloneDX SBOM generation, Python/web/Rust security checks, and explicit
   pending signing/notarization status. The same gate can inspect built release
   artifacts with `--artifact`, write `release-artifact-status.json`, and fail
-  strict mode unless required binaries, code signing, and notarization checks
-  pass.
+  strict mode unless required binaries, macOS code signing/notarization, and
+  Windows Authenticode checks pass.
 
 ## Classification Progress
 
