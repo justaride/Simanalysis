@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     summarizeTrayProtectorStatus,
+    toTrayDependencyRows,
     toTrayGroupRows,
     toTraySignalRows,
 } from './trayProtectorModel.js';
@@ -37,6 +38,17 @@ const TRAY_PAYLOAD = {
             total_size_bytes: 1024,
             latest_modified_at: '2026-06-15T04:00:00Z',
             extensions: ['.bpi'],
+            dependency_signals: [
+                {
+                    id: 'probable_build_buy_sidecar_without_anchor',
+                    dependency_kind: 'build_buy',
+                    confidence: 'probable',
+                    anchor_state: 'missing',
+                    severity: 'medium',
+                    message: 'Lot or room sidecar evidence suggests probable Build/Buy dependency scope, but the .trayitem anchor is missing.',
+                    evidence: ['.bpi sidecar present'],
+                },
+            ],
             files: [
                 {
                     name: 'orphan.bpi',
@@ -66,6 +78,17 @@ const TRAY_PAYLOAD = {
                     relative_path: 'Tray/family.hhi',
                     extension: '.hhi',
                     size_bytes: 1024,
+                },
+            ],
+            dependency_signals: [
+                {
+                    id: 'likely_cas_dependency_scope',
+                    dependency_kind: 'cas',
+                    confidence: 'likely',
+                    anchor_state: 'present',
+                    severity: 'low',
+                    message: 'Household Tray evidence suggests likely CAS dependency scope; this is not a missing dependency claim.',
+                    evidence: ['.trayitem anchor present', '.hhi household sidecar present'],
                 },
             ],
         },
@@ -135,6 +158,35 @@ test('tray signal rows preserve severity and path lists', () => {
     ]);
 });
 
+test('tray dependency rows flatten calibrated group signals', () => {
+    assert.deepEqual(toTrayDependencyRows(TRAY_PAYLOAD), [
+        {
+            id: 'family-likely_cas_dependency_scope-0',
+            group: 'family',
+            dependencyKind: 'CAS',
+            confidence: 'likely',
+            confidenceLabel: 'Likely',
+            anchorState: 'present',
+            severity: 'low',
+            severityLabel: 'Low',
+            message: 'Household Tray evidence suggests likely CAS dependency scope; this is not a missing dependency claim.',
+            evidenceLabel: '.trayitem anchor present; .hhi household sidecar present',
+        },
+        {
+            id: 'orphan-probable_build_buy_sidecar_without_anchor-0',
+            group: 'orphan',
+            dependencyKind: 'Build/Buy',
+            confidence: 'probable',
+            confidenceLabel: 'Probable',
+            anchorState: 'missing',
+            severity: 'medium',
+            severityLabel: 'Medium',
+            message: 'Lot or room sidecar evidence suggests probable Build/Buy dependency scope, but the .trayitem anchor is missing.',
+            evidenceLabel: '.bpi sidecar present',
+        },
+    ]);
+});
+
 test('tray protector model falls back without inventing mutation support', () => {
     assert.equal(summarizeTrayProtectorStatus({}).readOnlyLabel, 'Read-only');
     assert.equal(
@@ -143,4 +195,5 @@ test('tray protector model falls back without inventing mutation support', () =>
     );
     assert.deepEqual(toTrayGroupRows({}), []);
     assert.deepEqual(toTraySignalRows({}), []);
+    assert.deepEqual(toTrayDependencyRows({}), []);
 });

@@ -15,6 +15,7 @@ import FilePicker from '../components/FilePicker';
 import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     summarizeTrayProtectorStatus,
+    toTrayDependencyRows,
     toTrayGroupRows,
     toTraySignalRows,
 } from './trayProtectorModel';
@@ -80,6 +81,37 @@ function MessageList({ icon: Icon, title, messages, tone }) {
             <div className="space-y-2">
                 {messages.map((message) => (
                     <p key={message} className="break-words text-sm opacity-85">{message}</p>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function DependencyRows({ rows }) {
+    if (rows.length === 0) return null;
+    return (
+        <section className="rounded-xl border border-sky-500/25 bg-sky-950/10 p-5 text-sky-100">
+            <h2 className="mb-3 flex items-center gap-2 font-semibold text-white">
+                <Layers size={18} />
+                Dependency Signals
+            </h2>
+            <div className="space-y-3">
+                {rows.map((row) => (
+                    <div key={row.id} className="rounded-lg border border-sky-500/20 bg-black/20 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-white">{row.group}</span>
+                            <span className="rounded border border-sky-400/20 px-2 py-0.5 text-xs uppercase">
+                                {row.dependencyKind}
+                            </span>
+                            <span className="rounded border border-sky-400/20 px-2 py-0.5 text-xs uppercase">
+                                {row.confidenceLabel}
+                            </span>
+                        </div>
+                        <p className="mt-2 text-sm opacity-85">{row.message}</p>
+                        <p className="mt-2 break-words text-xs text-sky-100/70">
+                            {row.evidenceLabel}
+                        </p>
+                    </div>
                 ))}
             </div>
         </section>
@@ -216,6 +248,7 @@ function TrayProtector() {
     const summary = useMemo(() => summarizeTrayProtectorStatus(status || {}), [status]);
     const groupRows = useMemo(() => toTrayGroupRows(status || {}), [status]);
     const signalRows = useMemo(() => toTraySignalRows(status || {}), [status]);
+    const dependencyRows = useMemo(() => toTrayDependencyRows(status || {}), [status]);
 
     const handleStatus = () => {
         const target = simsPath.trim();
@@ -311,6 +344,7 @@ function TrayProtector() {
                             </p>
                         </div>
                     </section>
+                    <DependencyRows rows={dependencyRows} />
                     <SignalRows rows={signalRows} />
                     <MessageList
                         icon={CheckCircle2}

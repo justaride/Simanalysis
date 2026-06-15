@@ -137,6 +137,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   read-only save inventory, active Profile Manager Light folder evidence, and
   Patch Day status to recommend read-only review, missing-evidence resolution,
   or manual save-copy testing without editing save files.
+- Added calibrated Tray Protector dependency signals for likely CAS scope,
+  likely Build/Buy scope, probable sidecar-without-anchor scope, and unknown
+  dependency scope. Signals now carry confidence, dependency kind, anchor state,
+  and evidence without claiming a missing dependency is certain.
 
 ### Planned
 - Full DBPF package parser implementation

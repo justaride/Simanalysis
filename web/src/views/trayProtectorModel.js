@@ -14,6 +14,12 @@ function words(value) {
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function dependencyKindLabel(value) {
+    if (value === 'cas') return 'CAS';
+    if (value === 'build_buy') return 'Build/Buy';
+    return words(value);
+}
+
 export function formatTrayBytes(bytes) {
     const value = Number.isFinite(bytes) ? bytes : 0;
     if (value === 0) return '0 B';
@@ -78,4 +84,31 @@ export function toTraySignalRows(payload = {}) {
         message: signal.message || '',
         location: signal.path || (Array.isArray(signal.paths) ? signal.paths.join(', ') : ''),
     }));
+}
+
+export function toTrayDependencyRows(payload = {}) {
+    const groups = Array.isArray(payload.groups) ? payload.groups : [];
+    return groups.flatMap((group) => {
+        const signals = Array.isArray(group.dependency_signals) ? group.dependency_signals : [];
+        return signals.map((signal, index) => ({
+            id: `${group.stem || 'tray-group'}-${signal.id || 'dependency'}-${index}`,
+            group: group.stem || 'Unknown group',
+            dependencyKind: dependencyKindLabel(signal.dependency_kind),
+            confidence: signal.confidence || 'unknown',
+            confidenceLabel: words(signal.confidence),
+            anchorState: signal.anchor_state || 'unknown',
+            severity: signal.severity || 'unknown',
+            severityLabel: words(signal.severity),
+            message: signal.message || '',
+            evidenceLabel: Array.isArray(signal.evidence) && signal.evidence.length
+                ? signal.evidence.join('; ')
+                : 'No evidence listed',
+        }));
+    }).sort((left, right) => {
+        const confidenceOrder = { likely: 0, probable: 1, unknown: 2 };
+        const leftOrder = confidenceOrder[left.confidence] ?? 3;
+        const rightOrder = confidenceOrder[right.confidence] ?? 3;
+        if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+        return left.group.localeCompare(right.group);
+    });
 }

@@ -41,6 +41,10 @@ def _signal(
     *,
     path: str | None = None,
     paths: list[str] | None = None,
+    dependency_kind: str | None = None,
+    confidence: str | None = None,
+    anchor_state: str | None = None,
+    evidence: list[str] | None = None,
 ) -> dict[str, Any]:
     signal: dict[str, Any] = {
         "id": signal_id,
@@ -51,6 +55,14 @@ def _signal(
         signal["path"] = path
     if paths is not None:
         signal["paths"] = paths
+    if dependency_kind is not None:
+        signal["dependency_kind"] = dependency_kind
+    if confidence is not None:
+        signal["confidence"] = confidence
+    if anchor_state is not None:
+        signal["anchor_state"] = anchor_state
+    if evidence is not None:
+        signal["evidence"] = evidence
     return signal
 
 
@@ -122,6 +134,110 @@ def _type_hint(extensions: set[str], has_trayitem: bool) -> str:
     return "Sidecar group"
 
 
+def _dependency_signal(
+    signal_id: str,
+    severity: str,
+    message: str,
+    *,
+    dependency_kind: str,
+    confidence: str,
+    anchor_state: str,
+    evidence: list[str],
+) -> dict[str, Any]:
+    return _signal(
+        signal_id,
+        severity,
+        message,
+        dependency_kind=dependency_kind,
+        confidence=confidence,
+        anchor_state=anchor_state,
+        evidence=evidence,
+    )
+
+
+def _dependency_signals_for_group(extensions: set[str], has_trayitem: bool) -> list[dict[str, Any]]:
+    evidence: list[str] = []
+    if has_trayitem:
+        evidence.append(".trayitem anchor present")
+    if ".hhi" in extensions:
+        evidence.append(".hhi household sidecar present")
+    if ".householdbinary" in extensions:
+        evidence.append(".householdbinary household sidecar present")
+    if ".blueprint" in extensions:
+        evidence.append(".blueprint lot/room sidecar present")
+    if ".bpi" in extensions:
+        evidence.append(".bpi lot/room sidecar present")
+    if ".rmi" in extensions:
+        evidence.append(".rmi room sidecar present")
+
+    has_household_sidecar = bool(extensions & {".hhi", ".householdbinary"})
+    has_build_buy_sidecar = bool(extensions & {".blueprint", ".bpi", ".rmi"})
+
+    if has_trayitem and has_household_sidecar:
+        return [
+            _dependency_signal(
+                "likely_cas_dependency_scope",
+                "low",
+                "Household Tray evidence suggests likely CAS dependency scope; this is not a missing dependency claim.",
+                dependency_kind="cas",
+                confidence="likely",
+                anchor_state="present",
+                evidence=evidence,
+            )
+        ]
+
+    if has_trayitem and has_build_buy_sidecar:
+        return [
+            _dependency_signal(
+                "likely_build_buy_dependency_scope",
+                "low",
+                "Lot or room Tray evidence suggests likely Build/Buy dependency scope; this is not a missing dependency claim.",
+                dependency_kind="build_buy",
+                confidence="likely",
+                anchor_state="present",
+                evidence=evidence,
+            )
+        ]
+
+    if not has_trayitem and has_household_sidecar:
+        return [
+            _dependency_signal(
+                "probable_cas_sidecar_without_anchor",
+                "medium",
+                "Household sidecar evidence suggests probable CAS dependency scope, but the .trayitem anchor is missing.",
+                dependency_kind="cas",
+                confidence="probable",
+                anchor_state="missing",
+                evidence=evidence or ["household sidecar present"],
+            )
+        ]
+
+    if not has_trayitem and has_build_buy_sidecar:
+        return [
+            _dependency_signal(
+                "probable_build_buy_sidecar_without_anchor",
+                "medium",
+                "Lot or room sidecar evidence suggests probable Build/Buy dependency scope, but the .trayitem anchor is missing.",
+                dependency_kind="build_buy",
+                confidence="probable",
+                anchor_state="missing",
+                evidence=evidence or ["lot/room sidecar present"],
+            )
+        ]
+
+    return [
+        _dependency_signal(
+            "unknown_dependency_scope",
+            "low",
+            "Tray dependency scope is unknown from the available anchor and sidecar evidence.",
+            dependency_kind="unknown",
+            confidence="unknown",
+            anchor_state="present" if has_trayitem else "missing",
+            evidence=evidence or ["no typed Tray sidecar evidence found"],
+        )
+    ]
+
+
 def _finalize_group(group: dict[str, Any]) -> dict[str, Any]:
     extensions = set(group["extensions"])
     has_trayitem = ".trayitem" in extensions
@@ -130,24 +246,7 @@ def _finalize_group(group: dict[str, Any]) -> dict[str, Any]:
     group["file_count"] = len(group["files"])
     group["has_trayitem"] = has_trayitem
     group["type_hint"] = _type_hint(extensions, has_trayitem)
-    group["dependency_signals"] = []
-
-    if not has_trayitem:
-        group["dependency_signals"].append(
-            {
-                "id": "sidecar_without_trayitem",
-                "severity": "medium",
-                "message": "Tray sidecar files exist without a .trayitem anchor.",
-            }
-        )
-    elif not (extensions & TYPE_SIDECAR_EXTENSIONS):
-        group["dependency_signals"].append(
-            {
-                "id": "type_confidence_limited",
-                "severity": "low",
-                "message": "No household, lot, or room sidecar was found for this .trayitem.",
-            }
-        )
+    group["dependency_signals"] = _dependency_signals_for_group(extensions, has_trayitem)
     return group
 
 
@@ -254,6 +353,10 @@ def build_tray_status(sims4_dir: Path | str) -> dict[str, Any]:
                     dependency_signal["severity"],
                     dependency_signal["message"],
                     paths=file_paths,
+                    dependency_kind=dependency_signal.get("dependency_kind"),
+                    confidence=dependency_signal.get("confidence"),
+                    anchor_state=dependency_signal.get("anchor_state"),
+                    evidence=dependency_signal.get("evidence"),
                 )
             )
 
@@ -324,7 +427,15 @@ def format_tray_status_text(status: dict[str, Any]) -> str:
         for signal in signals:
             location = signal.get("path") or ", ".join(signal.get("paths", []))
             suffix = f" ({location})" if location else ""
-            lines.append(f"- {signal.get('id', 'signal')}: {signal.get('message', '')}{suffix}")
+            calibration = ""
+            if signal.get("confidence") or signal.get("dependency_kind"):
+                calibration = (
+                    f" [{signal.get('confidence', 'unknown')}; "
+                    f"{signal.get('dependency_kind', 'unknown')}]"
+                )
+            lines.append(
+                f"- {signal.get('id', 'signal')}{calibration}: {signal.get('message', '')}{suffix}"
+            )
 
     warnings = status.get("warnings") or []
     if warnings:

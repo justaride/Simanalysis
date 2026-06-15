@@ -253,7 +253,12 @@ Implemented after desktop Save Protector v0:
 - Added desktop Tray Protector v0 through `tray-protector-status` bridge/Tauri
   plumbing, a Tray Protector route, profile-aware Sims 4 folder defaults, and
   view-model tests over the same read-only Tray status payload.
-- Tray Protector v0 never edits, restores, dedupes, or deletes Tray files.
+- Added Tray Protector dependency-scope signals with confidence, dependency
+  kind, anchor state, and evidence. Anchored household groups are labeled likely
+  CAS scope, anchored lot/room groups likely Build/Buy scope, sidecar-only
+  groups probable scope with missing anchor, and trayitem-only groups unknown
+  scope without claiming any dependency is certainly missing.
+- Tray Protector still never edits, restores, dedupes, or deletes Tray files.
   Any future Tray-adjacent operations remain future slices.
 
 ## Update Desk Progress
