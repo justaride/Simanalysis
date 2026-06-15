@@ -230,6 +230,20 @@ class TestResourceConflictDetector:
         assert conflict.details["resource_type_name"] == "DDS Image"
         assert conflict.details["mod_count"] == 2
 
+    def test_resource_conflict_details_include_v2_kind_and_recommendation(
+        self, detector: ResourceConflictDetector, mods_with_conflict: list[Mod]
+    ) -> None:
+        """Test resource conflicts include additive v2 explanation metadata."""
+        conflicts = detector.detect(mods_with_conflict)
+        conflict = conflicts[0]
+
+        assert conflict.details["conflict_kind"] == "likely_override"
+        assert conflict.details["review_status"] == "needs_review"
+        assert conflict.details["recommendation"]["action"] == "review_load_order"
+        assert conflict.details["recommendation"]["profile_aware"] is True
+        assert conflict.details["recommendation"]["confidence"] == "medium"
+        assert conflict.details["recommendation"]["message"]
+
     def test_conflict_description(
         self, detector: ResourceConflictDetector, mods_with_conflict: list[Mod]
     ) -> None:
@@ -312,6 +326,11 @@ class TestResourceConflictDetector:
                 },
             ],
         }
+        assert conflict.details["conflict_kind"] == "likely_override"
+        assert conflict.details["review_status"] == "intentional_override_possible"
+        assert conflict.details["recommendation"]["action"] == "verify_intentional_override"
+        assert conflict.details["recommendation"]["winner_mod_name"] == "override.package"
+        assert conflict.details["recommendation"]["confidence"] == "configured"
         assert "Simulated winner: override.package" in conflict.description
 
     def test_critical_resource_severity(
@@ -367,6 +386,80 @@ class TestResourceConflictDetector:
         assert conflict.details["file_hash"] == "a1b2c3d4e5f6789012345678901234567890abcd"
         assert conflict.details["total_size"] == 20000  # 10000 + 10000
         assert len(conflict.details["affected_mod_names"]) == 2
+        assert conflict.details["conflict_kind"] == "exact_duplicate"
+        assert conflict.details["recommendation"]["action"] == "keep_one_copy"
+
+    def test_resource_conflict_kind_identifies_default_replacement_ambiguity(
+        self,
+    ) -> None:
+        """Test override/default replacement names stay ambiguous, not erroneous."""
+        shared_resource = DBPFResource(
+            type=int(CASP),
+            group=0x00000000,
+            instance=0x12345678,
+            size=1000,
+            offset=0,
+            compressed_size=0,
+        )
+        mods = [
+            Mod(
+                name="eyes_default_replacement.package",
+                path=Path("/mods/Overrides/eyes_default_replacement.package"),
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="a",
+                resources=[shared_resource],
+            ),
+            Mod(
+                name="eyes.package",
+                path=Path("/mods/eyes.package"),
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="b",
+                resources=[shared_resource],
+            ),
+        ]
+
+        conflict = ResourceConflictDetector().detect(mods)[0]
+
+        assert conflict.details["conflict_kind"] == "default_replacement_ambiguity"
+        assert conflict.details["review_status"] == "intentional_override_possible"
+        assert conflict.details["recommendation"]["action"] == "verify_default_replacement"
+        assert "not automatically an error" in conflict.details["recommendation"]["message"]
+
+    def test_resource_conflict_kind_identifies_ui_conflict(self) -> None:
+        """Test UI-flavored resources get a UI-specific conflict kind."""
+        shared_resource = DBPFResource(
+            type=0x03E9D964,
+            group=0x00000000,
+            instance=0x12345678,
+            size=1000,
+            offset=0,
+            compressed_size=0,
+        )
+        mods = [
+            Mod(
+                name="ui_a.package",
+                path=Path("/mods/ui_a.package"),
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="a",
+                resources=[shared_resource],
+            ),
+            Mod(
+                name="ui_b.package",
+                path=Path("/mods/ui_b.package"),
+                type=ModType.PACKAGE,
+                size=1000,
+                hash="b",
+                resources=[shared_resource],
+            ),
+        ]
+
+        conflict = ResourceConflictDetector().detect(mods)[0]
+
+        assert conflict.details["conflict_kind"] == "ui_conflict"
+        assert conflict.details["recommendation"]["action"] == "review_ui_mod_compatibility"
 
     def test_multiple_conflicts(
         self,

@@ -357,6 +357,14 @@ desktop model tests, and regression tests for existing conflict fixtures.
 **Done when:** Users can tell whether an overlap is duplicate, likely
 intentional, ambiguous, or risky.
 
+**Implementation note:** Initial Conflict Engine v2 metadata is in place for
+existing resource, hash-duplicate, and tuning conflict detectors. Conflict
+details now include `conflict_kind`, `review_status`, and profile-aware
+`recommendation` guidance for exact duplicates, likely overrides, default
+replacement ambiguity, UI conflicts, and tuning conflicts without changing
+legacy conflict type/severity fields. Script-family mismatch remains pending
+until the script-security/analyzer surface has a conflict detector to consume.
+
 ### Slice 10: Script Security Analyzer v1
 
 **Goal:** Add static script-risk signals for `.ts4script` files without running

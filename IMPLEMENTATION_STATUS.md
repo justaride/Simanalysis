@@ -347,6 +347,26 @@ Implemented after Tray Protector dependency signals:
   per-file classification evidence alongside source binding and archive scan
   evidence.
 
+## Conflict Engine Progress
+
+Implemented after Classification v1:
+
+- Added additive Conflict Engine v2 metadata to existing resource, hash
+  duplicate, and tuning conflicts without changing the legacy conflict type,
+  severity, or affected-mod fields.
+- Resource overlaps now include `conflict_kind`, `review_status`, and
+  profile-aware `recommendation` details for likely overrides, default
+  replacement ambiguity, and UI conflicts. Load-order winners are treated as
+  review evidence and can mark an overlap as intentional-override-possible
+  instead of automatically erroneous.
+- Identical file hashes now report `conflict_kind: exact_duplicate` with
+  keep-one-copy guidance scoped to the active profile.
+- Tuning overlaps now report `conflict_kind: tuning_conflict` with explicit
+  compatibility-review guidance that notes only one tuning definition wins at
+  load time.
+- Script-family mismatch remains a future follow-on because the current codebase
+  does not yet have a script conflict detector to attach that metadata to.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -406,7 +426,10 @@ JSON, commit explicitly selected loose-file copy actions, refresh the operation
 manifest, and undo through the same guarded bridge/Tauri contract; archive
 install/extraction remains unavailable. Classification v1 is available as a
 conservative evidence layer in Doctor, Patch Day, and Update Desk, but it does
-not mark mods safe and does not replace manual post-patch review.
+not mark mods safe and does not replace manual post-patch review. Conflict
+Engine v2 metadata now makes existing resource/hash/tuning conflicts more
+actionable with exact-duplicate, likely-override, default-replacement, UI, and
+tuning labels while preserving manual review boundaries.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
