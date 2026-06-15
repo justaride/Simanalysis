@@ -3,6 +3,21 @@ const STATUS_LABELS = {
     no_cache_targets_found: ['No cache targets found', 'green'],
 };
 
+const PLAN_STATUS_LABELS = {
+    ready_for_review: ['Ready for review', 'green'],
+    blocked: ['Blocked', 'red'],
+    empty: ['Empty', 'blue'],
+};
+
+const OPERATION_STATUS_LABELS = {
+    planned: ['Planned', 'blue'],
+    applying: ['Applying', 'amber'],
+    applied: ['Applied', 'green'],
+    partial: ['Partial', 'amber'],
+    restoring: ['Restoring', 'amber'],
+    restored: ['Restored', 'blue'],
+};
+
 const STATUS_TEXT = {
     present: 'Present',
     absent: 'Absent',
@@ -67,4 +82,88 @@ export function toCacheTargetRows(payload = {}) {
         if (left.present !== right.present) return left.present ? -1 : 1;
         return left.relativePath.localeCompare(right.relativePath);
     });
+}
+
+export function summarizeCacheCleanupPlan(payload = {}) {
+    const [statusLabel, tone] = PLAN_STATUS_LABELS[payload.status] || ['Unknown', 'blue'];
+    return {
+        status: payload.status || 'unknown',
+        statusLabel,
+        tone,
+        planId: payload.plan_id || null,
+        generatedAt: payload.generated_at || null,
+        rootPath: payload.root_path || null,
+        manifestPath: payload.manifest_path || null,
+        actionCount: count(payload.action_count),
+        blockedCount: count(payload.blocked_count),
+        warningCount: Array.isArray(payload.warnings) ? payload.warnings.length : 0,
+        recommendationCount: Array.isArray(payload.recommendations) ? payload.recommendations.length : 0,
+        requiresSnapshotLabel: payload.requires_snapshot ? 'Snapshot required' : 'Snapshot not required',
+        readOnlyLabel: payload.mutates_files ? 'Mutation reported' : 'Read-only',
+    };
+}
+
+export function toCachePlanActionRows(payload = {}) {
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+    return actions.map((action, index) => ({
+        id: action.action_id || `cache-action-${index}`,
+        type: action.action_type || 'unknown',
+        typeLabel: words(action.action_type),
+        targetId: action.target_id || 'unknown',
+        label: action.label || action.source_relative_path || 'Cache target',
+        status: action.status || 'unknown',
+        statusLabel: words(action.status),
+        sourceRelativePath: action.source_relative_path || '',
+        quarantineRelativePath: action.quarantine_relative_path || '',
+        expectedSizeLabel: formatCacheBytes(action.expected?.size),
+        expectedItemCount: count(action.expected?.item_count),
+        riskLabel: words(action.risk),
+        blockers: Array.isArray(action.blockers) ? action.blockers : [],
+    }));
+}
+
+export function getEligibleCacheActionRows(rows = []) {
+    return rows.filter((row) => row.type === 'quarantine_cache_target' && row.status === 'planned');
+}
+
+export function toggleCacheActionSelection(current = [], actionId, checked) {
+    const normalized = String(actionId || '').trim();
+    if (!normalized) return current;
+    if (checked) {
+        return current.includes(normalized) ? current : [...current, normalized];
+    }
+    return current.filter((id) => id !== normalized);
+}
+
+export function selectAllCacheActions(rows = []) {
+    return getEligibleCacheActionRows(rows).map((row) => row.id);
+}
+
+export function canApplyCachePlan({
+    planPath,
+    selectedActionIds = [],
+    eligibleActionCount = 0,
+} = {}) {
+    return Boolean(
+        String(planPath || '').trim()
+        && selectedActionIds.length > 0
+        && eligibleActionCount > 0,
+    );
+}
+
+export function summarizeCacheOperation(payload = {}) {
+    const [statusLabel, tone] = OPERATION_STATUS_LABELS[payload.status] || ['No operation', 'blue'];
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+    return {
+        operationId: payload.operation_id || null,
+        status: payload.status || 'none',
+        statusLabel,
+        tone,
+        manifestPath: payload.manifest_path || null,
+        quarantinedCount: actions.filter((action) => action.status === 'quarantined').length,
+        restoredCount: actions.filter((action) => action.status === 'restored').length,
+        blockedCount: actions.filter((action) => action.status === 'blocked').length,
+        canRestore: ['applied', 'partial', 'restoring'].includes(payload.status)
+            && actions.some((action) => action.status === 'quarantined'),
+    };
 }

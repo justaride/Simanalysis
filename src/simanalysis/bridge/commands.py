@@ -16,7 +16,13 @@ from simanalysis.analyzers.save_analyzer import SaveAnalyzer
 from simanalysis.analyzers.tray_analyzer import TrayAnalyzer
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
 from simanalysis.bridge.protocol import Emitter
-from simanalysis.cache_doctor import build_cache_status
+from simanalysis.cache_doctor import (
+    CacheCleaner,
+    build_cache_cleanup_plan,
+    build_cache_status,
+    load_cache_manifest,
+    write_cache_cleanup_plan,
+)
 from simanalysis.cleanup import CleanupPlanner
 from simanalysis.inventory import InventoryScanner, default_inventory_db_path
 from simanalysis.operating_table import OperatingTable
@@ -151,6 +157,37 @@ def cache_status(args: argparse.Namespace, emit: Emitter) -> None:
     path = _require_dir(args.path)
     emit.start("cache-status")
     emit.result(build_cache_status(path))
+    emit.done()
+
+
+def cache_plan(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("cache-plan")
+    emit.result(write_cache_cleanup_plan(build_cache_cleanup_plan(path), args.export))
+    emit.done()
+
+
+def cache_apply(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cache-apply")
+    emit.result(
+        CacheCleaner().apply(
+            args.path,
+            selected_action_ids=list(args.action or []),
+            all_actions=bool(args.all_actions),
+        )
+    )
+    emit.done()
+
+
+def cache_restore(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cache-restore")
+    emit.result(CacheCleaner().restore(args.path))
+    emit.done()
+
+
+def cache_operation_status(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("cache-operation-status")
+    emit.result(load_cache_manifest(args.path))
     emit.done()
 
 
@@ -489,6 +526,10 @@ DISPATCH = {
     "patch-day-status": patch_day_status,
     "patch-day-record": patch_day_record,
     "cache-status": cache_status,
+    "cache-plan": cache_plan,
+    "cache-apply": cache_apply,
+    "cache-restore": cache_restore,
+    "cache-operation-status": cache_operation_status,
     "save-protector-status": save_protector_status,
     "tray-protector-status": tray_protector_status,
     "update-staging-status": update_staging_status,

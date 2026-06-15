@@ -189,10 +189,22 @@ Implemented after Profile Manager Light v0:
 - The desktop route uses the Profile Manager Light cache-path default, shows
   status, known cache targets, warnings, and recommendations, and exposes no
   cache deletion control.
-- Cache Doctor v0 never deletes, moves, or rewrites cache files; future cache
-  cleanup must be staged through an Operating Table manifest after snapshot and
-  user approval.
-- Cache-clearing operations remain future slices.
+- Added reversible Cache Doctor cleanup planning through
+  `simanalysis cache plan`, producing snapshot-required, read-only plan JSON
+  for present cache targets while preserving blocked symlink evidence for
+  review.
+- Added manifest-backed Cache Doctor quarantine/restore operations through
+  `simanalysis cache apply|restore`; apply requires explicit action IDs or an
+  explicit all-actions flag, blocks while The Sims 4 is running, rejects
+  symlinked targets, stale target evidence, restore collisions, and missing
+  quarantine entries, and never permanently deletes cache files.
+- Added `cache-plan`, `cache-apply`, `cache-restore`, and
+  `cache-operation-status` bridge/Tauri/web API plumbing plus desktop Cache
+  Doctor controls for Plan JSON export, explicit action selection,
+  confirm-gated quarantine, manifest status refresh, and restore.
+- Cache Doctor now supports reversible quarantine for known cache targets; it
+  still does not claim arbitrary cache repair, save repair, or production-ready
+  automation.
 
 ## Save Protector Progress
 

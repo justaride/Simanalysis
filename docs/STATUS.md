@@ -65,7 +65,14 @@ those paths as input defaults without scanning or mutating files on load.
 Cache Doctor v0 now exists as a read-only CLI/backend/desktop surface through
 `simanalysis cache status`, bridge/Tauri `cache-status`, and the Cache Doctor
 route, reporting known cache targets and symlink warnings without deleting or
-moving cache files. Save Protector v0 now exists as a read-only
+moving cache files. Cache Doctor reversible cleanup now adds
+`simanalysis cache plan|apply|restore`, bridge/Tauri
+`cache-plan|cache-apply|cache-restore|cache-operation-status`, and desktop
+controls for Plan JSON export, explicit action selection, confirm-gated
+quarantine, manifest refresh, and restore. Cache cleanup quarantines supported
+targets into `_Simanalysis_CacheDoctor` and refuses game-process, symlink,
+stale-evidence, missing-quarantine, and restore-collision hazards instead of
+permanently deleting cache files. Save Protector v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis save-protector status`,
 bridge/Tauri `save-protector-status`, and the Save Protector route, grouping
 saves/backups and surfacing AppleDouble, iCloud-placeholder, symlink, and
@@ -93,8 +100,8 @@ JSON export, explicit planned copy-action selection, confirm-gated loose-file
 commit, manifest status refresh, and undo through the same guarded bridge/Tauri
 contract; archive install/extraction remains unavailable, and ZIP member rows
 are planning evidence only, not commit-eligible actions. Profile-aware file
-operations, cache-clearing operations, safe archive update installation, and
-profile-aware Patch Day re-enable workflows remain pending follow-on slices.
+operations, safe archive update installation, and profile-aware Patch Day
+re-enable workflows remain pending follow-on slices.
 `docs/public-v3-workplan.md` and
 `docs/simanalysis-public-v3-presentation.html` capture the remaining Public v3
 roadmap and executive presentation.

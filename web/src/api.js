@@ -3,7 +3,13 @@
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { cleanupPlanOptions } from './cleanupApiModel';
-import { cacheDoctorOptions } from './cacheDoctorApiModel';
+import {
+  cacheCleanupApplyOptions,
+  cacheCleanupPlanOptions,
+  cacheCleanupRestoreOptions,
+  cacheDoctorOptions,
+  cacheOperationStatusOptions,
+} from './cacheDoctorApiModel';
 import { doctorScanOptions } from './doctorApiModel';
 import { saveProtectorOptions } from './saveProtectorApiModel';
 import { trayProtectorOptions } from './trayProtectorApiModel';
@@ -107,6 +113,19 @@ export const api = {
     runAnalysis('patch-day-record', sims4Path, patchDayOptions(options), callbacks),
   cacheStatus: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cache-status', sims4Path, cacheDoctorOptions(options), callbacks),
+  cachePlan: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('cache-plan', sims4Path, cacheCleanupPlanOptions(options), callbacks),
+  cacheApply: (planPath, callbacks, options = {}) =>
+    runAnalysis('cache-apply', planPath, cacheCleanupApplyOptions(options), callbacks),
+  cacheRestore: (manifestPath, callbacks) =>
+    runAnalysis('cache-restore', manifestPath, cacheCleanupRestoreOptions(), callbacks),
+  cacheOperationStatus: (manifestPath, callbacks) =>
+    runAnalysis(
+      'cache-operation-status',
+      manifestPath,
+      cacheOperationStatusOptions(),
+      callbacks,
+    ),
   saveProtectorStatus: (sims4Path, callbacks, options = {}) =>
     runAnalysis('save-protector-status', sims4Path, saveProtectorOptions(options), callbacks),
   trayProtectorStatus: (sims4Path, callbacks, options = {}) =>
