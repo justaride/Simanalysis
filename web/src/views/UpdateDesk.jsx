@@ -262,10 +262,15 @@ function PlanActions({ rows, selectedActionIds = [], onToggleAction }) {
                                     />
                                 )}
                                 <div className="min-w-0">
-                                <p className="break-words font-medium text-white">{row.sourceName}</p>
-                                <p className="mt-1 break-all font-mono text-xs text-gray-500">
-                                    {row.sourceRelativePath || row.id}
-                                </p>
+                                    <p className="break-words font-medium text-white">{row.sourceName}</p>
+                                    <p className="mt-1 break-all font-mono text-xs text-gray-500">
+                                        {row.sourceRelativePath || row.id}
+                                    </p>
+                                    {row.archiveMemberPath && (
+                                        <p className="mt-1 break-all font-mono text-xs text-amber-200">
+                                            {row.archiveMemberPath}
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                             <Badge tone={actionTone(row)}>{row.statusLabel}</Badge>
@@ -284,6 +289,11 @@ function PlanActions({ rows, selectedActionIds = [], onToggleAction }) {
                                 <p className="mt-1 break-all font-mono text-gray-200">
                                     {row.destinationRelativePath}
                                 </p>
+                                {row.extractionStagingRelativePath && (
+                                    <p className="mt-1 break-all font-mono text-gray-500">
+                                        {row.extractionStagingRelativePath}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         {[...row.blockers, ...row.reviewNotes].length > 0 && (
@@ -335,9 +345,19 @@ function PlanActions({ rows, selectedActionIds = [], onToggleAction }) {
                                 <p className="mt-1 break-all font-mono text-xs text-gray-500">
                                     {row.sourceRelativePath || row.id}
                                 </p>
+                                {row.archiveMemberPath && (
+                                    <p className="mt-1 break-all font-mono text-xs text-amber-200">
+                                        {row.archiveMemberPath}
+                                    </p>
+                                )}
                             </td>
                             <td className="px-4 py-3 break-all font-mono text-xs text-gray-300">
-                                {row.destinationRelativePath}
+                                <p>{row.destinationRelativePath}</p>
+                                {row.extractionStagingRelativePath && (
+                                    <p className="mt-1 text-gray-500">
+                                        {row.extractionStagingRelativePath}
+                                    </p>
+                                )}
                             </td>
                             <td className="px-4 py-3">
                                 <div className="flex flex-wrap gap-2">
@@ -769,10 +789,11 @@ function UpdateDesk() {
 
             {plan && (
                 <section className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                         <StatTile icon={ClipboardList} label="Plan" value={planSummary.statusLabel} tone={planSummary.tone} />
                         <StatTile icon={Package} label="Copies" value={planSummary.copyCount} tone={planSummary.copyCount ? 'green' : 'blue'} />
                         <StatTile icon={FileArchive} label="Archive Reviews" value={planSummary.archiveReviewCount} tone={planSummary.archiveReviewCount ? 'amber' : 'blue'} />
+                        <StatTile icon={CheckSquare} label="ZIP Members" value={planSummary.archiveMemberCount} tone={planSummary.archiveMemberCount ? 'green' : 'blue'} />
                         <StatTile icon={AlertTriangle} label="Blocked" value={planSummary.blockedCount} tone={planSummary.blockedCount ? 'red' : 'green'} />
                         <StatTile icon={ShieldCheck} label="Mods" value={planSummary.modsMutationLabel} tone={planSummary.modsMutationLabel === 'No Mods mutation' ? 'green' : 'red'} />
                     </div>

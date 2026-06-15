@@ -242,8 +242,9 @@ Implemented after desktop Tray Protector v0:
   counts, archive/package/script classification, source-binding sidecars,
   extension counts, warnings, signals, and recommendations.
 - Update Desk v0 lists ZIP archives without extraction, labels corrupt ZIPs,
-  flags archive member path escapes, and marks `.rar`/`.7z` archives as
-  listing-unsupported until a later archive engine slice.
+  flags archive member path escapes and symlink-like entries, and marks
+  `.rar`/`.7z` archives as listing-unsupported until a later archive engine
+  slice.
 - Update Desk v0 surfaces AppleDouble sidecar files, iCloud placeholder or
   eviction markers, symlinked staging entries, non-file entries, orphan source
   sidecars, missing or invalid source bindings, and casefold path collisions as
@@ -256,6 +257,11 @@ Implemented after desktop Tray Protector v0:
   in explicit review/blocker actions, hashes staged sources, checks destination
   clashes and case collisions, and can write a plan manifest when `--output` is
   provided.
+- Added safe ZIP member planning to `simanalysis updates plan`: readable ZIP
+  `.package`/`.ts4script` members now appear as `stage_archive_member` actions
+  with member hash/size evidence, an extraction-staging path under the staging
+  folder, and final destination clash checks. The plan still does not extract
+  archive bytes or make archive-member actions commit-eligible.
 - Added `update-staging-plan` bridge/Tauri plumbing for the same read-only plan
   payload, requiring an explicit Mods path and exposing no apply/commit command
   through desktop.
@@ -278,8 +284,9 @@ Implemented after desktop Tray Protector v0:
   and undo copied files through `update-staging-operation-status` and
   `update-staging-undo`.
 - Update Desk v0 still never extracts archives, installs archive contents,
-  overwrites existing Mods files, or deletes staged downloads. Archive rows
-  remain review-only in desktop.
+  overwrites existing Mods files, or deletes staged downloads. Desktop can show
+  ZIP member planning rows, but archive-member rows remain review/staging-plan
+  evidence and are not selectable for commit.
 - Added `docs/public-v3-workplan.md` and
   `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
   roadmap/workplan and executive presentation artifacts.
@@ -335,11 +342,13 @@ dependency signals without editing Tray files. Update Desk v0 is available as a
 read-only CLI/backend and desktop route for reviewing staged external
 downloads, source sidecars, and safe archive-listing signals without extracting
 archives. `simanalysis updates plan` can generate a copy/review/blocker
-manifest for staged downloads, and `simanalysis updates commit|undo` can now
-journal and reverse explicit loose-file copy actions into Mods. Desktop Update
-Desk can now export a Plan JSON, commit explicitly selected loose-file copy
-actions, refresh the operation manifest, and undo through the same guarded
-bridge/Tauri contract; archive install/extraction remains unavailable.
+manifest for staged downloads and can represent readable ZIP package/script
+members as extraction-staging plan rows without extracting to Mods.
+`simanalysis updates commit|undo` can now journal and reverse explicit
+loose-file copy actions into Mods. Desktop Update Desk can now export a Plan
+JSON, commit explicitly selected loose-file copy actions, refresh the operation
+manifest, and undo through the same guarded bridge/Tauri contract; archive
+install/extraction remains unavailable.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several

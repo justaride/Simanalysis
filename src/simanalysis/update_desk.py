@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import tempfile
 from collections import defaultdict
 from contextlib import suppress
@@ -177,6 +178,11 @@ def _unsafe_archive_member(name: str) -> bool:
     return path.is_absolute() or ".." in path.parts
 
 
+def _zip_member_is_symlink(info: Any) -> bool:
+    mode = int(getattr(info, "external_attr", 0)) >> 16
+    return stat.S_IFMT(mode) == stat.S_IFLNK
+
+
 def _archive_scan(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     extension = path.suffix.lower()
     if extension not in ARCHIVE_EXTENSIONS:
@@ -199,7 +205,7 @@ def _archive_scan(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
 
     try:
         with ZipFile(path) as archive:
-            names = archive.namelist()
+            infos = archive.infolist()
     except (BadZipFile, OSError):
         message = "ZIP archive could not be opened for safe listing."
         return {
@@ -208,26 +214,46 @@ def _archive_scan(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
             "unsafe_members": [],
         }, [_signal("archive_unreadable", "medium", message, path=path.name)]
 
-    unsafe_members = [name for name in names if _unsafe_archive_member(name)]
+    names = [info.filename for info in infos]
+    path_escape_members = [name for name in names if _unsafe_archive_member(name)]
+    symlink_members = [info.filename for info in infos if _zip_member_is_symlink(info)]
+    unsafe_members = [*path_escape_members, *symlink_members]
     if unsafe_members:
+        signals: list[dict[str, Any]] = []
+        if path_escape_members:
+            signals.append(
+                _signal(
+                    "archive_path_escape",
+                    "high",
+                    "Archive contains absolute or parent-directory member paths.",
+                    path=path.name,
+                    paths=path_escape_members,
+                )
+            )
+        if symlink_members:
+            signals.append(
+                _signal(
+                    "archive_symlink_entry",
+                    "high",
+                    "Archive contains symlink-like member entries.",
+                    path=path.name,
+                    paths=symlink_members,
+                )
+            )
         return {
             "status": "unsafe_members",
             "member_count": len(names),
             "unsafe_members": unsafe_members,
-        }, [
-            _signal(
-                "archive_path_escape",
-                "high",
-                "Archive contains absolute or parent-directory member paths.",
-                path=path.name,
-                paths=unsafe_members,
-            )
-        ]
+            "path_escape_members": path_escape_members,
+            "symlink_members": symlink_members,
+        }, signals
 
     return {
         "status": "readable_zip",
         "member_count": len(names),
         "unsafe_members": [],
+        "path_escape_members": [],
+        "symlink_members": [],
     }, []
 
 
@@ -449,6 +475,47 @@ def _destination_blockers(mods_root: Path, destination: Path) -> list[str]:
     return blockers
 
 
+def _archive_member_kind(name: str) -> str | None:
+    extension = PurePosixPath(name.replace("\\", "/")).suffix.lower()
+    if extension in PACKAGE_EXTENSIONS:
+        return "package"
+    if extension in SCRIPT_EXTENSIONS:
+        return "script"
+    return None
+
+
+def _archive_member_destination_name(name: str) -> str:
+    return PurePosixPath(name.replace("\\", "/")).name
+
+
+def _archive_extraction_group(name: str) -> str:
+    stem = Path(name).stem
+    cleaned = "".join(
+        character if character.isalnum() or character in {"-", "_"} else "_" for character in stem
+    ).strip("._")
+    return cleaned or "archive"
+
+
+def _zip_member_sha256(path: Path, member: Any) -> str:
+    digest = sha256()
+    with ZipFile(path) as archive, archive.open(member) as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _safe_archive_member_infos(path: Path) -> list[Any]:
+    with ZipFile(path) as archive:
+        return [
+            info
+            for info in archive.infolist()
+            if not info.is_dir()
+            and not _unsafe_archive_member(info.filename)
+            and not _zip_member_is_symlink(info)
+            and _archive_member_kind(info.filename) is not None
+        ]
+
+
 def _copy_action(index: int, item: dict[str, Any], mods_root: Path) -> dict[str, Any]:
     source = Path(str(item["path"]))
     destination_name = Path(str(item["name"])).name
@@ -482,7 +549,12 @@ def _copy_action(index: int, item: dict[str, Any], mods_root: Path) -> dict[str,
 def _archive_blockers(archive_scan: dict[str, Any]) -> list[str]:
     status = archive_scan.get("status")
     if status == "unsafe_members":
-        return ["archive_path_escape"]
+        blockers: list[str] = []
+        if archive_scan.get("path_escape_members"):
+            blockers.append("archive_path_escape")
+        if archive_scan.get("symlink_members"):
+            blockers.append("archive_symlink_entry")
+        return blockers or ["archive_unsafe_members"]
     if status == "unreadable_zip":
         return ["archive_unreadable"]
     if status == "listing_unsupported":
@@ -513,6 +585,93 @@ def _archive_action(index: int, item: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _archive_member_action(
+    index: int,
+    item: dict[str, Any],
+    member: Any,
+    *,
+    staging_root: Path,
+    mods_root: Path,
+) -> dict[str, Any]:
+    archive_path = Path(str(item["path"]))
+    member_path = str(member.filename)
+    destination_name = _archive_member_destination_name(member_path)
+    destination = mods_root / destination_name
+    extraction_relative = PurePosixPath(UPDATE_SESSION_ROOT_NAME) / "archive-members"
+    extraction_relative = (
+        extraction_relative
+        / _archive_extraction_group(str(item.get("name") or "archive"))
+        / f"{index:03d}-{destination_name}"
+    )
+    blockers = _destination_blockers(mods_root, destination)
+    return {
+        "action_id": f"update-archive-member-{index:03d}",
+        "action_type": "stage_archive_member",
+        "status": "blocked" if blockers else "planned",
+        "source_name": f"{item.get('name')}: {member_path}",
+        "source_path": item.get("path"),
+        "source_relative_path": item.get("relative_path"),
+        "archive_member_path": member_path,
+        "archive_member_kind": _archive_member_kind(member_path),
+        "destination_relative_path": destination_name,
+        "destination_path": str(destination),
+        "extraction_staging_relative_path": extraction_relative.as_posix(),
+        "extraction_staging_path": str(staging_root / extraction_relative.as_posix()),
+        "extracts_directly_to_mods": False,
+        "expected": {
+            "size": int(member.file_size),
+            "sha256": _zip_member_sha256(archive_path, member),
+        },
+        "source_binding": item.get("source_binding", {"status": "unknown"}),
+        "archive_scan": item.get("archive_scan", {"status": "not_archive"}),
+        "blockers": blockers,
+        "review_notes": ["archive_member_requires_extraction_staging"],
+    }
+
+
+def _archive_member_actions(
+    start_index: int,
+    item: dict[str, Any],
+    *,
+    staging_root: Path,
+    mods_root: Path,
+) -> list[dict[str, Any]]:
+    archive_scan = item.get("archive_scan", {"status": "not_archive"})
+    if archive_scan.get("status") != "readable_zip":
+        return []
+    try:
+        members = _safe_archive_member_infos(Path(str(item["path"])))
+    except (BadZipFile, OSError):
+        return []
+    return [
+        _archive_member_action(
+            start_index + offset,
+            item,
+            member,
+            staging_root=staging_root,
+            mods_root=mods_root,
+        )
+        for offset, member in enumerate(members)
+    ]
+
+
+def _mark_duplicate_action_destinations(actions: list[dict[str, Any]]) -> None:
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for action in actions:
+        destination = action.get("destination_relative_path")
+        if isinstance(destination, str) and destination:
+            grouped[destination.casefold()].append(action)
+
+    for duplicates in grouped.values():
+        if len(duplicates) < 2:
+            continue
+        for action in duplicates:
+            blockers = action.setdefault("blockers", [])
+            if isinstance(blockers, list) and "duplicate_destination" not in blockers:
+                blockers.append("duplicate_destination")
+            action["status"] = "blocked"
+
+
 def _plan_status(actions: list[dict[str, Any]], staging_status: str) -> str:
     if staging_status == "missing_staging_folder":
         return "blocked"
@@ -529,6 +688,9 @@ def build_update_install_plan(
 ) -> dict[str, Any]:
     """Build a read-only staged update install plan without changing Mods."""
     staging_status = build_update_staging_status(staging_dir)
+    staging_root = (
+        Path(str(staging_status.get("staging_path") or staging_dir)).expanduser().resolve()
+    )
     mods_root = Path(mods_dir).expanduser().resolve()
     actions: list[dict[str, Any]] = []
 
@@ -538,15 +700,29 @@ def build_update_install_plan(
             actions.append(_copy_action(len(actions) + 1, item, mods_root))
         elif kind == "archive":
             actions.append(_archive_action(len(actions) + 1, item))
+            actions.extend(
+                _archive_member_actions(
+                    len(actions) + 1,
+                    item,
+                    staging_root=staging_root,
+                    mods_root=mods_root,
+                )
+            )
+
+    _mark_duplicate_action_destinations(actions)
 
     blocked_count = sum(1 for action in actions if action["status"] == "blocked")
     copy_count = sum(1 for action in actions if action["action_type"] == "copy_staged_file")
     archive_review_count = sum(1 for action in actions if action["action_type"] == "review_archive")
+    archive_member_count = sum(
+        1 for action in actions if action["action_type"] == "stage_archive_member"
+    )
     status = _plan_status(actions, str(staging_status.get("status", "unknown")))
 
     recommendations = [
         "Review this plan before any snapshot-backed commit step.",
-        "Archives are not extracted by this plan; review archive actions separately.",
+        "ZIP member actions are extraction-staging plans only; archives are not extracted directly to Mods.",
+        "Keep unsupported archives in review-only state until a safe listing engine is selected.",
         "Do not change Mods until a snapshot and approval gate exists for this plan.",
     ]
     if blocked_count:
@@ -565,6 +741,7 @@ def build_update_install_plan(
         "action_count": len(actions),
         "copy_count": copy_count,
         "archive_review_count": archive_review_count,
+        "archive_member_count": archive_member_count,
         "blocked_count": blocked_count,
         "requires_snapshot": True,
         "mutates_files": False,

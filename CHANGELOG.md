@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   guarded bridge/Tauri contract. Archive extraction remains unavailable.
 - Added a durable Public v3 workplan and HTML presentation for the remaining
   safety-first release roadmap.
+- Added safe ZIP member planning to Update Desk plans: readable ZIP package and
+  script members now produce extraction-staging actions with destination
+  evidence, while corrupt, path-escaping, symlink-like, duplicate-destination,
+  `.rar`, and `.7z` archives remain blocked or review-only without extraction.
 
 ### Planned
 - Full DBPF package parser implementation

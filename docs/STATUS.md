@@ -77,11 +77,12 @@ symlink, and case-collision signals without editing Tray. Update Desk v0 now
 exists as a read-only CLI/backend/desktop surface through `simanalysis updates
 status`, bridge/Tauri `update-staging-status`, and the Update Desk route,
 classifying staged downloads, source sidecars, corrupt ZIPs, archive path
-escapes, iCloud placeholders, AppleDouble files, symlinks, and case collisions
-without extracting archives or changing Mods. `simanalysis updates plan` can
-generate a read-only staged-download manifest with copy, archive-review, and
-blocker actions without writing to Mods, and the same payload is available to
-the sidecar/Tauri contract as `update-staging-plan`; desktop Update Desk can
+escapes, symlink-like ZIP entries, iCloud placeholders, AppleDouble files,
+symlinks, and case collisions without extracting archives or changing Mods.
+`simanalysis updates plan` can generate a read-only staged-download manifest
+with loose copy, archive-review/blocker, and ZIP member extraction-staging plan
+actions without writing to Mods, and the same payload is available to the
+sidecar/Tauri contract as `update-staging-plan`; desktop Update Desk can
 preview that plan with explicit Mods path input and snapshot/no-mutation gate
 labels. The backend/CLI/bridge contract now also supports manifest-backed
 `simanalysis updates commit|undo` and `update-staging-commit|update-staging-undo`
@@ -90,8 +91,9 @@ hash/size, collision, modified-file-on-undo, and crash-recovery guards. The
 desktop Update Desk route now exposes Plan JSON export, explicit planned
 copy-action selection, confirm-gated loose-file commit, manifest status
 refresh, and undo through the same guarded bridge/Tauri contract; archive
-install/extraction remains unavailable and review-only. Profile-aware file
-operations, cache-clearing operations, safe archive update installation, and
+install/extraction remains unavailable, and ZIP member rows are planning
+evidence only, not commit-eligible actions. Profile-aware file operations,
+cache-clearing operations, safe archive update installation, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 `docs/public-v3-workplan.md` and
 `docs/simanalysis-public-v3-presentation.html` capture the remaining Public v3
