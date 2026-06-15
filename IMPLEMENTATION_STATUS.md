@@ -149,8 +149,10 @@ prepare, copy, and download that Markdown handoff from a saved session without
 moving files. Mutating steps remain manifest-based and keep the game-process
 guard. The shared Doctor JSON/text payload now includes evidence-labeled
 verdict objects plus symptom playbooks for active-candidate bisection and
-partial-evidence review. Ledger-aware crash history and timeline correlation
-remain future Doctor/Bisect work.
+partial-evidence review, and the desktop Doctor route now renders those
+verdict/playbook objects directly above the detailed crash/UI findings.
+Ledger-aware crash history and timeline correlation remain future Doctor/Bisect
+work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware state, Patch
