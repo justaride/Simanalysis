@@ -81,6 +81,7 @@ class TestCLI:
         assert re.search(r"^\s+doctor\s+", result.output, re.MULTILINE)
         assert "ledger" in result.output
         assert re.search(r"^\s+ops\s+", result.output, re.MULTILINE)
+        assert re.search(r"^\s+patch-day\s+", result.output, re.MULTILINE)
         assert "scan" in result.output
 
     def test_analyze_help(self, runner: CliRunner) -> None:
@@ -666,6 +667,74 @@ class TestCLI:
         report = output.read_text(encoding="utf-8")
         assert "Sims Doctor" in report
         assert "Active.ts4script" in report
+
+    def test_patch_day_status_json_reports_changed_game_version(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test patch-day status emits patch risk classes as JSON."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        (sims4 / "GameVersion.txt").write_text("1.108.329.1020\n", encoding="utf-8")
+        state_path = tmp_path / "patch-day-state.json"
+        state_path.write_text(
+            json.dumps(
+                {
+                    "roots": {
+                        str(sims4.resolve()): {
+                            "game_version": "1.107.151.1020",
+                            "recorded_at": "2026-06-14T20:00:00Z",
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(
+            cli,
+            [
+                "patch-day",
+                "status",
+                str(sims4),
+                "--state",
+                str(state_path),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["status"] == "changed"
+        assert data["patch_detected"] is True
+        assert data["risk_classes"][0]["status"] == "unknown_after_patch"
+        assert data["automatic_reenable"] is False
+
+    def test_patch_day_record_json_writes_state(self, runner: CliRunner, tmp_path: Path) -> None:
+        """Test patch-day record stores the current game version baseline."""
+        sims4 = tmp_path / "The Sims 4"
+        sims4.mkdir()
+        (sims4 / "GameVersion.txt").write_text("1.108.329.1020\n", encoding="utf-8")
+        state_path = tmp_path / "patch-day-state.json"
+
+        result = runner.invoke(
+            cli,
+            [
+                "patch-day",
+                "record",
+                str(sims4),
+                "--state",
+                str(state_path),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        data = json.loads(result.output)
+        assert data["status"] == "recorded"
+        saved = json.loads(state_path.read_text(encoding="utf-8"))
+        assert saved["roots"][str(sims4.resolve())]["game_version"] == "1.108.329.1020"
 
     def test_doctor_rejects_explicit_missing_mods_dir(
         self, runner: CliRunner, tmp_path: Path

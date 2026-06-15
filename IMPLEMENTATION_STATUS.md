@@ -128,6 +128,25 @@ Implemented on this branch after Cleanup Planner v1:
   explicit action selection, manifest staging, status refresh, and
   confirm-gated apply/restore.
 
+## Patch Day Shield Progress
+
+Implemented after the Doctor ledger-history work:
+
+- Added `src/simanalysis/patch_day.py`, a read-only Patch Day state helper that
+  reads `GameVersion.txt` from the selected Sims 4 user folder and compares it
+  with an app-owned baseline JSON file.
+- Added `simanalysis patch-day status` to report whether the current game
+  version is unrecorded, unchanged, changed, or missing, with JSON/text output
+  and no Sims-folder mutation.
+- Added `simanalysis patch-day record` to record the current game version as an
+  explicit baseline in Simanalysis state; it writes only the selected state
+  file and refuses to record when `GameVersion.txt` is absent.
+- When a version change is detected, Patch Day Shield v0 labels script mods, UI
+  mods, gameplay tuning, and Build/Buy/CAS as `unknown_after_patch`, recommends
+  a vanilla test plus save-copy test, and keeps `automatic_reenable` false.
+- Desktop Patch Day UI, update staging, and profile-aware re-enable workflows
+  remain future slices.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -162,13 +181,16 @@ inventory scans plus the latest file events, without scanning or mutating the
 Sims folder. The desktop Doctor route can pass the same explicit inventory
 database through the Tauri sidecar and now renders the Doctor timeline plus
 ledger status, latest scan counts, recent file events, and ledger warnings from
-the shared payload.
+the shared payload. Patch Day Shield v0 is available as a read-only CLI backend
+for detecting `GameVersion.txt` baseline changes and classifying mod categories
+as unknown after a patch; it has not yet been promoted into the desktop product
+layer.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware state, Patch
-Day Shield, reversible workflows beyond cleanup actions, Cache Doctor, update
-staging, and broader real-world corpus coverage.
+Day desktop workflows, reversible workflows beyond cleanup actions, Cache
+Doctor, update staging, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

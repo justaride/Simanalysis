@@ -50,6 +50,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added desktop Doctor timeline and Inventory Ledger panels that render
   evidence already present in the shared Doctor payload without starting a new
   inventory scan or mutating Sims files.
+- Added read-only Patch Day Shield v0 CLI commands,
+  `simanalysis patch-day status|record`, which compare `GameVersion.txt`
+  against an app-owned baseline state, label post-patch script/UI/gameplay/CAS
+  risk classes as `unknown_after_patch`, and never automatically re-enable or
+  move Sims files.
 
 ### Planned
 - Full DBPF package parser implementation
