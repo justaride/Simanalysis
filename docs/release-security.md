@@ -48,6 +48,10 @@ is declared security-ready.
 claim signed/notarized artifacts until the relevant platform checks are actually
 green.
 
+Use [`release-signing-runbook.md`](release-signing-runbook.md) for the
+operator checklist that turns preflight blockers into platform-specific signing
+and verification steps.
+
 The signing status file is a preflight, not a release approval. It records
 whether the local machine has the expected signing inputs before artifact
 verification runs:
