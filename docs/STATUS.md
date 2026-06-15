@@ -41,8 +41,12 @@ files, space used, severity summary, and file distribution from the current scan
 payload instead of placeholders. The shared Doctor payload now includes
 evidence-labeled verdicts and symptom playbooks for active bisection candidates
 and partial-evidence review; the desktop Doctor route renders those verdicts and
-playbooks above the detailed findings. Profile-aware state, Patch Day Shield,
-Cache Doctor, and update staging remain pending follow-on slices.
+playbooks above the detailed findings. Saved bisection manifests preserve the
+Doctor summary, verdict, and playbook context, and the handoff renderer includes
+that context alongside the rollback journal; a BuildBuy03B-style replay test now
+proves the Doctor JSON -> bisect -> verdict -> restore -> handoff path.
+Profile-aware state, Patch Day Shield, Cache Doctor, and update staging remain
+pending follow-on slices.
 
 ## Historical Status Snapshots
 

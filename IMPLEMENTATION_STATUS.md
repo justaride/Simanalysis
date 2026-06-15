@@ -150,7 +150,11 @@ moving files. Mutating steps remain manifest-based and keep the game-process
 guard. The shared Doctor JSON/text payload now includes evidence-labeled
 verdict objects plus symptom playbooks for active-candidate bisection and
 partial-evidence review, and the desktop Doctor route now renders those
-verdict/playbook objects directly above the detailed crash/UI findings.
+verdict/playbook objects directly above the detailed crash/UI findings. Saved
+bisection manifests now preserve that Doctor summary, verdict, and playbook
+context, and the read-only handoff renders it with the move journal; the replay
+gate covers a BuildBuy03B-style session from Doctor JSON through move, verdict,
+restore, and rollback handoff.
 Ledger-aware crash history and timeline correlation remain future Doctor/Bisect
 work.
 

@@ -238,6 +238,9 @@ def _base_plan(
     now: datetime,
 ) -> dict[str, Any]:
     candidates = candidates_from_doctor(doctor_payload, mods_dir) if mods_dir.exists() else []
+    doctor_summary = doctor_payload.get("summary", {})
+    doctor_verdicts = doctor_payload.get("verdicts", [])
+    doctor_playbooks = doctor_payload.get("playbooks", [])
     ts = timestamp_for(now)
     remaining = [candidate.unit_path for candidate in candidates]
     batch_size = (len(remaining) + 1) // 2 if len(remaining) > 1 else len(remaining)
@@ -258,6 +261,9 @@ def _base_plan(
         "manifest_path": None,
         "status": "planned",
         "active_candidates": [asdict(candidate) for candidate in candidates],
+        "doctor_summary": doctor_summary if isinstance(doctor_summary, dict) else {},
+        "doctor_verdicts": doctor_verdicts if isinstance(doctor_verdicts, list) else [],
+        "doctor_playbooks": doctor_playbooks if isinstance(doctor_playbooks, list) else [],
         "remaining_candidates": remaining,
         "current_removed": [],
         "next_batch": remaining[:batch_size],
@@ -369,9 +375,13 @@ def load_session(manifest_path: str | Path) -> dict[str, Any]:
         "steps",
         "warnings",
         "blockers",
+        "doctor_verdicts",
+        "doctor_playbooks",
     ):
         if key in data:
             _require_list(data, key)
+    if "doctor_summary" in data and not isinstance(data["doctor_summary"], dict):
+        raise ValueError("Manifest field doctor_summary must be an object")
     if data["status"] not in VALID_SESSION_STATUSES:
         raise ValueError(f"Unknown treatment session status: {data['status']}")
     _validate_session_roots(data)
@@ -740,6 +750,62 @@ def _append_candidate(lines: list[str], candidate: dict[str, Any]) -> None:
         lines.append(f"  - Evidence: `{source}` - {finding} - {reason} - `{path}`")
 
 
+def _append_doctor_evidence(lines: list[str], session: dict[str, Any]) -> None:
+    lines.extend(["", "## Doctor Evidence"])
+
+    summary = session.get("doctor_summary", {})
+    if isinstance(summary, dict) and summary:
+        summary_parts = []
+        for label, key in (
+            ("Script active", "script_active"),
+            ("UI active", "ui_active"),
+            ("Parse errors", "parse_errors"),
+            ("Index errors", "index_errors"),
+        ):
+            if key in summary:
+                summary_parts.append(f"{label}: `{summary[key]}`")
+        if summary_parts:
+            lines.append("- " + "; ".join(summary_parts))
+
+    verdicts = session.get("doctor_verdicts", [])
+    if isinstance(verdicts, list) and verdicts:
+        lines.append("### Verdicts")
+        for verdict in verdicts:
+            if not isinstance(verdict, dict):
+                continue
+            verdict_id = verdict.get("id", "unknown")
+            status = verdict.get("status", "unknown")
+            title = verdict.get("title", "Doctor verdict")
+            lines.append(f"- `{verdict_id}` - `{status}` - {title}")
+            next_action = verdict.get("recommended_next_action")
+            if next_action:
+                lines.append(f"  - Next action: `{next_action}`")
+            evidence_items = verdict.get("evidence", [])
+            if not isinstance(evidence_items, list):
+                continue
+            for item in evidence_items:
+                if not isinstance(item, dict):
+                    continue
+                label = item.get("label", "evidence")
+                value = item.get("value", "")
+                lines.append(f"  - Evidence: {label}: `{value}`")
+    else:
+        lines.append("- No Doctor verdicts captured in this manifest.")
+
+    playbooks = session.get("doctor_playbooks", [])
+    if isinstance(playbooks, list) and playbooks:
+        lines.append("### Playbooks")
+        for playbook in playbooks:
+            if not isinstance(playbook, dict):
+                continue
+            playbook_id = playbook.get("id", "unknown")
+            title = playbook.get("title", "Doctor playbook")
+            lines.append(f"- `{playbook_id}` - {title}")
+            next_command = playbook.get("next_command")
+            if next_command:
+                lines.append(f"  - Next command: `{next_command}`")
+
+
 def render_handoff(session: dict[str, Any]) -> str:
     """Render a read-only Markdown handoff for a Treatment/Auto-Bisect session."""
     manifest = session.get("manifest_path") or "(not saved)"
@@ -766,9 +832,9 @@ def render_handoff(session: dict[str, Any]) -> str:
         f"Candidates: {_count_items(session, 'active_candidates')}",
         f"Remaining: {_count_items(session, 'remaining_candidates')}",
         f"Current Removed: {_count_items(session, 'current_removed')}",
-        "",
-        "### Next Batch",
     ]
+    _append_doctor_evidence(lines, session)
+    lines.extend(["", "### Next Batch"])
     _append_paths(lines, cast(list[Any], session.get("next_batch", [])))
     lines.extend(["", "### Current Removed"])
     _append_paths(lines, cast(list[Any], session.get("current_removed", [])))

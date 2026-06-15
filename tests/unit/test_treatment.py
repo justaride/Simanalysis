@@ -325,6 +325,132 @@ def test_create_plan_with_save_writes_manifest(tmp_path: Path) -> None:
     assert saved["active_candidates"][0]["unit_name"] == "Creator"
 
 
+def test_buildbuy03b_replay_preserves_doctor_evidence_in_handoff(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    alpha_ui = mods / "AlphaUI"
+    beta_script = mods / "BetaScript"
+    brick_corner = mods / "Brick_corner"
+    for unit in (alpha_ui, beta_script, brick_corner):
+        unit.mkdir(parents=True)
+    (alpha_ui / "BuildBuy03B.package").write_bytes(b"ui")
+    (beta_script / "Beta.ts4script").write_bytes(b"script")
+    (brick_corner / "Brick_corner.package").write_bytes(b"brick")
+
+    doctor_payload = {
+        "summary": {"script_active": 1, "ui_active": 2, "parse_errors": 0},
+        "verdicts": [
+            {
+                "id": "active-ui-findings",
+                "status": "needs_action",
+                "severity": "high",
+                "confidence": "medium",
+                "title": "Active UI findings found",
+                "recommended_next_action": "start_bisect",
+                "evidence": [{"label": "active UI findings", "value": 2}],
+            }
+        ],
+        "playbooks": [
+            {
+                "id": "bisect-active-doctor-candidates",
+                "title": "Start bisection from Doctor JSON",
+                "steps": ["Create manifest", "Move first batch", "Record verdict"],
+                "next_command": "simanalysis bisect start --doctor-json doctor.json",
+            }
+        ],
+        "script_crashes": {
+            "ranked_mods": [
+                {
+                    "mod": "Beta.ts4script",
+                    "status": "active",
+                    "confidence": "high",
+                    "top_suspect_count": 1,
+                    "crash_count": 1,
+                }
+            ],
+            "findings": [
+                {
+                    "suspects": [
+                        {
+                            "mod": "Beta.ts4script",
+                            "status": "active",
+                            "confidence": "high",
+                        }
+                    ]
+                }
+            ],
+            "parse_errors": [],
+        },
+        "ui_crashes": {
+            "findings": [
+                {
+                    "status": "active",
+                    "reason": "BuildBuy03B key found in active package",
+                    "report": {
+                        "source_file": "lastUIException.txt",
+                        "signature": "BuildBuy03B",
+                    },
+                    "hits": [
+                        {
+                            "status": "active",
+                            "package_name": "BuildBuy03B.package",
+                            "package_path": str(alpha_ui / "BuildBuy03B.package"),
+                        },
+                        {
+                            "status": "active",
+                            "package_name": "Brick_corner.package",
+                            "package_path": str(brick_corner / "Brick_corner.package"),
+                        },
+                    ],
+                }
+            ],
+            "parse_errors": [],
+            "index_errors": [],
+        },
+    }
+
+    plan = create_plan(sims4, mods, doctor_payload, save=True)
+
+    assert [candidate["unit_name"] for candidate in plan["active_candidates"]] == [
+        "AlphaUI",
+        "Brick_corner",
+        "BetaScript",
+    ]
+    assert plan["next_batch"] == [str(alpha_ui), str(brick_corner)]
+    assert plan["doctor_summary"]["ui_active"] == 2
+    assert plan["doctor_verdicts"][0]["id"] == "active-ui-findings"
+    assert plan["doctor_playbooks"][0]["id"] == "bisect-active-doctor-candidates"
+
+    manifest = Path(plan["manifest_path"])
+    applied = apply_next_step(manifest)
+    assert applied["current_removed"] == [str(alpha_ui), str(brick_corner)]
+    assert not alpha_ui.exists()
+    assert not brick_corner.exists()
+
+    narrowed = record_outcome(manifest, "same_issue")
+    assert narrowed["status"] == "confirmed_candidate"
+    assert narrowed["remaining_candidates"] == [str(beta_script)]
+    assert narrowed["current_removed"] == []
+    assert narrowed["steps"][0]["status"] == "restored"
+    assert alpha_ui.is_dir()
+    assert brick_corner.is_dir()
+
+    handoff = treatment.render_handoff(narrowed)
+
+    assert "## Doctor Evidence" in handoff
+    assert "Active UI findings found" in handoff
+    assert "Start bisection from Doctor JSON" in handoff
+    assert "BuildBuy03B key found in active package" in handoff
+    assert "Brick_corner.package" in handoff
+    assert "Step `step-1` - `restored` - outcome `same_issue`" in handoff
+    assert f'simanalysis bisect restore "{manifest}" --step all' in handoff
+    assert f'simanalysis bisect record-verdict "{manifest}" --verdict same_issue' in handoff
+
+
 def test_create_plan_with_save_replaces_manifest_atomically(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
