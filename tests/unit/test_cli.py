@@ -83,6 +83,7 @@ class TestCLI:
         assert re.search(r"^\s+ops\s+", result.output, re.MULTILINE)
         assert re.search(r"^\s+patch-day\s+", result.output, re.MULTILINE)
         assert re.search(r"^\s+save-protector\s+", result.output, re.MULTILINE)
+        assert re.search(r"^\s+tray\s+", result.output, re.MULTILINE)
         assert "scan" in result.output
 
     def test_analyze_help(self, runner: CliRunner) -> None:

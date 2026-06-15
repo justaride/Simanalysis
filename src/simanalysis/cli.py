@@ -465,6 +465,28 @@ def save_protector_status(sims4_dir: str, fmt: str) -> None:
         click.echo(format_save_protector_text(status))
 
 
+@cli.group("tray")
+def tray() -> None:
+    """Read-only Tray dependency commands."""
+
+
+@tray.command("status")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def tray_status(sims4_dir: str, fmt: str) -> None:
+    """Inspect Sims 4 Tray dependency signals without changing files."""
+    from simanalysis.tray_protector import (
+        build_tray_status,
+        format_tray_status_text,
+    )
+
+    status = build_tray_status(sims4_dir)
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_tray_status_text(status))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")
