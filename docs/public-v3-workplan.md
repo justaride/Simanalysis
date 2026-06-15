@@ -407,8 +407,8 @@ not malware verdicts.
 
 **Goal:** Prove Public v3 can be built and started from a clean checkout.
 
-**Deliverable:** Release build runbook plus smoke-test checklist for desktop
-startup, sidecar execution, scan, Doctor, and Update Desk preview.
+**Deliverable:** Release build runbook plus smoke-test harness/checklist for
+desktop startup, sidecar execution, scan, Doctor, and Update Desk preview.
 
 **Affected surfaces:** Build scripts, release docs, CI/release notes if needed.
 
@@ -422,6 +422,12 @@ smoke, and first-run profile smoke.
 
 **Done when:** A fresh checkout can build an app that starts and runs core
 read-only workflows.
+
+**Implementation note:** The Public v3 packaging path now has a Tauri-first
+release smoke harness (`python scripts/release_smoke.py --mode audit|source|full`)
+and [`release-smoke.md`](release-smoke.md). The old standalone PyInstaller
+build guide has been replaced with the Tauri + sidecar flow; final release still
+requires the full smoke on a clean checkout plus Slice 12 signing/SBOM.
 
 ### Slice 12: Security, SBOM, Signing
 

@@ -1,88 +1,67 @@
-# Building Simanalysis as a Standalone Application
+# Building Simanalysis Desktop
 
-This guide explains how to build Simanalysis as a standalone executable that launches the Web GUI automatically.
+Simanalysis desktop is a Tauri app with a Vite/React frontend and a PyInstaller
+`simanalysis-bridge` sidecar. The old standalone PyInstaller web-server app is
+not the Public v3 release path.
 
 ## Prerequisites
 
 - Python 3.9+
-- Node.js & npm
-- Virtual environment with dependencies installed
+- Node.js and npm
+- Rust stable toolchain
+- Platform-specific Tauri build prerequisites
 
-## Build Steps
-
-### 1. Build the Frontend
-
-Navigate to the `web` directory and build the React application:
+## Development Build
 
 ```bash
-cd web
-npm install
-npm run build
-cd ..
+python -m pip install -e ".[dev]" pyinstaller
+npm ci
+npm --prefix web ci
+npm --prefix web run build
+./scripts/build-sidecar.sh
+cargo test --manifest-path src-tauri/Cargo.toml --lib
+cargo build --manifest-path src-tauri/Cargo.toml
 ```
 
-This creates the `web/dist` directory containing the static assets.
+`scripts/build-sidecar.sh` builds the headless `simanalysis-bridge` binary and
+stages it under `src-tauri/binaries/` with the target triple Tauri expects.
 
-### 2. Install PyInstaller
+## Release Smoke
 
-Ensure PyInstaller is installed in your Python environment:
+Fast contract audit:
 
 ```bash
-pip install pyinstaller
+python scripts/release_smoke.py --mode audit
 ```
 
-### 3. Build the Executable
-
-Run PyInstaller using the provided spec file:
+Source bridge smoke with temporary Sims-like fixtures:
 
 ```bash
-pyinstaller simanalysis.spec --clean --noconfirm
+python scripts/release_smoke.py --mode source
 ```
 
-### 4. Run the Application
+Full local release smoke from a clean checkout:
 
-The built application is located in `dist/Simanalysis/`.
-
-**On macOS/Linux:**
 ```bash
-./dist/Simanalysis/Simanalysis
+python scripts/release_smoke.py --mode full
 ```
 
-**On Windows:**
-```cmd
-dist\Simanalysis\Simanalysis.exe
+See [`docs/release-smoke.md`](docs/release-smoke.md) for the first-run checklist
+and release-candidate expectations.
+
+## Tauri Bundle
+
+After the sidecar has been staged and `web/dist` exists, build the desktop
+bundle:
+
+```bash
+npm run tauri -- build
 ```
 
-When you run the executable, it will:
-1. Start the internal web server.
-2. Automatically open your default web browser to the application.
-3. Run completely offline without needing Python or Node.js installed on the target machine.
+The generated bundle is platform-specific and lives under `src-tauri/target/`.
+Public v3 artifacts still require the later release slice for SBOM, signing,
+notarization where applicable, and final documentation truth checks.
 
-## Troubleshooting
-
-- **Missing Files**: If the browser opens but shows a 404 or blank page, ensure `web/dist` was correctly built and included. Check `dist/Simanalysis/_internal/web/dist`.
-- **Port Conflicts**: The app defaults to port 8000. If this is in use, the server might fail to start.
-
-## Automated Builds
-
-This repository includes a GitHub Actions workflow (`.github/workflows/build_standalone.yml`) that automatically builds the standalone application for Windows, macOS, and Linux.
-
-**Triggers:**
-- Pushing to the `main` branch.
-- Publishing a release.
-- Manual trigger via the "Actions" tab.
-
-**Artifacts:**
-The build artifacts (the `Simanalysis` executable folder) are uploaded to the workflow run summary. You can download them from there.
-
-## Manual Release Process
-
-To create a release manually:
-
-1.  **Build**: Follow the "Build Steps" above.
-2.  **Verify**: Run the executable to ensure it works.
-3.  **Package**:
-    - **Windows**: Zip the `dist/Simanalysis` folder.
-    - **macOS**: Zip the `dist/Simanalysis` folder (or create a DMG if you have the tools).
-    - **Linux**: Tar/Gzip the `dist/Simanalysis` folder.
-4.  **Distribute**: Upload the archive to your desired platform (GitHub Releases, website, etc.).
+The default full release smoke builds the macOS `.app` bundle. Run
+`python scripts/release_smoke.py --mode full --include-dmg` only when validating
+the final distributable DMG path.

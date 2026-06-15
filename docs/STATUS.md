@@ -129,6 +129,8 @@ re-enable workflows remain pending follow-on slices.
 `docs/public-v3-workplan.md` and
 `docs/simanalysis-public-v3-presentation.html` capture the remaining Public v3
 roadmap and executive presentation.
+`docs/release-smoke.md` and `scripts/release_smoke.py` capture the Public v3
+release smoke harness for the Tauri desktop + Python sidecar packaging path.
 
 ## Historical Status Snapshots
 

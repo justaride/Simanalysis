@@ -325,6 +325,9 @@ Implemented after desktop Tray Protector v0:
 - Added `docs/public-v3-workplan.md` and
   `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
   roadmap/workplan and executive presentation artifacts.
+- Added `scripts/release_smoke.py` and `docs/release-smoke.md` for the
+  Tauri-first Public v3 release smoke path. Full release readiness still
+  requires a clean-checkout full smoke plus the Slice 12 signing/SBOM pass.
 
 ## Classification Progress
 
