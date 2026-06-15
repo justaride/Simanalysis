@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Operating Table v1 backend plumbing for manifest-first cleanup staging, apply, restore, and status commands, preserving explicit selection, Sims process guards, path/hash preflight, and restore-from-manifest behavior.
 - Added the manifest-first `simanalysis ops plan|commit|restore|undo` CLI surface; commits require explicit action IDs or `--all-actions` and still use Operating Table guards and manifests.
 - Added the read-only `simanalysis doctor` CLI surface over the shared Doctor payload, combining script crash and UI exception autopsy with text and JSON output.
+- Added evidence-labeled Doctor verdicts and symptom playbooks to the shared `simanalysis doctor` payload, including manifest-bisection and partial-evidence next-step guidance.
 - Added the manifest-based `simanalysis bisect start|status|next|record-verdict|restore` CLI surface over the existing Treatment/Auto-Bisect engine.
 - Added the read-only `simanalysis bisect handoff` CLI surface that renders a Markdown field handoff from a saved bisection manifest with session state, candidates, steps, warnings, blockers, and recovery commands.
 - Added the read-only `simanalysis-bridge treatment-handoff` sidecar command plus Tauri argument support so the desktop layer can request the same Markdown bisection handoff from a saved manifest.

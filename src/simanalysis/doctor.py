@@ -35,6 +35,152 @@ def doctor_summary(script_payload: dict[str, Any], ui_payload: dict[str, Any]) -
     }
 
 
+def _summary_value(summary: dict[str, Any], key: str) -> int:
+    try:
+        return int(summary.get(key, 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _evidence(label: str, value: int) -> dict[str, int | str]:
+    return {"label": label, "value": value}
+
+
+def doctor_verdicts(summary: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return evidence-labeled Doctor verdicts without changing any files."""
+    verdicts: list[dict[str, Any]] = []
+    script_active = _summary_value(summary, "script_active")
+    ui_active = _summary_value(summary, "ui_active")
+    script_reports = _summary_value(summary, "script_reports")
+    ui_findings = _summary_value(summary, "ui_findings")
+    parse_errors = _summary_value(summary, "parse_errors")
+    index_errors = _summary_value(summary, "index_errors")
+
+    if script_active:
+        verdicts.append(
+            {
+                "id": "active-script-suspects",
+                "status": "needs_action",
+                "severity": "high",
+                "title": "Active script suspects found",
+                "recommended_next_action": "start_bisect",
+                "confidence": "direct",
+                "evidence": [
+                    _evidence("Active script suspects", script_active),
+                    _evidence("Script crash reports", script_reports),
+                ],
+            }
+        )
+
+    if ui_active:
+        verdicts.append(
+            {
+                "id": "active-ui-findings",
+                "status": "needs_action",
+                "severity": "medium",
+                "title": "Active UI findings found",
+                "recommended_next_action": "start_bisect",
+                "confidence": "direct",
+                "evidence": [
+                    _evidence("Active UI findings", ui_active),
+                    _evidence("Unique UI findings", ui_findings),
+                ],
+            }
+        )
+
+    if parse_errors or index_errors:
+        verdicts.append(
+            {
+                "id": "partial-doctor-evidence",
+                "status": "partial",
+                "severity": "medium",
+                "title": "Doctor evidence is partial",
+                "recommended_next_action": "review_doctor_inputs",
+                "confidence": "partial",
+                "evidence": [
+                    _evidence("Parse errors", parse_errors),
+                    _evidence("Index errors", index_errors),
+                ],
+            }
+        )
+
+    inactive_evidence = sum(
+        _summary_value(summary, key)
+        for key in (
+            "script_disabled",
+            "script_not_installed",
+            "script_base_game_only",
+            "ui_disabled",
+            "ui_not_found",
+            "ui_no_key",
+        )
+    )
+    if not verdicts and inactive_evidence:
+        verdicts.append(
+            {
+                "id": "inactive-doctor-evidence",
+                "status": "needs_review",
+                "severity": "low",
+                "title": "Doctor found non-active evidence",
+                "recommended_next_action": "review_doctor",
+                "confidence": "direct",
+                "evidence": [_evidence("Non-active findings", inactive_evidence)],
+            }
+        )
+
+    if not verdicts:
+        verdicts.append(
+            {
+                "id": "doctor-clean",
+                "status": "clean",
+                "severity": "info",
+                "title": "No active Doctor findings found",
+                "recommended_next_action": "none",
+                "confidence": "direct",
+                "evidence": [],
+            }
+        )
+
+    return verdicts
+
+
+def doctor_playbooks(summary: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return read-only next-step playbooks based on the Doctor summary."""
+    playbooks: list[dict[str, Any]] = []
+    if _summary_value(summary, "script_active") or _summary_value(summary, "ui_active"):
+        playbooks.append(
+            {
+                "id": "bisect-active-doctor-candidates",
+                "title": "Start bisection from Doctor JSON",
+                "symptom": "active_crash_candidates",
+                "available": True,
+                "next_command": (
+                    "simanalysis bisect start <The Sims 4> --doctor-json <doctor.json>"
+                ),
+                "requires": ["saved Doctor JSON", "manifest-based bisection session"],
+                "reason": "Active Doctor candidates are present.",
+            }
+        )
+
+    if _summary_value(summary, "parse_errors") or _summary_value(summary, "index_errors"):
+        playbooks.append(
+            {
+                "id": "review-doctor-inputs",
+                "title": "Review partial Doctor evidence",
+                "symptom": "partial_evidence",
+                "available": True,
+                "next_command": (
+                    "simanalysis doctor <The Sims 4> "
+                    "--recursive --format json --output <doctor.json>"
+                ),
+                "requires": ["readable exception logs", "readable Mods package index"],
+                "reason": "Doctor could not parse or index every evidence source.",
+            }
+        )
+
+    return playbooks
+
+
 def build_doctor_payload(
     base: Path,
     mods_dir: Path,
@@ -99,8 +245,11 @@ def build_doctor_payload(
     if progress_callback:
         progress_callback("ui-crashes")
 
+    summary = doctor_summary(crash_payload, ui_payload)
     return {
-        "summary": doctor_summary(crash_payload, ui_payload),
+        "summary": summary,
+        "verdicts": doctor_verdicts(summary),
+        "playbooks": doctor_playbooks(summary),
         "script_crashes": crash_payload,
         "ui_crashes": ui_payload,
     }
@@ -135,6 +284,35 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
         ),
         "",
     ]
+
+    verdicts = payload.get("verdicts")
+    if not isinstance(verdicts, list):
+        verdicts = doctor_verdicts(summary)
+    if verdicts:
+        lines.append("Doctor verdicts:")
+        for verdict in verdicts:
+            title = verdict.get("title", "Doctor verdict")
+            status = verdict.get("status", "unknown")
+            severity = verdict.get("severity", "unknown")
+            confidence = verdict.get("confidence", "unknown")
+            lines.append(f"  - Verdict: {title} ({status}, {severity}, {confidence})")
+            next_action = verdict.get("recommended_next_action")
+            if next_action:
+                lines.append(f"    Next action: {next_action}")
+        lines.append("")
+
+    playbooks = payload.get("playbooks")
+    if not isinstance(playbooks, list):
+        playbooks = doctor_playbooks(summary)
+    if playbooks:
+        lines.append("Doctor playbooks:")
+        for playbook in playbooks:
+            title = playbook.get("title", "Doctor playbook")
+            lines.append(f"  - Playbook: {title}")
+            next_command = playbook.get("next_command")
+            if next_command:
+                lines.append(f"    Command: {next_command}")
+        lines.append("")
 
     safe_limit = max(limit, 0)
     script_mods = [
