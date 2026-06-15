@@ -392,6 +392,15 @@ and traversal entries.
 **Done when:** Doctor and Update Desk can show script risk signals without
 making unsupported security claims.
 
+**Implementation note:** Static Script Security Analyzer v1 is in place through
+`src/simanalysis/script_security.py`. It inspects `.ts4script` ZIP metadata and
+Python source text for network imports, subprocess imports/calls, dynamic
+execution APIs, obfuscation hints, unexpected native/binary files, corrupt
+archives, and archive path traversal. Doctor exposes `script_security_summary`,
+Update Desk staged items/actions expose `script_security`, and all payloads
+state that no script code is executed. These are elevated-risk review signals,
+not malware verdicts.
+
 ## P3 Later Tracks
 
 ### Slice 11: Packaging And Install Smoke

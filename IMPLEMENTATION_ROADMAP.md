@@ -313,6 +313,8 @@ Milestones:
    - Flag risk signals such as subprocess, sockets, network libraries, eval,
      exec, obfuscation patterns, and unexpected binaries.
    - Use "elevated risk" language, not "malware" claims.
+   - Initial implementation is available in Doctor and Update Desk as static
+     elevated-risk review evidence; no script code is executed.
 
 2. **Exception Analyzer v2**
    - Expand Doctor parsing for lastCrash, MCCC, Better Exceptions, and common EA

@@ -13,6 +13,7 @@ from simanalysis.classification import summarize_classifications
 from simanalysis.inventory import InventoryScanner
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
+from simanalysis.script_security import summarize_script_security
 
 
 def doctor_summary(script_payload: dict[str, Any], ui_payload: dict[str, Any]) -> dict[str, int]:
@@ -328,6 +329,7 @@ def build_doctor_payload(
     payload = {
         "summary": summary,
         "classification_summary": summarize_classifications(mods_dir),
+        "script_security_summary": summarize_script_security(mods_dir),
         "verdicts": doctor_verdicts(summary),
         "playbooks": doctor_playbooks(summary),
         "timeline": doctor_timeline(crash_reports, ui_reports),
@@ -411,6 +413,22 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
             f"unknown: {classification_summary.get('unknown_count', 0)} | labels: {labels}"
         )
         lines.append("  - Automatic safe marking: no")
+        lines.append("")
+
+    script_security_summary = payload.get("script_security_summary")
+    if isinstance(script_security_summary, dict):
+        risk_counts = script_security_summary.get("risk_counts", {})
+        if isinstance(risk_counts, dict) and risk_counts:
+            risks = ", ".join(f"{risk}: {count}" for risk, count in risk_counts.items())
+        else:
+            risks = "none"
+        lines.append("Script security evidence:")
+        lines.append(
+            f"  - Scripts: {script_security_summary.get('script_count', 0)} | "
+            f"elevated: {script_security_summary.get('elevated_count', 0)} | "
+            f"risks: {risks}"
+        )
+        lines.append("  - Static review only: no script code executed")
         lines.append("")
 
     safe_limit = max(limit, 0)

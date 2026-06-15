@@ -16,6 +16,7 @@ from typing import Any, Callable, cast
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
 from simanalysis.classification import classify_file
+from simanalysis.script_security import analyze_script_archive
 from simanalysis.treatment import assert_sims_not_running as assert_sims_not_running
 
 ARCHIVE_EXTENSIONS = {".zip", ".rar", ".7z"}
@@ -296,8 +297,9 @@ def _file_payload(
     archive_scan, archive_signals = _archive_scan(path)
     source_binding, source_signals = _source_binding(source_sidecar, root)
     relative_path = path.relative_to(root).as_posix()
+    kind = _kind(extension)
     signals = [*archive_signals, *source_signals]
-    if source_binding["status"] == "missing" and _kind(extension) in {
+    if source_binding["status"] == "missing" and kind in {
         "archive",
         "package",
         "script",
@@ -316,8 +318,13 @@ def _file_payload(
         "relative_path": relative_path,
         "path": str(path),
         "extension": extension,
-        "kind": _kind(extension),
+        "kind": kind,
         "classification": classify_file(path, relative_path=relative_path),
+        "script_security": (
+            analyze_script_archive(path)
+            if kind == "script"
+            else {"status": "not_script", "risk_level": "not_applicable"}
+        ),
         "size_bytes": path.stat().st_size,
         "modified_at": _modified_at(path),
         "source_binding": source_binding,
@@ -542,6 +549,7 @@ def _copy_action(index: int, item: dict[str, Any], mods_root: Path) -> dict[str,
         "destination_path": str(destination),
         "expected": expected,
         "classification": item.get("classification", {"label": "unknown"}),
+        "script_security": item.get("script_security", {"status": "unknown"}),
         "source_binding": item.get("source_binding", {"status": "unknown"}),
         "archive_scan": item.get("archive_scan", {"status": "not_archive"}),
         "blockers": blockers,
@@ -582,6 +590,7 @@ def _archive_action(index: int, item: dict[str, Any]) -> dict[str, Any]:
             "sha256": _sha256_hex(Path(str(item["path"]))),
         },
         "classification": item.get("classification", {"label": "unknown"}),
+        "script_security": item.get("script_security", {"status": "unknown"}),
         "source_binding": item.get("source_binding", {"status": "unknown"}),
         "archive_scan": archive_scan,
         "blockers": blockers,
@@ -1494,11 +1503,14 @@ def format_update_staging_text(status: dict[str, Any]) -> str:
             classification = item.get("classification", {})
             class_label = classification.get("label", "unknown")
             class_confidence = classification.get("confidence", "unknown")
+            script_security = item.get("script_security", {})
+            script_risk = script_security.get("risk_level", "not_applicable")
             lines.append(
                 f"- {item.get('name', 'unknown')}: {item.get('kind', 'unknown')}, "
                 f"{item.get('size_bytes', 0)} bytes, source "
                 f"{item.get('source_binding', {}).get('status', 'unknown')}, "
-                f"archive {archive_status}, class {class_label}/{class_confidence}"
+                f"archive {archive_status}, class {class_label}/{class_confidence}, "
+                f"script risk {script_risk}"
             )
 
     signals = status.get("signals") or []
