@@ -132,12 +132,18 @@ re-enable workflows remain pending follow-on slices.
 roadmap and executive presentation.
 `docs/release-smoke.md` and `scripts/release_smoke.py` capture the Public v3
 release smoke harness for the Tauri desktop + Python sidecar packaging path.
+The 2026-06-15 full smoke built the macOS `.app`, verified the bundled desktop
+binary and `simanalysis-bridge` sidecar, and ran scan/Doctor/Update Desk source
+bridge smoke on a temporary Sims-like tree without mutating live Sims paths.
 `docs/release-security.md` and `scripts/release_security.py` capture the Public
-v3 SBOM/security gate; signing and notarization remain pending until real
-release artifacts are verified. The same script can now write
+v3 SBOM/security gate; the 2026-06-15 SBOM/security run passed Bandit,
+`pip-audit`, root/web npm production audits, and Cargo lock metadata checks.
+Signing and notarization remain pending until real release artifacts are
+verified. The same script can now write
 `release-artifact-status.json` for built artifacts and fail strict mode unless
 required binaries, macOS code signing/notarization, and Windows Authenticode
-checks pass.
+checks pass. The local macOS `.app` artifact is not distribution-ready yet:
+strict signing verification fails before notarization can be trusted.
 `README.md` has been rewritten for the Public v3 docs pass so the public entry
 point matches the current source-install workflow, shipped safety surfaces,
 limitations, and not-EA/Maxis-affiliated status.

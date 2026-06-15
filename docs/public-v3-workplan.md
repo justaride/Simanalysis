@@ -436,8 +436,13 @@ read-only workflows.
 **Implementation note:** The Public v3 packaging path now has a Tauri-first
 release smoke harness (`python scripts/release_smoke.py --mode audit|source|full`)
 and [`release-smoke.md`](release-smoke.md). The old standalone PyInstaller
-build guide has been replaced with the Tauri + sidecar flow; final release still
-requires the full smoke on a clean checkout plus Slice 12 signing/SBOM.
+build guide has been replaced with the Tauri + sidecar flow. On 2026-06-15,
+`uv run --extra dev --with pyinstaller python scripts/release_smoke.py --mode full`
+passed on macOS arm64: it built the `.app`, verified the desktop binary and
+`simanalysis-bridge` sidecar in the bundle, and ran scan, Doctor, and Update
+Desk plan bridge smoke on a temporary Sims-like tree without live-file mutation.
+Final release still requires Slice 12 signing/notarization to pass on real
+distribution artifacts.
 
 ### Slice 12: Security, SBOM, Signing
 
@@ -470,6 +475,14 @@ artifacts with `--artifact` and strict signing/notarization verification, writin
 `codesign`/`stapler` and Windows `.exe`/`.msi` artifacts with Authenticode.
 Signing/notarization statuses remain explicitly pending until real platform
 evidence exists and strict artifact verification passes.
+
+**Verification note:** On 2026-06-15,
+`uv run --extra dev --with 'bandit[toml]>=1.9,<2.0' --with pip-audit python scripts/release_security.py --mode full`
+passed SBOM generation, Bandit, `pip-audit`, root/web npm production audits, and
+Cargo lock metadata checks. Artifact report mode wrote
+`dist/sbom/release-artifact-status.json` for the built macOS `.app`, but
+`--strict-signing` correctly failed because the local app bundle is not
+distribution-ready for codesign/notarization.
 
 ### Slice 13: Honest Docs Release Pass
 

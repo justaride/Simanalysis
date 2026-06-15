@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-notarized distribution candidates.
 - Extended release artifact verification to Windows `.exe` and `.msi`
   candidates using Authenticode status, keeping unsigned installers blocked.
+- Recorded Public v3 release evidence: full macOS `.app` smoke now passes with
+  bundled sidecar and source bridge smoke, and SBOM/security checks pass, while
+  strict signing remains blocked until real distribution-ready artifacts exist.
 - Added read-only script-family conflict detection for shared `.ts4script`
   namespace families, with `executes_code: false` and profile-aware review
   guidance.
