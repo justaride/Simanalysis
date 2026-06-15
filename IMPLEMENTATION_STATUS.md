@@ -232,6 +232,26 @@ Implemented after desktop Save Protector v0:
 - Tray Protector v0 never edits, restores, dedupes, or deletes Tray files.
   Any future Tray-adjacent operations remain future slices.
 
+## Update Desk Progress
+
+Implemented after desktop Tray Protector v0:
+
+- Added `src/simanalysis/update_desk.py`, a read-only Update Desk staging
+  status helper for external-download staging folders.
+- Added `simanalysis updates status` with text and JSON output for staged item
+  counts, archive/package/script classification, source-binding sidecars,
+  extension counts, warnings, signals, and recommendations.
+- Update Desk v0 lists ZIP archives without extraction, labels corrupt ZIPs,
+  flags archive member path escapes, and marks `.rar`/`.7z` archives as
+  listing-unsupported until a later archive engine slice.
+- Update Desk v0 surfaces AppleDouble sidecar files, iCloud placeholder or
+  eviction markers, symlinked staging entries, non-file entries, orphan source
+  sidecars, missing or invalid source bindings, and casefold path collisions as
+  evidence-labeled signals.
+- Update Desk v0 never extracts archives, installs staged downloads, copies
+  files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
+  install-plan generation, approval, and commit remain future slices.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -279,14 +299,16 @@ files. Save Protector v0 is available as a read-only CLI/backend for reviewing
 save/backups and filesystem trust signals, with a desktop route over the same
 payload and no save mutation support. Tray Protector v0 is available as a
 read-only CLI/backend and desktop route for reviewing Tray groups and
-dependency signals without editing Tray files.
+dependency signals without editing Tray files. Update Desk v0 is available as a
+read-only CLI/backend for reviewing staged external downloads, source sidecars,
+and safe archive-listing signals without extracting archives or changing Mods.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
 operations, reversible workflows beyond cleanup actions, cache-clearing
-operations, update staging, profile-aware Patch Day re-enable workflows, and
-broader real-world corpus coverage.
+operations, update install-plan/commit workflows, profile-aware Patch Day
+re-enable workflows, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

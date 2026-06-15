@@ -487,6 +487,28 @@ def tray_status(sims4_dir: str, fmt: str) -> None:
         click.echo(format_tray_status_text(status))
 
 
+@cli.group("updates")
+def updates() -> None:
+    """Read-only Update Desk staging commands."""
+
+
+@updates.command("status")
+@click.argument("staging_dir", type=click.Path(file_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def updates_status(staging_dir: str, fmt: str) -> None:
+    """Inspect staged external downloads without changing files."""
+    from simanalysis.update_desk import (
+        build_update_staging_status,
+        format_update_staging_text,
+    )
+
+    status = build_update_staging_status(staging_dir)
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_update_staging_text(status))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")
