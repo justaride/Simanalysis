@@ -71,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added desktop Cache Doctor v0 through `cache-status` bridge/Tauri plumbing,
   a Cache Doctor route, and profile-aware Sims 4 folder defaults over the same
   read-only cache status payload.
+- Added read-only Save Protector v0 CLI/backend through `simanalysis
+  save-protector status`, grouping save/backups and surfacing AppleDouble,
+  iCloud-placeholder, symlink, and case-collision signals without editing saves.
 
 ### Planned
 - Full DBPF package parser implementation
