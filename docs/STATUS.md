@@ -38,9 +38,10 @@ metadata parsers wired into package scanning, with
 compact parser/resource truth exposed through CLI JSON, the desktop bridge, HTTP
 scan, and WebSocket scan responses. The desktop Dashboard now sources total
 files, space used, severity summary, and file distribution from the current scan
-payload instead of placeholders. Richer Doctor verdicts, symptom playbooks,
-profile-aware state, Patch Day Shield, Cache Doctor, and update staging remain
-pending follow-on slices.
+payload instead of placeholders. The shared Doctor payload now includes
+evidence-labeled verdicts and symptom playbooks for active bisection candidates
+and partial-evidence review. Profile-aware state, Patch Day Shield, Cache
+Doctor, and update staging remain pending follow-on slices.
 
 ## Historical Status Snapshots
 
