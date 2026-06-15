@@ -327,14 +327,21 @@ Implemented after desktop Tray Protector v0:
   `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
   roadmap/workplan and executive presentation artifacts.
 - Added `scripts/release_smoke.py` and `docs/release-smoke.md` for the
-  Tauri-first Public v3 release smoke path. Full release readiness still
-  requires a clean-checkout full smoke plus the Slice 12 signing/SBOM pass.
+  Tauri-first Public v3 release smoke path. On 2026-06-15,
+  `uv run --extra dev --with pyinstaller python scripts/release_smoke.py --mode full`
+  built the macOS `.app`, verified the desktop binary and `simanalysis-bridge`
+  sidecar inside the bundle, and ran source bridge smoke for scan, Doctor, and
+  Update Desk planning against a temporary Sims-like tree without mutating live
+  Sims paths.
 - Added `scripts/release_security.py` and `docs/release-security.md` for
   CycloneDX SBOM generation, Python/web/Rust security checks, and explicit
   pending signing/notarization status. The same gate can inspect built release
   artifacts with `--artifact`, write `release-artifact-status.json`, and fail
   strict mode unless required binaries, macOS code signing/notarization, and
-  Windows Authenticode checks pass.
+  Windows Authenticode checks pass. On 2026-06-15, the SBOM/security gate passed
+  Bandit, `pip-audit`, root/web npm production audits, and Cargo lock metadata,
+  but strict artifact verification remained blocked because the local macOS app
+  bundle was not distribution-ready for codesign/notarization.
 
 ## Classification Progress
 
