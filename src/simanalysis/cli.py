@@ -443,6 +443,28 @@ def cache_status(sims4_dir: str, fmt: str) -> None:
         click.echo(format_cache_status_text(status))
 
 
+@cli.group("save-protector")
+def save_protector() -> None:
+    """Read-only Save Protector commands."""
+
+
+@save_protector.command("status")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def save_protector_status(sims4_dir: str, fmt: str) -> None:
+    """Inspect Sims 4 saves and backup signals without changing files."""
+    from simanalysis.save_protector import (
+        build_save_protector_status,
+        format_save_protector_text,
+    )
+
+    status = build_save_protector_status(sims4_dir)
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_save_protector_text(status))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")
