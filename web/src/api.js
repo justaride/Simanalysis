@@ -7,7 +7,12 @@ import { cacheDoctorOptions } from './cacheDoctorApiModel';
 import { doctorScanOptions } from './doctorApiModel';
 import { saveProtectorOptions } from './saveProtectorApiModel';
 import { trayProtectorOptions } from './trayProtectorApiModel';
-import { updateDeskOptions, updateDeskPlanOptions } from './updateDeskApiModel';
+import {
+  updateDeskCommitOptions,
+  updateDeskOptions,
+  updateDeskPlanOptions,
+  updateDeskUndoOptions,
+} from './updateDeskApiModel';
 import {
   inventoryFileEventsOptions,
   inventoryHistoryOptions,
@@ -109,6 +114,10 @@ export const api = {
     runAnalysis('update-staging-status', stagingPath, updateDeskOptions(options), callbacks),
   updateDeskPlan: (stagingPath, modsPath, callbacks) =>
     runAnalysis('update-staging-plan', stagingPath, updateDeskPlanOptions(modsPath), callbacks),
+  updateDeskCommit: (planPath, callbacks, options = {}) =>
+    runAnalysis('update-staging-commit', planPath, updateDeskCommitOptions(options), callbacks),
+  updateDeskUndo: (manifestPath, callbacks) =>
+    runAnalysis('update-staging-undo', manifestPath, updateDeskUndoOptions(), callbacks),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>

@@ -66,6 +66,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_update_staging_plan.add_argument("path")
     p_update_staging_plan.add_argument("--mods", dest="mods_path", required=True)
 
+    p_update_staging_commit = sub.add_parser("update-staging-commit")
+    p_update_staging_commit.add_argument("path")
+    p_update_staging_commit.add_argument("--action", action="append", default=[])
+    p_update_staging_commit.add_argument("--all-actions", action="store_true")
+
+    p_update_staging_undo = sub.add_parser("update-staging-undo")
+    p_update_staging_undo.add_argument("path")
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)

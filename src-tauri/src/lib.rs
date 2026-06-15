@@ -164,6 +164,21 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("--mods".into());
             args.push(mods.into());
         }
+        "update-staging-commit" => {
+            args.push("update-staging-commit".into());
+            args.push(path.into());
+            for action in &opts.actions {
+                args.push("--action".into());
+                args.push(action.into());
+            }
+            if opts.all_actions {
+                args.push("--all-actions".into());
+            }
+        }
+        "update-staging-undo" => {
+            args.push("update-staging-undo".into());
+            args.push(path.into());
+        }
         "cleanup-plan" => {
             args.push("cleanup-plan".into());
             args.push(path.into());
@@ -951,6 +966,60 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(err, "update-staging-plan requires options.modsPath");
+    }
+
+    #[test]
+    fn builds_update_staging_commit_args_with_actions() {
+        let opts = AnalysisOptions {
+            actions: vec!["update-copy-001".into(), "update-copy-002".into()],
+            ..Default::default()
+        };
+        let args = build_args("update-staging-commit", "/tmp/update-plan.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-commit",
+                "/tmp/update-plan.json",
+                "--action",
+                "update-copy-001",
+                "--action",
+                "update-copy-002",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_update_staging_commit_args_with_all_actions() {
+        let opts = AnalysisOptions {
+            all_actions: true,
+            ..Default::default()
+        };
+        let args = build_args("update-staging-commit", "/tmp/update-plan.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-commit",
+                "/tmp/update-plan.json",
+                "--all-actions"
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_update_staging_undo_args() {
+        let args = build_args(
+            "update-staging-undo",
+            "/Sims/The Sims 4/Mods/_Simanalysis_UpdateDesk/manifests/update-op.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "update-staging-undo",
+                "/Sims/The Sims 4/Mods/_Simanalysis_UpdateDesk/manifests/update-op.json",
+            ]
+        );
     }
 
     #[test]

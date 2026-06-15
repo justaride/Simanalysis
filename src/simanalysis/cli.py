@@ -537,6 +537,65 @@ def updates_plan(
         click.echo(format_update_install_plan_text(plan))
 
 
+def _echo_update_result(label: str, manifest: dict[str, Any]) -> None:
+    click.echo(f"Update Desk {label} complete")
+    click.echo(f"Status: {manifest['status']}")
+    click.echo(f"Manifest: {manifest['manifest_path']}")
+    click.echo(f"Actions: {len(manifest['actions'])}")
+    for action in manifest["actions"]:
+        click.echo(f"  {action['action_id']}: {action['status']}")
+
+
+@updates.command("commit")
+@click.argument("plan_file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--action",
+    "actions",
+    multiple=True,
+    help="Update action ID to commit; may be passed multiple times",
+)
+@click.option("--all-actions", is_flag=True, help="Commit every copy action in the plan")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def updates_commit(
+    plan_file: str,
+    actions: tuple[str, ...],
+    all_actions: bool,
+    fmt: str,
+) -> None:
+    """Commit selected staged update copy actions through an update manifest."""
+    from simanalysis.update_desk import UpdateInstaller
+
+    try:
+        applied = UpdateInstaller().commit_plan_file(
+            plan_file,
+            selected_action_ids=list(actions),
+            all_actions=all_actions,
+        )
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if fmt == "json":
+        _echo_json(applied)
+    else:
+        _echo_update_result("commit", applied)
+
+
+@updates.command("undo")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def updates_undo(manifest_file: str, fmt: str) -> None:
+    """Undo a committed staged update from its manifest."""
+    from simanalysis.update_desk import UpdateInstaller
+
+    try:
+        restored = UpdateInstaller().undo(manifest_file)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    if fmt == "json":
+        _echo_json(restored)
+    else:
+        _echo_update_result("undo", restored)
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")

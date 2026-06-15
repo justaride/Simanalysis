@@ -365,6 +365,64 @@ def test_update_staging_plan_emits_read_only_install_plan(tmp_path):
     assert not (mods / "loose.package").exists()
 
 
+def test_update_staging_commit_emits_applied_manifest(monkeypatch, tmp_path):
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    package = staging / "loose.package"
+    package.write_bytes(b"package")
+    plan = update_desk.write_update_install_plan(
+        update_desk.build_update_install_plan(staging, mods),
+        tmp_path / "update-plan.json",
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(
+        path=str(plan["manifest_path"]),
+        action=["update-copy-001"],
+        all_actions=False,
+    )
+    commands.update_staging_commit(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "update-staging-commit"
+    result = events[1]["data"]
+    assert result["status"] == "applied"
+    assert result["mutates_mods"] is True
+    assert (mods / "loose.package").exists()
+    assert package.exists()
+
+
+def test_update_staging_undo_emits_undone_manifest(monkeypatch, tmp_path):
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "loose.package").write_bytes(b"package")
+    manifest = update_desk.UpdateInstaller().commit_plan(
+        update_desk.build_update_install_plan(staging, mods),
+        selected_action_ids=["update-copy-001"],
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(manifest["manifest_path"]))
+    commands.update_staging_undo(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "update-staging-undo"
+    assert events[1]["data"]["status"] == "undone"
+    assert not (mods / "loose.package").exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

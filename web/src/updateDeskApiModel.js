@@ -9,3 +9,21 @@ export function updateDeskPlanOptions(modsPath) {
     }
     return { modsPath: trimmedModsPath };
 }
+
+export function updateDeskCommitOptions(options = {}) {
+    const actions = Array.isArray(options.actions)
+        ? options.actions.map((action) => String(action || '').trim()).filter(Boolean)
+        : [];
+    const allActions = Boolean(options.allActions);
+    if (actions.length > 0 && allActions) {
+        throw new Error('Choose actions or allActions, not both');
+    }
+    if (actions.length === 0 && !allActions) {
+        throw new Error('updateDeskCommit requires at least one action or allActions');
+    }
+    return { actions, allActions };
+}
+
+export function updateDeskUndoOptions() {
+    return {};
+}
