@@ -89,9 +89,10 @@ Implemented on this branch after the Phase 0 truth pass:
 - The public CLI now exposes read-only `simanalysis ledger scan`, `simanalysis
   ledger history`, and `simanalysis ledger events` commands with human text and
   JSON output over the same inventory database and snapshot/event contracts.
-- The web API layer has non-visual wrappers for `scanInventory` and
-  `inventoryHistory` plus `inventoryFileEvents`; the visual Inventory route is
-  still pending design approval.
+- The web API layer has wrappers for `scanInventory`, `inventoryHistory`, and
+  `inventoryFileEvents`; the desktop Inventory route now renders those
+  contracts as a read-only ledger surface with scan summary, recent history,
+  latest file events, warnings, and filtered snapshot rows.
 
 ## Cleanup Planner Progress
 
@@ -145,10 +146,10 @@ guard. Ledger-aware crash history, timeline correlation, richer verdict objects,
 and symptom playbooks remain future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including the visual inventory route,
-visual cleanup staging/apply/restore route, profile-aware state, Patch Day
-Shield, reversible workflows beyond cleanup actions, Cache Doctor, update
-staging, and broader real-world corpus coverage.
+roadmap foundations are still incomplete, including the visual cleanup
+staging/apply/restore route, profile-aware state, Patch Day Shield, reversible
+workflows beyond cleanup actions, Cache Doctor, update staging, and broader
+real-world corpus coverage.
 
 ## Current Verification Gates
 
@@ -166,7 +167,7 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 
 ## Next Work
 
-The visual Inventory route and visual Cleanup route remain pending design
-approval. Operating Table v1 now provides the non-visual journaled action
-engine for cleanup staging, apply, restore, and status; the next cleanup work
-should design the visual route around that reversible manifest contract.
+The read-only visual Inventory route is now present. Operating Table v1
+provides the non-visual journaled action engine for cleanup staging, apply,
+restore, and status; the next cleanup work should design the visual staging and
+restore route around that reversible manifest contract.

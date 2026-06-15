@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 
 const Dashboard = lazy(() => import('./views/Dashboard'));
 const ModManager = lazy(() => import('./views/ModManager'));
+const Inventory = lazy(() => import('./views/Inventory'));
 const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
 const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
@@ -28,6 +29,7 @@ function App() {
                 <Routes>
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/mods" element={<ModManager />} />
+                    <Route path="/inventory" element={<Inventory />} />
                     <Route path="/tray" element={<TrayOrganizer />} />
                     <Route path="/save-analyzer" element={<SaveAnalyzer />} />
                     <Route path="/conflicts" element={<Conflicts />} />
