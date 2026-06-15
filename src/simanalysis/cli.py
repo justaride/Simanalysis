@@ -916,6 +916,145 @@ def doctor(
         click.echo(text)
 
 
+def _load_bisect_doctor_json(path: str) -> dict[str, Any]:
+    import json
+
+    source = Path(path).expanduser()
+    try:
+        parsed = json.loads(source.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise click.ClickException(f"Doctor JSON is not valid JSON: {path}") from exc
+    if not isinstance(parsed, dict):
+        raise click.ClickException("Doctor JSON must be a JSON object")
+    if "script_crashes" not in parsed or "ui_crashes" not in parsed:
+        raise click.ClickException("Doctor JSON must contain script_crashes and ui_crashes")
+    return parsed
+
+
+def _echo_bisect_session(session: dict[str, Any]) -> None:
+    click.echo("Bisect session")
+    click.echo(f"Status: {session['status']}")
+    click.echo(f"Session: {session['session_id']}")
+    click.echo(f"Manifest: {session.get('manifest_path') or '(not saved)'}")
+    click.echo(f"Candidates: {len(session.get('active_candidates', []))}")
+    click.echo(f"Remaining: {len(session.get('remaining_candidates', []))}")
+    click.echo(f"Current removed: {len(session.get('current_removed', []))}")
+    next_batch = session.get("next_batch", [])
+    if next_batch:
+        click.echo("Next batch:")
+        for path in next_batch:
+            click.echo(f"  {path}")
+    for warning in session.get("warnings", []):
+        click.echo(f"Warning: {warning}")
+    for blocker in session.get("blockers", []):
+        click.echo(f"Blocker: {blocker}")
+
+
+@cli.group()
+def bisect() -> None:
+    """Manifest-based Doctor bisection commands."""
+
+
+@bisect.command("start")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--mods", type=click.Path(), default=None, help="Mods dir (default: <sims4_dir>/Mods)"
+)
+@click.option("--doctor-json", type=click.Path(exists=True, dir_okay=False), default=None)
+@click.option("--recursive", is_flag=True, help="Also scan subfolders when building Doctor input")
+@click.option("--save/--no-save", default=True, help="Write a persistent session manifest")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def bisect_start(
+    sims4_dir: str,
+    mods: Optional[str],
+    doctor_json: Optional[str],
+    recursive: bool,
+    save: bool,
+    fmt: str,
+) -> None:
+    """Create a Doctor-backed bisection session without moving mod files."""
+    from simanalysis.doctor import build_doctor_payload
+    from simanalysis.treatment import create_plan
+
+    base = Path(sims4_dir).expanduser().resolve()
+    mods_dir = Path(mods).expanduser().resolve() if mods else base / "Mods"
+    if mods and (not mods_dir.exists() or not mods_dir.is_dir()):
+        raise click.ClickException(f"Invalid Mods directory path: {mods}")
+
+    payload = (
+        _load_bisect_doctor_json(doctor_json)
+        if doctor_json
+        else build_doctor_payload(base, mods_dir, recursive)
+    )
+    session = create_plan(base, mods_dir, payload, save=save)
+    if fmt == "json":
+        _echo_json(session)
+    else:
+        _echo_bisect_session(session)
+
+
+@bisect.command("status")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def bisect_status(manifest_file: str, fmt: str) -> None:
+    """Show a bisection session manifest."""
+    from simanalysis.treatment import load_session
+
+    session = load_session(manifest_file)
+    if fmt == "json":
+        _echo_json(session)
+    else:
+        _echo_bisect_session(session)
+
+
+@bisect.command("next")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def bisect_next(manifest_file: str, fmt: str) -> None:
+    """Apply the next guarded bisection step from a session manifest."""
+    from simanalysis.treatment import apply_next_step
+
+    session = apply_next_step(manifest_file)
+    if fmt == "json":
+        _echo_json(session)
+    else:
+        _echo_bisect_session(session)
+
+
+@bisect.command("record-verdict")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option(
+    "--verdict",
+    type=click.Choice(["same_issue", "issue_gone", "different_issue"]),
+    required=True,
+)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def bisect_record_verdict(manifest_file: str, verdict: str, fmt: str) -> None:
+    """Record the user's game-test verdict for the latest applied bisection step."""
+    from simanalysis.treatment import record_outcome
+
+    session = record_outcome(manifest_file, verdict)
+    if fmt == "json":
+        _echo_json(session)
+    else:
+        _echo_bisect_session(session)
+
+
+@bisect.command("restore")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--step", type=click.Choice(["latest", "all"]), default="latest")
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def bisect_restore(manifest_file: str, step: str, fmt: str) -> None:
+    """Restore bisection-moved files from a session manifest."""
+    from simanalysis.treatment import restore_session
+
+    session = restore_session(manifest_file, step=step)
+    if fmt == "json":
+        _echo_json(session)
+    else:
+        _echo_bisect_session(session)
+
+
 @cli.command()
 @click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(
