@@ -217,6 +217,90 @@ def test_cache_status_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_cache_plan_command_is_dispatched(monkeypatch, tmp_path):
+    called = {}
+    output = tmp_path / "cache-plan.json"
+
+    def fake_cache_plan(args, emit):
+        called["command"] = args.command
+        called["path"] = args.path
+        called["export"] = args.export
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cache-plan", fake_cache_plan)
+
+    code, events = _run(
+        monkeypatch,
+        ["cache-plan", str(tmp_path), "--output", str(output)],
+    )
+
+    assert code == 0
+    assert called == {
+        "command": "cache-plan",
+        "path": str(tmp_path),
+        "export": str(output),
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cache_apply_command_is_dispatched(monkeypatch):
+    called = {}
+
+    def fake_cache_apply(args, emit):
+        called["command"] = args.command
+        called["path"] = args.path
+        called["action"] = args.action
+        called["all_actions"] = args.all_actions
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "cache-apply", fake_cache_apply)
+
+    code, events = _run(
+        monkeypatch,
+        [
+            "cache-apply",
+            "cache-plan.json",
+            "--action",
+            "cache-clear-001",
+            "--action",
+            "cache-clear-002",
+        ],
+    )
+
+    assert code == 0
+    assert called == {
+        "command": "cache-apply",
+        "path": "cache-plan.json",
+        "action": ["cache-clear-001", "cache-clear-002"],
+        "all_actions": False,
+    }
+    assert [event["type"] for event in events] == ["result", "done"]
+
+
+def test_cache_operation_commands_are_dispatched(monkeypatch):
+    calls = []
+
+    def fake_handler(args, emit):
+        calls.append((args.command, args.path))
+        emit.result({"ok": True})
+        emit.done()
+
+    for command in ("cache-restore", "cache-operation-status"):
+        monkeypatch.setitem(commands.DISPATCH, command, fake_handler)
+
+    for command in ("cache-restore", "cache-operation-status"):
+        code, events = _run(monkeypatch, [command, "cache-manifest.json"])
+        assert code == 0
+        assert [event["type"] for event in events] == ["result", "done"]
+
+    assert calls == [
+        ("cache-restore", "cache-manifest.json"),
+        ("cache-operation-status", "cache-manifest.json"),
+    ]
+
+
 def test_save_protector_status_command_is_dispatched(monkeypatch, tmp_path):
     called = {}
 

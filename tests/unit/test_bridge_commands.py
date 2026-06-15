@@ -261,6 +261,136 @@ def test_cache_status_emits_read_only_cache_payload(tmp_path):
     assert cache_file.exists()
 
 
+def test_cache_plan_writes_explicit_cleanup_plan(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    cache_file = sims4 / "localthumbcache.package"
+    cache_file.write_bytes(b"thumb-cache")
+    output = tmp_path / "plans" / "cache-plan.json"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), export=str(output))
+    commands.cache_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cache-plan"
+    result = events[1]["data"]
+    assert result["status"] == "ready_for_review"
+    assert result["mutates_files"] is False
+    assert result["manifest_path"] == str(output.resolve())
+    assert output.exists()
+    assert cache_file.exists()
+
+
+def test_cache_plan_writes_blocked_symlink_review_plan(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    external = tmp_path / "external-cache"
+    sims4.mkdir()
+    external.mkdir()
+    (sims4 / "cache").symlink_to(external, target_is_directory=True)
+    output = tmp_path / "cache-plan.json"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), export=str(output))
+    commands.cache_plan(args, Emitter(buf))
+
+    result = json.loads(buf.getvalue().splitlines()[1])["data"]
+    assert result["status"] == "blocked"
+    assert result["blocked_count"] == 1
+    assert output.exists()
+    assert (sims4 / "cache").is_symlink()
+
+
+def test_cache_apply_emits_applied_manifest(monkeypatch, tmp_path):
+    import simanalysis.cache_doctor as cache_doctor
+
+    monkeypatch.setattr(cache_doctor, "assert_sims_not_running", lambda: None)
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    cache_file = sims4 / "localthumbcache.package"
+    cache_file.write_bytes(b"thumb-cache")
+    plan = cache_doctor.write_cache_cleanup_plan(
+        cache_doctor.build_cache_cleanup_plan(sims4),
+        tmp_path / "cache-plan.json",
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(
+        path=str(plan["manifest_path"]),
+        action=["cache-clear-001"],
+        all_actions=False,
+    )
+    commands.cache_apply(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cache-apply"
+    result = events[1]["data"]
+    assert result["status"] == "applied"
+    assert result["mutates_files"] is True
+    assert not cache_file.exists()
+    assert Path(result["actions"][0]["quarantine_path"]).exists()
+
+
+def test_cache_restore_emits_restored_manifest(monkeypatch, tmp_path):
+    import simanalysis.cache_doctor as cache_doctor
+
+    monkeypatch.setattr(cache_doctor, "assert_sims_not_running", lambda: None)
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    cache_file = sims4 / "avatarcache.package"
+    cache_file.write_bytes(b"avatar-cache")
+    plan = cache_doctor.write_cache_cleanup_plan(
+        cache_doctor.build_cache_cleanup_plan(sims4),
+        tmp_path / "cache-plan.json",
+    )
+    manifest = cache_doctor.CacheCleaner().apply(
+        plan["manifest_path"],
+        selected_action_ids=["cache-clear-001"],
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(manifest["manifest_path"]))
+    commands.cache_restore(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cache-restore"
+    assert events[1]["data"]["status"] == "restored"
+    assert cache_file.read_bytes() == b"avatar-cache"
+
+
+def test_cache_operation_status_emits_manifest_without_mutation(monkeypatch, tmp_path):
+    import simanalysis.cache_doctor as cache_doctor
+
+    monkeypatch.setattr(cache_doctor, "assert_sims_not_running", lambda: None)
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    cache_file = sims4 / "avatarcache.package"
+    cache_file.write_bytes(b"avatar-cache")
+    plan = cache_doctor.write_cache_cleanup_plan(
+        cache_doctor.build_cache_cleanup_plan(sims4),
+        tmp_path / "cache-plan.json",
+    )
+    manifest = cache_doctor.CacheCleaner().apply(
+        plan["manifest_path"],
+        selected_action_ids=["cache-clear-001"],
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(manifest["manifest_path"]))
+    commands.cache_operation_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cache-operation-status"
+    result = events[1]["data"]
+    assert result["status"] == "applied"
+    assert result["manifest_path"] == manifest["manifest_path"]
+    assert not cache_file.exists()
+
+
 def test_save_protector_status_emits_read_only_save_payload(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     saves = sims4 / "saves"

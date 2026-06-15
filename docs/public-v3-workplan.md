@@ -193,6 +193,10 @@ guard, symlink refusal, no permanent delete, and desktop model states.
 **Done when:** A user can quarantine and restore supported cache targets with a
 recorded manifest and no permanent deletion.
 
+**Implementation note:** This slice now has backend/CLI, bridge/Tauri/web API,
+desktop controls, and docs coverage on the current development branch. Merge
+still requires the full local gate, browser QA, and CI green.
+
 ### Slice 5: Patch Day Profile Workflow
 
 **Goal:** Bind Patch Day state to Profile Manager Light and guide safe

@@ -123,6 +123,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   must still declare snapshot-required, read-only, no-Mods-mutation gates before
   commit, with tests for stale source size, partial-copy undo recovery, and
   bridge-level refusal.
+- Added reversible Cache Doctor cleanup planning and manifest-backed
+  quarantine/restore through `simanalysis cache plan|apply|restore`,
+  `cache-plan|cache-apply|cache-restore|cache-operation-status` bridge/Tauri
+  plumbing, web API option builders, and desktop controls for Plan JSON export,
+  explicit action selection, confirm-gated quarantine, status refresh, and
+  restore without permanent deletion.
 
 ### Planned
 - Full DBPF package parser implementation

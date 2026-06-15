@@ -150,6 +150,31 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("cache-status".into());
             args.push(path.into());
         }
+        "cache-plan" => {
+            let export_path = opts
+                .export_path
+                .as_deref()
+                .ok_or("cache-plan requires options.exportPath")?;
+            args.push("cache-plan".into());
+            args.push(path.into());
+            args.push("--output".into());
+            args.push(export_path.into());
+        }
+        "cache-apply" => {
+            args.push("cache-apply".into());
+            args.push(path.into());
+            for action in &opts.actions {
+                args.push("--action".into());
+                args.push(action.into());
+            }
+            if opts.all_actions {
+                args.push("--all-actions".into());
+            }
+        }
+        "cache-restore" | "cache-operation-status" => {
+            args.push(kind.into());
+            args.push(path.into());
+        }
         "save-protector-status" | "tray-protector-status" | "update-staging-status" => {
             args.push(kind.into());
             args.push(path.into());
@@ -905,6 +930,87 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["cache-status", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_cache_plan_args_with_export_path() {
+        let opts = AnalysisOptions {
+            export_path: Some("/tmp/cache-plan.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("cache-plan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cache-plan",
+                "/Sims/The Sims 4",
+                "--output",
+                "/tmp/cache-plan.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn cache_plan_requires_export_path() {
+        let err = build_args(
+            "cache-plan",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap_err();
+        assert_eq!(err, "cache-plan requires options.exportPath");
+    }
+
+    #[test]
+    fn builds_cache_apply_args_with_actions() {
+        let opts = AnalysisOptions {
+            actions: vec!["cache-clear-001".into(), "cache-clear-002".into()],
+            ..Default::default()
+        };
+        let args = build_args("cache-apply", "/tmp/cache-plan.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "cache-apply",
+                "/tmp/cache-plan.json",
+                "--action",
+                "cache-clear-001",
+                "--action",
+                "cache-clear-002",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_cache_apply_args_with_all_actions() {
+        let opts = AnalysisOptions {
+            all_actions: true,
+            ..Default::default()
+        };
+        let args = build_args("cache-apply", "/tmp/cache-plan.json", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec!["cache-apply", "/tmp/cache-plan.json", "--all-actions"]
+        );
+    }
+
+    #[test]
+    fn builds_cache_operation_manifest_args() {
+        for kind in ["cache-restore", "cache-operation-status"] {
+            let args = build_args(
+                kind,
+                "/Sims/The Sims 4/_Simanalysis_CacheDoctor/manifests/cache-op.json",
+                &AnalysisOptions::default(),
+            )
+            .unwrap();
+            assert_eq!(
+                args,
+                vec![
+                    kind,
+                    "/Sims/The Sims 4/_Simanalysis_CacheDoctor/manifests/cache-op.json",
+                ]
+            );
+        }
     }
 
     #[test]

@@ -53,6 +53,21 @@ def build_parser() -> argparse.ArgumentParser:
     p_cache_status = sub.add_parser("cache-status")
     p_cache_status.add_argument("path")
 
+    p_cache_plan = sub.add_parser("cache-plan")
+    p_cache_plan.add_argument("path")
+    p_cache_plan.add_argument("--output", dest="export", required=True)
+
+    p_cache_apply = sub.add_parser("cache-apply")
+    p_cache_apply.add_argument("path")
+    p_cache_apply.add_argument("--action", action="append", default=[])
+    p_cache_apply.add_argument("--all-actions", action="store_true")
+
+    p_cache_restore = sub.add_parser("cache-restore")
+    p_cache_restore.add_argument("path")
+
+    p_cache_operation_status = sub.add_parser("cache-operation-status")
+    p_cache_operation_status.add_argument("path")
+
     p_save_protector_status = sub.add_parser("save-protector-status")
     p_save_protector_status.add_argument("path")
 

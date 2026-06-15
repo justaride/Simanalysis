@@ -426,7 +426,7 @@ def patch_day_record(sims4_dir: str, state: Optional[str], fmt: str) -> None:
 
 @cli.group("cache")
 def cache() -> None:
-    """Read-only Cache Doctor commands."""
+    """Cache Doctor review and reversible cleanup commands."""
 
 
 @cache.command("status")
@@ -441,6 +441,55 @@ def cache_status(sims4_dir: str, fmt: str) -> None:
         _echo_json(status)
     else:
         click.echo(format_cache_status_text(status))
+
+
+@cache.command("plan")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--output", type=click.Path(dir_okay=False), required=True)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def cache_plan(sims4_dir: str, output: str, fmt: str) -> None:
+    """Write a reversible cache cleanup plan without changing files."""
+    from simanalysis.cache_doctor import build_cache_cleanup_plan, write_cache_cleanup_plan
+
+    plan = write_cache_cleanup_plan(build_cache_cleanup_plan(sims4_dir), output)
+    if fmt == "json":
+        _echo_json(plan)
+    else:
+        click.echo(f"Cache cleanup plan written: {plan['manifest_path']}")
+
+
+@cache.command("apply")
+@click.argument("plan_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--action", "actions", multiple=True)
+@click.option("--all-actions", is_flag=True, default=False)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def cache_apply(plan_file: str, actions: tuple[str, ...], all_actions: bool, fmt: str) -> None:
+    """Quarantine selected cache targets from a saved plan manifest."""
+    from simanalysis.cache_doctor import CacheCleaner
+
+    manifest = CacheCleaner().apply(
+        plan_file,
+        selected_action_ids=list(actions),
+        all_actions=all_actions,
+    )
+    if fmt == "json":
+        _echo_json(manifest)
+    else:
+        click.echo(f"Cache cleanup applied: {manifest['manifest_path']}")
+
+
+@cache.command("restore")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def cache_restore(manifest_file: str, fmt: str) -> None:
+    """Restore quarantined cache targets from a cleanup manifest."""
+    from simanalysis.cache_doctor import CacheCleaner
+
+    manifest = CacheCleaner().restore(manifest_file)
+    if fmt == "json":
+        _echo_json(manifest)
+    else:
+        click.echo(f"Cache cleanup restored: {manifest['manifest_path']}")
 
 
 @cli.group("save-protector")
