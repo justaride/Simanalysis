@@ -3,6 +3,9 @@ import { useLocation } from 'react-router-dom';
 import {
     AlertTriangle,
     CheckCircle,
+    Copy,
+    Download,
+    FileText,
     FolderOpen,
     Loader2,
     Play,
@@ -13,6 +16,11 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import {
+    canRequestTreatmentHandoff,
+    summarizeTreatmentHandoff,
+    treatmentHandoffFilename,
+} from './treatmentModel';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
 
@@ -139,6 +147,8 @@ function Treatment() {
     const [error, setError] = useState(null);
     const [progress, setProgress] = useState(null);
     const [busyAction, setBusyAction] = useState(null);
+    const [handoff, setHandoff] = useState(null);
+    const [handoffCopied, setHandoffCopied] = useState(false);
 
     const manifestPath = result?.manifest_path || null;
     const candidates = result?.active_candidates || [];
@@ -154,6 +164,7 @@ function Treatment() {
     const canApply = manifestPath && result?.status === 'planned' && nextBatch.length > 0 && !hasBlockers;
     const canRecord = manifestPath && result?.status === 'awaiting_result';
     const canRestore = manifestPath && removed.length > 0;
+    const canHandoff = canRequestTreatmentHandoff(result);
 
     const operationLabel = useMemo(() => {
         if (!busyAction) return null;
@@ -164,6 +175,7 @@ function Treatment() {
             outcome: 'Recording outcome',
             restore: 'Restoring latest step',
             status: 'Refreshing session status',
+            handoff: 'Preparing handoff',
         }[busyAction];
     }, [busyAction]);
 
@@ -175,6 +187,8 @@ function Treatment() {
             onProgress: (nextProgress) => setProgress(nextProgress),
             onComplete: (data) => {
                 setResult(data);
+                setHandoff(null);
+                setHandoffCopied(false);
                 setBusyAction(null);
                 setProgress(null);
             },
@@ -192,6 +206,8 @@ function Treatment() {
                 api.treatmentStatus(manifestPath, {
                     onComplete: (data) => {
                         setResult(data);
+                        setHandoff(null);
+                        setHandoffCopied(false);
                         setError(message);
                         setBusyAction(null);
                         setProgress(null);
@@ -242,6 +258,57 @@ function Treatment() {
         if (!manifestPath) return;
         if (!window.confirm('Restore the latest moved batch back into Mods?')) return;
         run('restore', (callbacks) => api.restoreTreatment(manifestPath, 'latest', callbacks));
+    };
+
+    const createHandoff = () => {
+        if (!manifestPath) {
+            setError('Start a saved Treatment session before creating a handoff.');
+            return;
+        }
+
+        setBusyAction('handoff');
+        setError(null);
+        setProgress(null);
+        setHandoffCopied(false);
+        api.treatmentHandoff(manifestPath, {
+            onProgress: (nextProgress) => setProgress(nextProgress),
+            onComplete: (data) => {
+                const summary = summarizeTreatmentHandoff(data);
+                setHandoff(summary);
+                setBusyAction(null);
+                setProgress(null);
+                if (!summary.markdown) {
+                    setError('Bridge returned no handoff Markdown.');
+                }
+            },
+            onError: (message) => {
+                setError(message);
+                setBusyAction(null);
+                setProgress(null);
+            },
+        });
+    };
+
+    const copyHandoff = async () => {
+        if (!handoff?.markdown) return;
+        try {
+            await navigator.clipboard.writeText(handoff.markdown);
+            setHandoffCopied(true);
+            window.setTimeout(() => setHandoffCopied(false), 1800);
+        } catch {
+            setError('Could not copy handoff Markdown.');
+        }
+    };
+
+    const downloadHandoff = () => {
+        if (!handoff?.markdown) return;
+        const blob = new Blob([handoff.markdown], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = treatmentHandoffFilename(handoff.manifestPath || manifestPath);
+        link.click();
+        URL.revokeObjectURL(url);
     };
 
     return (
@@ -421,6 +488,16 @@ function Treatment() {
                                                 Restore Latest
                                             </button>
                                         )}
+                                        {canHandoff && (
+                                            <button
+                                                onClick={createHandoff}
+                                                disabled={isBusy}
+                                                className="flex w-full items-center justify-center gap-2 rounded-lg border border-blue-500/40 px-4 py-2 font-medium text-blue-100 hover:bg-blue-950/40 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                <FileText size={17} />
+                                                Prepare Handoff
+                                            </button>
+                                        )}
                                         {!canStart && !canApply && !canRecord && !canRestore && (
                                             <p className="rounded-lg border border-gray-800 bg-black/20 p-3 text-sm text-gray-500">
                                                 No file-moving action is available for the current status.
@@ -439,6 +516,58 @@ function Treatment() {
                                         </div>
                                     )}
                                 </div>
+
+                                {handoff && (
+                                    <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+                                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0">
+                                                <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+                                                    <FileText size={20} className="text-blue-300" />
+                                                    {handoff.title}
+                                                </h2>
+                                                <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-500">
+                                                    <span>{handoff.lineCount} lines</span>
+                                                    {handoff.status && <span>Status: {statusLabel(handoff.status)}</span>}
+                                                    {handoff.sessionId && <span>Session: {handoff.sessionId}</span>}
+                                                </div>
+                                            </div>
+                                            <div className="flex shrink-0 gap-2">
+                                                <button
+                                                    onClick={copyHandoff}
+                                                    disabled={!handoff.markdown}
+                                                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-700 text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    title="Copy handoff Markdown"
+                                                >
+                                                    <Copy size={17} />
+                                                </button>
+                                                <button
+                                                    onClick={downloadHandoff}
+                                                    disabled={!handoff.markdown}
+                                                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-700 text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                                    title="Download handoff Markdown"
+                                                >
+                                                    <Download size={17} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                        {handoffCopied && (
+                                            <p className="mt-3 rounded-lg border border-emerald-500/30 bg-emerald-950/20 px-3 py-2 text-sm text-emerald-200">
+                                                Copied Markdown
+                                            </p>
+                                        )}
+                                        {handoff.manifestPath && (
+                                            <p className="mt-4 break-all rounded-lg border border-gray-800 bg-black/20 p-3 font-mono text-xs text-gray-500">
+                                                {handoff.manifestPath}
+                                            </p>
+                                        )}
+                                        <textarea
+                                            readOnly
+                                            value={handoff.markdown}
+                                            className="mt-4 h-72 w-full resize-y rounded-lg border border-gray-800 bg-black/30 p-3 font-mono text-xs leading-relaxed text-gray-200 outline-none"
+                                            spellCheck="false"
+                                        />
+                                    </div>
+                                )}
 
                                 <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
                                     <div className="space-y-4">
