@@ -1,14 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
     AlertTriangle,
     CheckCircle2,
     FileClock,
     FolderOpen,
+    HardDrive,
     Loader2,
     RefreshCw,
     Save,
     ShieldAlert,
     ShieldCheck,
+    UserCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../api';
@@ -16,6 +19,7 @@ import FilePicker from '../components/FilePicker';
 import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     canRecordPatchBaseline,
+    summarizePatchProfileWorkflow,
     summarizePatchDayStatus,
     toPatchRiskRows,
 } from './patchDayModel';
@@ -129,6 +133,64 @@ function MessageList({ icon: Icon, title, messages, tone }) {
     );
 }
 
+function ProfileWorkflowPanel({ workflow, configError }) {
+    const toneClass = workflow.profileTone === 'green'
+        ? 'border-emerald-500/30 bg-emerald-950/15 text-emerald-100'
+        : 'border-amber-500/30 bg-amber-950/15 text-amber-100';
+
+    return (
+        <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+                        <UserCheck size={18} />
+                        Profile Workflow
+                    </h2>
+                    <p className="mt-1 text-sm text-gray-500">{workflow.automaticReenableLabel}</p>
+                </div>
+                <span className={`w-fit rounded-md border px-2 py-1 text-xs uppercase ${toneClass}`}>
+                    {workflow.profileStatusLabel}
+                </span>
+            </div>
+
+            {configError && (
+                <div className="mb-4 rounded-lg border border-amber-500/25 bg-amber-950/10 p-3 text-sm text-amber-100">
+                    {configError}
+                </div>
+            )}
+
+            <div className="grid gap-3 lg:grid-cols-2">
+                <div className="min-w-0">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-gray-500">Active Profile</p>
+                    <p className="break-all rounded bg-black/30 px-3 py-2 font-mono text-sm text-white">
+                        {workflow.activeProfile}
+                    </p>
+                </div>
+                <div className="min-w-0">
+                    <p className="mb-1 text-xs uppercase tracking-wider text-gray-500">Selected Folder</p>
+                    <p className="break-all rounded bg-black/30 px-3 py-2 font-mono text-sm text-white">
+                        {workflow.selectedProfile}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
+                    <h3 className="mb-2 text-sm font-semibold text-white">{workflow.safeActionTitle}</h3>
+                    <p className="text-sm text-gray-300">{workflow.safeActionBody}</p>
+                </div>
+                <div className="rounded-lg border border-gray-800 bg-black/20 p-4">
+                    <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">
+                        <HardDrive size={16} />
+                        {workflow.cacheRecommendationTitle}
+                    </h3>
+                    <p className="text-sm text-gray-300">{workflow.cacheRecommendationBody}</p>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 function ConfirmRecordModal({ summary, busy, onCancel, onConfirm }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
@@ -172,6 +234,8 @@ function PatchDay() {
     });
     const [statePath, setStatePath] = useState(() => localStorage.getItem('patch-day-state-path') || '');
     const [showFilePicker, setShowFilePicker] = useState(false);
+    const [profileConfig, setProfileConfig] = useState({});
+    const [configError, setConfigError] = useState(null);
     const [status, setStatus] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
@@ -180,7 +244,34 @@ function PatchDay() {
 
     const summary = useMemo(() => summarizePatchDayStatus(status || {}), [status]);
     const riskRows = useMemo(() => toPatchRiskRows(status || {}), [status]);
+    const profileWorkflow = useMemo(
+        () => summarizePatchProfileWorkflow(status || {}, profileConfig, simsPath),
+        [profileConfig, simsPath, status],
+    );
     const canRecord = canRecordPatchBaseline(status || {});
+
+    useEffect(() => {
+        let cancelled = false;
+        invoke('get_config')
+            .then((config) => {
+                if (cancelled) return;
+                setProfileConfig(config || {});
+                setConfigError(null);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                setProfileConfig({});
+                const message = String(err || '');
+                setConfigError(
+                    message.includes('invoke')
+                        ? null
+                        : 'Profile config is unavailable in this session.',
+                );
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const options = () => {
         const trimmedState = statePath.trim();
@@ -294,10 +385,13 @@ function PatchDay() {
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <StatTile icon={FileClock} label="Status" value={summary.statusLabel} tone={summary.tone} />
+                <StatTile icon={UserCheck} label="Profile" value={profileWorkflow.profileStatusLabel} tone={profileWorkflow.profileTone} />
                 <StatTile icon={ShieldAlert} label="Risks" value={summary.riskCount} tone={summary.riskCount ? 'amber' : 'green'} />
                 <StatTile icon={CheckCircle2} label="Current Version" value={summary.currentVersion} tone="blue" />
                 <StatTile icon={AlertTriangle} label="Warnings" value={summary.warningCount} tone={summary.warningCount ? 'red' : 'green'} />
             </div>
+
+            <ProfileWorkflowPanel workflow={profileWorkflow} configError={configError} />
 
             <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                 <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">

@@ -224,6 +224,10 @@ tests, browser QA for empty/missing/changed/unchanged states.
 **Done when:** Desktop can explain what changed after a patch and recommend a
 safe test path without changing Mods automatically.
 
+**Implementation note:** This slice now has desktop view-model and route
+coverage on the current development branch. Merge still requires the full
+affected local gate, browser QA, and CI green.
+
 ### Slice 6: Save Protector v1
 
 **Goal:** Make Save Protector give launch guidance using available profile and

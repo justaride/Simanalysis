@@ -129,6 +129,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   plumbing, web API option builders, and desktop controls for Plan JSON export,
   explicit action selection, confirm-gated quarantine, status refresh, and
   restore without permanent deletion.
+- Added Patch Day profile workflow guidance on the desktop route, showing the
+  active Profile Manager Light folder, selected Patch Day folder, no automatic
+  re-enable boundary, safe-after-patch test guidance, and Cache Doctor
+  recommendation without changing Mods or profile state.
 
 ### Planned
 - Full DBPF package parser implementation
