@@ -456,9 +456,10 @@ developer bypass steps.
 CycloneDX SBOM files, runs Bandit, `pip-audit`, root/web npm production audits,
 and Cargo lock metadata resolution. It can now also inspect built release
 artifacts with `--artifact` and strict signing/notarization verification, writing
-`release-artifact-status.json`. Signing/notarization statuses remain explicitly
-pending until real platform evidence exists and strict artifact verification
-passes.
+`release-artifact-status.json`. It verifies macOS `.app` bundles with
+`codesign`/`stapler` and Windows `.exe`/`.msi` artifacts with Authenticode.
+Signing/notarization statuses remain explicitly pending until real platform
+evidence exists and strict artifact verification passes.
 
 ### Slice 13: Honest Docs Release Pass
 

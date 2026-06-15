@@ -19,6 +19,10 @@ MACOS_APP_REQUIRED_FILES = (
     Path("Contents/MacOS/simanalysis-desktop"),
     Path("Contents/MacOS/simanalysis-bridge"),
 )
+WINDOWS_ARTIFACT_TYPES = {
+    ".exe": "windows_executable",
+    ".msi": "windows_installer",
+}
 
 
 @dataclass(frozen=True)
@@ -262,6 +266,63 @@ def _notarization_status(path: Path, codesign: dict[str, object]) -> dict[str, o
     return {"status": "not_verified", **result}
 
 
+def _powershell_executable() -> str | None:
+    return shutil.which("pwsh") or shutil.which("powershell")
+
+
+def _windows_signature_status(path: Path) -> dict[str, object]:
+    if not path.exists():
+        return {"status": "missing"}
+    executable = _powershell_executable()
+    if executable is None:
+        return {
+            "status": "not_checked",
+            "available": False,
+            "returncode": None,
+            "stdout": "",
+            "stderr": "PowerShell is not available",
+        }
+    command = """
+$ErrorActionPreference = 'Stop'
+$sig = Get-AuthenticodeSignature -LiteralPath $args[0]
+$cert = $sig.SignerCertificate
+[PSCustomObject]@{
+  Status = [string]$sig.Status
+  StatusMessage = [string]$sig.StatusMessage
+  Subject = if ($cert) { [string]$cert.Subject } else { $null }
+  Thumbprint = if ($cert) { [string]$cert.Thumbprint } else { $null }
+} | ConvertTo-Json -Compress
+""".strip()
+    result = _run_status(
+        [executable, "-NoProfile", "-NonInteractive", "-Command", command, str(path)]
+    )
+    if not result["available"]:
+        return {"status": "not_checked", **result}
+    if result["returncode"] != 0:
+        return {"status": "failed", **result}
+    try:
+        payload = json.loads(str(result.get("stdout", "")))
+    except json.JSONDecodeError:
+        return {"status": "failed", "reason": "Authenticode output was not JSON", **result}
+    if not isinstance(payload, dict):
+        return {"status": "failed", "reason": "Authenticode output was not an object", **result}
+    authenticode_status = str(payload.get("Status", ""))
+    if authenticode_status.casefold() == "valid":
+        status = "verified"
+    elif authenticode_status.casefold() == "notsigned":
+        status = "unsigned"
+    else:
+        status = "not_verified"
+    return {
+        "status": status,
+        "authenticode_status": authenticode_status,
+        "status_message": payload.get("StatusMessage"),
+        "subject": payload.get("Subject"),
+        "thumbprint": payload.get("Thumbprint"),
+        **result,
+    }
+
+
 def _verify_macos_app(path: Path) -> dict[str, object]:
     missing = [
         required.as_posix()
@@ -287,6 +348,17 @@ def _verify_macos_app(path: Path) -> dict[str, object]:
     }
 
 
+def _verify_windows_artifact(path: Path) -> dict[str, object]:
+    signature = _windows_signature_status(path)
+    return {
+        "path": str(path),
+        "artifact_type": WINDOWS_ARTIFACT_TYPES[path.suffix.casefold()],
+        "exists": path.exists(),
+        "signature": signature,
+        "distribution_ready": path.exists() and signature.get("status") == "verified",
+    }
+
+
 def _verify_unknown_artifact(path: Path) -> dict[str, object]:
     return {
         "path": str(path),
@@ -297,11 +369,16 @@ def _verify_unknown_artifact(path: Path) -> dict[str, object]:
     }
 
 
+def _verify_release_artifact(path: Path) -> dict[str, object]:
+    if path.name.endswith(".app"):
+        return _verify_macos_app(path)
+    if path.suffix.casefold() in WINDOWS_ARTIFACT_TYPES:
+        return _verify_windows_artifact(path)
+    return _verify_unknown_artifact(path)
+
+
 def verify_release_artifacts(paths: list[Path], *, strict: bool = False) -> dict[str, object]:
-    artifacts = [
-        _verify_macos_app(path) if path.name.endswith(".app") else _verify_unknown_artifact(path)
-        for path in paths
-    ]
+    artifacts = [_verify_release_artifact(path) for path in paths]
     ready = bool(artifacts) and all(
         bool(artifact.get("distribution_ready")) for artifact in artifacts
     )

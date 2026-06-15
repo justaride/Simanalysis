@@ -53,13 +53,16 @@ Verify the built release artifact before publishing:
 ```bash
 python scripts/release_security.py --mode sbom \
   --artifact src-tauri/target/release/bundle/macos/Simanalysis.app \
+  --artifact path/to/Simanalysis.exe \
   --strict-signing
 ```
 
 The command writes `dist/sbom/release-artifact-status.json`. On macOS `.app`
 artifacts it checks that the desktop binary and `simanalysis-bridge` sidecar are
-present, then verifies `codesign` and `xcrun stapler validate`.
-`--strict-signing` fails unless every provided artifact is distribution-ready.
+present, then verifies `codesign` and `xcrun stapler validate`. On Windows
+`.exe` and `.msi` artifacts it uses PowerShell `Get-AuthenticodeSignature` and
+requires a `Valid` Authenticode status. `--strict-signing` fails unless every
+provided artifact is distribution-ready.
 Do not use the non-strict report as approval to publish; it is useful for
 recording exactly why a local candidate is still blocked.
 
@@ -67,7 +70,8 @@ Required final evidence:
 
 - macOS: Developer ID identity used for signing and notarization/stapling
   verified.
-- Windows: release executable/installer signed with the intended certificate.
+- Windows: release executable/installer Authenticode status is `Valid` for the
+  intended certificate.
 - Linux: distribution artifact signing decision recorded, or explicit unsigned
   status documented.
 - All platforms: SBOM attached to the release artifact set.

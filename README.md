@@ -132,6 +132,7 @@ python scripts/release_smoke.py --mode full
 python scripts/release_security.py --mode full --output dist/sbom
 python scripts/release_security.py --mode sbom --output dist/sbom \
   --artifact src-tauri/target/release/bundle/macos/Simanalysis.app \
+  --artifact path/to/Simanalysis.exe \
   --strict-signing
 ```
 
