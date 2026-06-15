@@ -91,6 +91,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added desktop Update Desk v0 through `update-staging-status` bridge/Tauri
   plumbing, an Update Desk route, and a staging-folder review surface over the
   same read-only staged-download payload.
+- Added read-only Update Desk install-plan generation through `simanalysis
+  updates plan`, producing copy/review/blocker actions and optional manifest
+  JSON without extracting archives, writing snapshots, or changing Mods.
 
 ### Planned
 - Full DBPF package parser implementation

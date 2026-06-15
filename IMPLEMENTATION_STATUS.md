@@ -251,9 +251,14 @@ Implemented after desktop Tray Protector v0:
 - Added desktop Update Desk v0 through `update-staging-status` bridge/Tauri
   plumbing, an Update Desk route, and a staging-folder review surface for the
   same read-only status payload.
+- Added `simanalysis updates plan`, a read-only staged update plan generator
+  that maps loose `.package`/`.ts4script` files to copy actions, keeps archives
+  in explicit review/blocker actions, hashes staged sources, checks destination
+  clashes and case collisions, and can write a plan manifest when `--output` is
+  provided.
 - Update Desk v0 never extracts archives, installs staged downloads, copies
   files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
-  install-plan generation, approval, and commit remain future slices.
+  approval and commit remain future slices.
 
 ## Current Product Reality
 
@@ -305,7 +310,9 @@ read-only CLI/backend and desktop route for reviewing Tray groups and
 dependency signals without editing Tray files. Update Desk v0 is available as a
 read-only CLI/backend and desktop route for reviewing staged external
 downloads, source sidecars, and safe archive-listing signals without extracting
-archives or changing Mods.
+archives or changing Mods. `simanalysis updates plan` can generate a read-only
+copy/review/blocker manifest for staged downloads, but snapshot-backed update
+commit remains pending.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
