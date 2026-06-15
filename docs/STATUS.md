@@ -87,13 +87,13 @@ preview that plan with explicit Mods path input and snapshot/no-mutation gate
 labels. The backend/CLI/bridge contract now also supports manifest-backed
 `simanalysis updates commit|undo` and `update-staging-commit|update-staging-undo`
 for explicit loose-file copy actions, with game-process, path, symlink,
-hash/size, collision, modified-file-on-undo, and crash-recovery guards. The
-desktop Update Desk route now exposes Plan JSON export, explicit planned
-copy-action selection, confirm-gated loose-file commit, manifest status
-refresh, and undo through the same guarded bridge/Tauri contract; archive
-install/extraction remains unavailable, and ZIP member rows are planning
-evidence only, not commit-eligible actions. Profile-aware file operations,
-cache-clearing operations, safe archive update installation, and
+hash/size, collision, modified-file-on-undo, tampered-plan-gate, partial-copy
+undo, and crash-recovery guards. The desktop Update Desk route now exposes Plan
+JSON export, explicit planned copy-action selection, confirm-gated loose-file
+commit, manifest status refresh, and undo through the same guarded bridge/Tauri
+contract; archive install/extraction remains unavailable, and ZIP member rows
+are planning evidence only, not commit-eligible actions. Profile-aware file
+operations, cache-clearing operations, safe archive update installation, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 `docs/public-v3-workplan.md` and
 `docs/simanalysis-public-v3-presentation.html` capture the remaining Public v3

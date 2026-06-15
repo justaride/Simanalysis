@@ -277,6 +277,12 @@ Implemented after desktop Tray Protector v0:
   block while The Sims 4 is running, reject stale plan evidence, path escapes,
   symlinked sources/destinations, destination collisions, and modified files on
   undo, and can undo a copied file left behind by a crash during `copying`.
+- Hardened Update Desk plan/commit/undo invariants: loaded or in-memory plans
+  must still declare snapshot-required, read-only, and no-Mods-mutation gates
+  before staging/commit; tests now cover tampered plan gates, stale source hash
+  and size, bridge-level refusal, partial-copy failure recovery through undo,
+  copying-state crash recovery, game-process guard refusal, and modified
+  installed-file undo refusal.
 - Added desktop Update Desk commit/undo controls over the same guarded
   contract. The route now requires a Plan JSON export path, explicit planned
   copy-action selection, and a confirm gate before committing loose

@@ -559,6 +559,34 @@ def test_update_installer_requires_explicit_action_selection(tmp_path: Path) -> 
         UpdateInstaller().stage_plan(plan)
 
 
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("requires_snapshot", False, "must require snapshot approval"),
+        ("mutates_files", True, "must be read-only"),
+        ("mutates_mods", True, "must not declare Mods mutation"),
+    ],
+)
+def test_update_installer_refuses_tampered_plan_safety_gates(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "loose.package").write_bytes(b"package")
+    plan = build_update_install_plan(staging, mods)
+    plan[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        UpdateInstaller().stage_plan(plan, selected_action_ids=["update-copy-001"])
+
+    assert not (mods / "loose.package").exists()
+
+
 def test_update_installer_refuses_stale_snapshot_before_copy(
     tmp_path: Path,
     monkeypatch,
@@ -574,6 +602,28 @@ def test_update_installer_refuses_stale_snapshot_before_copy(
     source.write_bytes(b"package")
     plan = build_update_install_plan(staging, mods)
     source.write_bytes(b"changed")
+
+    with pytest.raises(ValueError, match="no longer matches update plan evidence"):
+        UpdateInstaller().commit_plan(plan, selected_action_ids=["update-copy-001"])
+
+    assert not (mods / "loose.package").exists()
+
+
+def test_update_installer_refuses_stale_source_size_before_copy(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    source = staging / "loose.package"
+    source.write_bytes(b"package")
+    plan = build_update_install_plan(staging, mods)
+    source.write_bytes(b"changed-size")
 
     with pytest.raises(ValueError, match="no longer matches update plan evidence"):
         UpdateInstaller().commit_plan(plan, selected_action_ids=["update-copy-001"])
@@ -674,6 +724,51 @@ def test_update_installer_undo_recovers_copying_action_after_crash(
     assert restored["status"] == "undone"
     assert restored["actions"][0]["status"] == "undone"
     assert not destination.exists()
+
+
+def test_update_installer_partial_copy_failure_can_be_undone(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    import simanalysis.update_desk as update_desk
+
+    real_copy2 = update_desk.shutil.copy2
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+
+    def flaky_copy2(source: str, destination: str) -> str:
+        if Path(source).name == "second.package":
+            raise OSError("simulated copy failure")
+        return str(real_copy2(source, destination))
+
+    monkeypatch.setattr(update_desk.shutil, "copy2", flaky_copy2)
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "first.package").write_bytes(b"first")
+    (staging / "second.package").write_bytes(b"second")
+    installer = UpdateInstaller()
+    manifest = installer.stage_plan(
+        build_update_install_plan(staging, mods),
+        selected_action_ids=["update-copy-001", "update-copy-002"],
+    )
+    manifest_path = Path(manifest["manifest_path"])
+
+    with pytest.raises(OSError, match="simulated copy failure"):
+        installer.apply(manifest_path)
+
+    partial = load_update_manifest(manifest_path)
+    assert partial["status"] == "partial"
+    assert [action["status"] for action in partial["actions"]] == ["copied", "blocked"]
+    assert (mods / "first.package").exists()
+    assert not (mods / "second.package").exists()
+
+    restored = installer.undo(manifest_path)
+
+    assert restored["status"] == "undone"
+    assert [action["status"] for action in restored["actions"]] == ["undone", "blocked"]
+    assert not (mods / "first.package").exists()
+    assert not (mods / "second.package").exists()
 
 
 def test_update_installer_undo_refuses_modified_installed_file(

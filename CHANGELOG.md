@@ -119,6 +119,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   script members now produce extraction-staging actions with destination
   evidence, while corrupt, path-escaping, symlink-like, duplicate-destination,
   `.rar`, and `.7z` archives remain blocked or review-only without extraction.
+- Hardened Update Desk plan/commit/undo invariants so tampered plan manifests
+  must still declare snapshot-required, read-only, no-Mods-mutation gates before
+  commit, with tests for stale source size, partial-copy undo recovery, and
+  bridge-level refusal.
 
 ### Planned
 - Full DBPF package parser implementation
