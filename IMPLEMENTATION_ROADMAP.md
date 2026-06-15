@@ -8,7 +8,8 @@
 **Public v3 execution:** `docs/public-v3-workplan.md` tracks the slice plan,
 `docs/simanalysis-public-v3-presentation.html` is the executive version, and
 `docs/release-smoke.md` / `scripts/release_smoke.py` track the Tauri + sidecar
-release smoke path.
+release smoke path. `docs/release-security.md` / `scripts/release_security.py`
+track the SBOM/security/signing evidence gate.
 
 ---
 

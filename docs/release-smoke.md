@@ -66,6 +66,9 @@ contains both the desktop binary and the `simanalysis-bridge` sidecar. Use
 additional host permissions/tooling and belongs with the final release/Slice 12
 signing pass.
 
+Run [`release-security.md`](release-security.md) after full smoke to generate
+SBOMs and verify dependency/security gates before any public release claim.
+
 ## Manual First-Run Checklist
 
 After the full build, start the generated app bundle on a clean test profile.

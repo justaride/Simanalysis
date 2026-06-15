@@ -328,6 +328,9 @@ Implemented after desktop Tray Protector v0:
 - Added `scripts/release_smoke.py` and `docs/release-smoke.md` for the
   Tauri-first Public v3 release smoke path. Full release readiness still
   requires a clean-checkout full smoke plus the Slice 12 signing/SBOM pass.
+- Added `scripts/release_security.py` and `docs/release-security.md` for
+  CycloneDX SBOM generation, Python/web/Rust security checks, and explicit
+  pending signing/notarization status.
 
 ## Classification Progress
 

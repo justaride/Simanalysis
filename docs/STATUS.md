@@ -131,6 +131,9 @@ re-enable workflows remain pending follow-on slices.
 roadmap and executive presentation.
 `docs/release-smoke.md` and `scripts/release_smoke.py` capture the Public v3
 release smoke harness for the Tauri desktop + Python sidecar packaging path.
+`docs/release-security.md` and `scripts/release_security.py` capture the Public
+v3 SBOM/security gate; signing and notarization remain pending until real
+release artifacts are verified.
 
 ## Historical Status Snapshots
 
