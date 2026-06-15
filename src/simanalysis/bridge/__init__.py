@@ -59,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_tray_protector_status = sub.add_parser("tray-protector-status")
     p_tray_protector_status.add_argument("path")
 
+    p_update_staging_status = sub.add_parser("update-staging-status")
+    p_update_staging_status.add_argument("path")
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)

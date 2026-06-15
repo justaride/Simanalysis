@@ -16,6 +16,7 @@ const Treatment = lazy(() => import('./views/Treatment'));
 const PatchDay = lazy(() => import('./views/PatchDay'));
 const CacheDoctor = lazy(() => import('./views/CacheDoctor'));
 const SaveProtector = lazy(() => import('./views/SaveProtector'));
+const UpdateDesk = lazy(() => import('./views/UpdateDesk'));
 const Settings = lazy(() => import('./views/Settings'));
 
 function LoadingFallback() {
@@ -45,6 +46,7 @@ function App() {
                     <Route path="/patch-day" element={<PatchDay />} />
                     <Route path="/cache-doctor" element={<CacheDoctor />} />
                     <Route path="/save-protector" element={<SaveProtector />} />
+                    <Route path="/update-desk" element={<UpdateDesk />} />
                     <Route path="/settings" element={<Settings />} />
                 </Routes>
             </Suspense>
