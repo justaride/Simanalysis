@@ -56,6 +56,9 @@ def test_update_staging_status_classifies_downloads_and_source_bindings(
     assert items["cool_mod.zip"]["archive_scan"]["member_count"] == 1
     assert items["cool_mod.zip"]["source_binding"]["status"] == "bound"
     assert items["loose.package"]["source_binding"]["status"] == "missing"
+    assert items["loose.package"]["classification"]["label"] == "unknown"
+    assert items["helper.ts4script"]["classification"]["label"] == "script"
+    assert items["helper.ts4script"]["classification"]["confidence"] == "high"
     assert package.exists()
     assert script.exists()
     assert archive.exists()

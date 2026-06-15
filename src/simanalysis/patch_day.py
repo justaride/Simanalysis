@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from simanalysis.classification import summarize_classifications
+
 PATCH_RISK_CLASSES = (
     ("script_mods", "Script mods"),
     ("ui_mods", "UI mods"),
@@ -81,8 +83,9 @@ def _base_status(
     risk_classes: list[dict[str, str]],
     recommendations: list[str],
     warnings: list[str],
+    classification_summary: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "status": status,
         "patch_detected": patch_detected,
         "root_path": str(sims4_dir),
@@ -94,12 +97,16 @@ def _base_status(
         "warnings": warnings,
         "automatic_reenable": False,
     }
+    if classification_summary is not None:
+        payload["classification_summary"] = classification_summary
+    return payload
 
 
 def build_patch_day_status(
     sims4_dir: Path | str,
     *,
     state_path: Path | str | None = None,
+    mods_dir: Path | str | None = None,
 ) -> dict[str, Any]:
     """Compare current game version with the recorded baseline."""
     root = Path(sims4_dir).expanduser().resolve()
@@ -107,6 +114,7 @@ def build_patch_day_status(
         Path(state_path).expanduser().resolve() if state_path else default_patch_state_path()
     )
     current_version = read_game_version(root)
+    classification_summary = summarize_classifications(mods_dir) if mods_dir is not None else None
 
     if current_version is None:
         return _base_status(
@@ -119,6 +127,7 @@ def build_patch_day_status(
             risk_classes=[],
             recommendations=["Select the Sims 4 user folder that contains GameVersion.txt."],
             warnings=["GameVersion.txt was not found in the selected Sims 4 folder."],
+            classification_summary=classification_summary,
         )
 
     state = _load_state(patch_state)
@@ -136,6 +145,7 @@ def build_patch_day_status(
             risk_classes=[],
             recommendations=["Record this game version as the Patch Day baseline."],
             warnings=[],
+            classification_summary=classification_summary,
         )
 
     if current_version != last_known_version:
@@ -149,6 +159,7 @@ def build_patch_day_status(
             risk_classes=_changed_risk_classes(current_version, last_known_version),
             recommendations=list(PATCH_RECOMMENDATIONS),
             warnings=[],
+            classification_summary=classification_summary,
         )
 
     return _base_status(
@@ -161,6 +172,7 @@ def build_patch_day_status(
         risk_classes=[],
         recommendations=["No patch change detected against the recorded baseline."],
         warnings=[],
+        classification_summary=classification_summary,
     )
 
 
@@ -215,6 +227,21 @@ def format_patch_day_text(status: dict[str, Any]) -> str:
             reason = risk.get("reason")
             suffix = f" - {reason}" if reason else ""
             lines.append(f"- {label}: {risk_status}{suffix}")
+
+    classification_summary = status.get("classification_summary")
+    if isinstance(classification_summary, dict):
+        label_counts = classification_summary.get("label_counts", {})
+        if isinstance(label_counts, dict) and label_counts:
+            labels = ", ".join(f"{label}: {count}" for label, count in label_counts.items())
+        else:
+            labels = "none"
+        lines.append("")
+        lines.append("Classification evidence:")
+        lines.append(
+            f"- Files: {classification_summary.get('file_count', 0)} | "
+            f"unknown: {classification_summary.get('unknown_count', 0)} | labels: {labels}"
+        )
+        lines.append("- Automatic safe marking: no")
 
     recommendations = status.get("recommendations") or []
     if recommendations:

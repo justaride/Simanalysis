@@ -323,6 +323,14 @@ payload stability.
 **Done when:** Patch Day, Doctor, and Update Desk can consume classification
 without overriding safety boundaries.
 
+**Implementation note:** Initial Classification v1 is in place as a conservative
+evidence layer over verified DBPF resource types, `.ts4script` extension
+evidence, and weak path/name hints. Doctor payloads include
+`classification_summary`, Patch Day can include the same summary when a Mods
+path is supplied, and Update Desk staged items/actions include per-file
+classification. Unknown remains unknown, classification does not mark anything
+safe after a patch, and script files are never executed.
+
 ### Slice 9: Conflict Engine v2
 
 **Goal:** Improve conflict explanation from raw overlap to user-actionable risk.
