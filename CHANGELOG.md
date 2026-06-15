@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced placeholder Dashboard space usage and hardcoded file-distribution estimates with values derived from the current mod scan payload.
 
 ### Added
+- Reworked the public README and presentation/status notes for the Public v3
+  docs pass, replacing stale production-ready and PyPI-first claims with the
+  actual source-install workflow, shipped safety surfaces, explicit
+  limitations, and not-EA/Maxis-affiliated release language.
 - Added a Tauri-first Public v3 release smoke harness and checklist for
   packaging contracts, source bridge smoke, and full local release-candidate
   builds.
@@ -250,9 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Old (1.0.0)
 pip install -r requirements.txt
 
-# New (2.0.0)
-pip install simanalysis
-# Or for development
+# Current development install
 pip install -e ".[dev]"
 ```
 

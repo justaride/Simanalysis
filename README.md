@@ -1,545 +1,150 @@
-# 🔬 Simanalysis
+# Simanalysis
 
-**Derrick - The PhD in Simology**
-*Surgical analysis of Sims 4 mods and CC. When creators complexify The Sim Universe, we need surveyors.*
+Simanalysis is a local-first safety and analysis toolkit for The Sims 4 mods,
+custom content, saves, Tray files, cache files, and update staging.
 
-[![Tests](https://github.com/justaride/Simanalysis/actions/workflows/tests.yml/badge.svg)](https://github.com/justaride/Simanalysis/actions/workflows/tests.yml)
-[![codecov](https://codecov.io/gh/justaride/Simanalysis/branch/main/graph/badge.svg)](https://codecov.io/gh/justaride/Simanalysis)
-[![Python Version](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+It is not made by, endorsed by, or affiliated with Electronic Arts, Maxis, or
+The Sims. It does not run mod code, edit saves, claim malware verdicts, or mark
+unknown mods safe.
 
----
+## Current Status
 
-## ⚡ Quickstart
+Simanalysis is in active Public v3 development. It is not generally
+production-ready yet, and public release docs should not describe it that way.
 
-```bash
-# Install
-pip install simanalysis
+The current codebase has several verified foundations:
 
-# Analyze your mods (interactive mode - recommended!)
-simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --interactive
+- Static package, resource, tuning, script-archive, STBL, and SimData parsing.
+- Local SQLite inventory ledger with snapshots and file-change history.
+- Doctor, Crash Autopsy, Treatment, Operating Table, Patch Day, Cache Doctor,
+  Save Protector, Tray Protector, and Update Desk surfaces.
+- Manifest-first mutating flows for selected cleanup, cache quarantine, treatment
+  steps, and explicit loose-file Update Desk copy actions.
+- Conservative classification, conflict metadata, and static script-risk signals.
+- Tauri desktop shell with Python sidecar, release smoke harness, and SBOM/security
+  gate.
 
-# Or use beautiful Rich TUI for quick check
-simanalysis analyze ~/Mods --tui
+Remaining Public v3 work is tracked in
+[docs/public-v3-workplan.md](docs/public-v3-workplan.md).
 
-# Export detailed report
-simanalysis analyze ~/Mods --output report.json --format json
-```
+## What It Can Do Today
 
-**That's it!** Simanalysis will:
-- ✅ Scan all your mods and CC
-- 🔍 Detect conflicts, duplicates, and compatibility issues
-- 📊 Show performance impact and load time estimates
-- 💡 Provide actionable recommendations
-- 📤 Export detailed reports
+Simanalysis can help you inspect a Sims 4 user folder before launching the game:
 
----
+- Scan Mods and package resources without mutating files.
+- Detect exact duplicates, likely overrides, tuning/resource conflicts, and
+  suspicious or unsupported parser states.
+- Track local file history through an app-owned inventory ledger.
+- Review Patch Day state without automatically re-enabling unknown mods.
+- Review saves, Tray groups, and known cache targets with evidence labels.
+- Stage, apply, and undo only the mutating actions that already have manifest
+  support and explicit user approval.
+- Generate Update Desk plans for staged downloads, including ZIP member review
+  rows, without extracting archives directly into Mods.
+- Generate release SBOMs and run Python, web, npm, and Cargo lock security gates.
 
-## 🎯 What Is Simanalysis?
+## What It Does Not Claim Yet
 
-Simanalysis is a **proactive conflict detection and analysis tool** for The Sims 4 mods. Unlike runtime error trackers (like Better Exceptions), Simanalysis performs **static analysis** of your entire mod collection *before* you launch the game, identifying conflicts, duplicates, and compatibility issues.
+These boundaries are deliberate:
 
-### 🆚 How It Differs from Better Exceptions
+- No automatic mod update installation.
+- No archive extraction directly to `Mods`.
+- No save-file editing, repair, or restore.
+- No malware detection verdicts.
+- No guarantee that a likely dependency or conflict is definitely the cause of a
+  gameplay issue.
+- No EA/Maxis official status, branding, or asset affiliation.
+- No signed/notarized public release artifact until real release evidence exists.
 
-| Feature | Simanalysis | Better Exceptions |
-|---------|-------------|-------------------|
-| **When** | Before game launch | During/after errors |
-| **Approach** | Proactive prevention | Reactive debugging |
-| **Detection** | Static file analysis | Runtime monitoring |
-| **Conflicts** | Finds "silent" conflicts | Finds crash-causing errors |
-| **Detail** | Tuning-level precision | Error traces |
+## Install From Source
 
-**Use both together:** Simanalysis prevents 80-90% of issues before launch, Better Exceptions catches unexpected runtime bugs.
-
----
-
-## ✨ Features
-
-### 🔍 **Deep Conflict Detection**
-- **Tuning Overlaps**: Identifies when multiple mods modify the same game tuning
-- **Resource Duplicates**: Finds identical or conflicting resources (textures, meshes, objects)
-- **Script Injections**: Detects when scripts hook into the same game functions
-- **Hash Collisions**: Discovers duplicate files packaged separately
-
-### 📊 **Comprehensive Analysis**
-- **Performance Metrics**: Estimates load time, memory usage, and complexity
-- **Dependency Mapping**: Tracks mod requirements and pack dependencies
-- **Severity Classification**: CRITICAL/HIGH/MEDIUM/LOW priority system
-- **Smart Recommendations**: Actionable advice for resolving conflicts
-
-### 📝 **Professional Reports**
-- **Text Reports**: Human-readable summaries with conflict details
-- **JSON Export**: Machine-readable format for integration
-- **Detailed Conflict Info**: Tuning IDs, resource keys, affected attributes
-
-### 🎮 **Supported File Types**
-- ✅ `.package` files (DBPF format)
-- ✅ `.ts4script` files (Python mods)
-- ✅ XML tuning data
-- ✅ Recursive directory scanning
-
----
-
-## 🚀 Installation
-
-### Prerequisites
-- Python 3.9 or higher
-- The Sims 4 (obviously!)
-
-### Install from PyPI
+PyPI publishing is planned for Public v3. Until then, use a source checkout.
 
 ```bash
-pip install simanalysis
-```
-
-PyPI publishing is planned for the public v3 release. Until then, install from
-source for current development builds.
-
-### Install from source (Recommended for now)
-
-```bash
-# Clone the repository
 git clone https://github.com/justaride/Simanalysis.git
 cd Simanalysis
-
-# Install in development mode
-pip install -e .
-
-# Or use the compatibility shim, which also installs from pyproject.toml
-pip install -r requirements.txt
+python -m pip install -e ".[dev,docs]"
 ```
 
----
-
-## 📖 Usage
-
-### Command-Line Interface (CLI)
-
-The easiest way to use Simanalysis is through the command-line interface:
+The compatibility shims also install from `pyproject.toml`:
 
 ```bash
-# Interactive mode with keyboard navigation (best experience!)
-simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --interactive
-
-# Analyze with beautiful Rich TUI (great for one-time analysis)
-simanalysis analyze ~/Mods --tui
-
-# Analyze with mod list displayed
-simanalysis analyze ~/Mods --tui --show-mods
-
-# Standard CLI output
-simanalysis analyze ~/Mods
-
-# Quick scan with TUI
-simanalysis scan ~/Mods --tui --verbose
-
-# Quick scan (faster, no hashing)
-simanalysis analyze ~/Mods --quick
-
-# Export detailed report
-simanalysis analyze ~/Mods --output report.json --format json
-
-# Verbose output with conflict details
-simanalysis analyze ~/Mods --verbose
-
-# Quick directory scan (no conflict detection)
-simanalysis scan ~/Mods
-
-# View a saved report
-simanalysis view report.json
-
-# Show program info
-simanalysis info
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
-#### Interactive Terminal Interface
-
-For the **best experience**, use the `--interactive` (or `-i`) flag for a fully interactive application:
-- ⌨️  **Keyboard navigation** - Use arrow keys, Tab, and shortcuts
-- 📑 **Tabbed interface** - Switch between Conflicts, Mods, and Details
-- 🔍 **Filtering** - Filter conflicts by severity level
-- 📤 **Export dialog** - Save reports to TXT or JSON interactively
-- 📊 **Live tables** - Browse conflicts and mods with sortable tables
-- ❓ **Built-in help** - Press `?` for keyboard shortcuts
-
-#### Rich Terminal Interface (TUI)
-
-For beautiful one-time analysis, use the `--tui` flag:
-- 🎨 **Beautiful colored output** with tables, panels, and trees
-- 📊 **Visual progress bars** during analysis
-- 🔍 **Hierarchical conflict view** grouped by severity
-- 📈 **Performance metrics dashboard**
-- 💡 **Color-coded recommendations**
-
-The interactive mode uses [Textual](https://github.com/Textualize/textual) for a full TUI app, while the Rich TUI uses [Rich](https://github.com/Textualize/rich) for beautiful static output.
-
-#### CLI Options
-
-**analyze** - Full analysis with conflict detection:
-- `--interactive, -i` - Interactive mode with keyboard navigation (**recommended**)
-- `--tui` - Rich terminal interface (beautiful output)
-- `--show-mods` - Show detailed mod list (TUI mode only)
-- `--output, -o PATH` - Export report to file
-- `--format, -f [txt|json]` - Report format (default: txt)
-- `--quick, -q` - Skip hash calculation (faster)
-- `--no-tunings` - Skip tuning parsing
-- `--no-scripts` - Skip script analysis
-- `--recursive/--no-recursive` - Scan subdirectories (default: recursive)
-- `--verbose, -v` - Show detailed output
-
-**scan** - Quick directory scan without analysis:
-- `--tui` - Use Rich terminal interface
-- `--recursive/--no-recursive` - Scan subdirectories
-- `--verbose, -v` - Show mod list
-
-**view** - View saved JSON report
-
-**info** - Show program information
-
-### Python API
-
-You can also use Simanalysis as a Python library:
-
-```python
-from pathlib import Path
-from simanalysis.analyzers import ModAnalyzer
-
-# Create analyzer
-analyzer = ModAnalyzer()
-
-# Analyze your Mods folder
-result = analyzer.analyze_directory(
-    Path("~/Documents/Electronic Arts/The Sims 4/Mods").expanduser()
-)
-
-# View results
-print(f"Found {len(result.mods)} mods")
-print(f"Detected {len(result.conflicts)} conflicts")
-print(f"Critical issues: {len(result.critical_conflicts)}")
-
-# Get recommendations
-summary = analyzer.get_summary(result)
-recommendations = analyzer.get_recommendations(result)
-
-for rec in recommendations:
-    print(rec)
-```
-
-### Export Reports
-
-```python
-from pathlib import Path
-
-# Export text report
-analyzer.export_report(
-    result,
-    Path("~/Desktop/mod_analysis.txt"),
-    format="txt"
-)
-
-# Export JSON report
-analyzer.export_report(
-    result,
-    Path("~/Desktop/mod_analysis.json"),
-    format="json"
-)
-```
-
-### Advanced Options
-
-```python
-# Customize analysis
-analyzer = ModAnalyzer(
-    parse_tunings=True,      # Parse XML tunings (default: True)
-    parse_scripts=True,      # Analyze Python scripts (default: True)
-    calculate_hashes=True,   # Calculate file hashes (default: True)
-)
-
-# Scan specific extensions
-result = analyzer.analyze_directory(
-    mods_path,
-    recursive=True,
-    extensions={".package", ".ts4script"}
-)
-```
-
-### Analyzing Pre-Scanned Mods
-
-```python
-from simanalysis.scanners import ModScanner
-
-# Scan mods separately
-scanner = ModScanner()
-mods = scanner.scan_directory(mods_path)
-
-# Analyze later
-result = analyzer.analyze_mods(mods)
-```
-
----
-
-## 📊 Understanding Results
-
-### Conflict Types
-
-| Type | Description | Severity |
-|------|-------------|----------|
-| `TUNING_OVERLAP` | Multiple mods modify same tuning | CRITICAL if core tuning |
-| `RESOURCE_DUPLICATE` | Identical resource keys | MEDIUM-CRITICAL |
-| `SCRIPT_INJECTION` | Scripts hook same function | HIGH |
-| `DEPENDENCY_MISSING` | Required mod not found | HIGH |
-| `VERSION_CONFLICT` | Incompatible mod versions | MEDIUM |
-| `NAMESPACE_COLLISION` | Python namespace conflicts | HIGH |
-
-### Severity Levels
-
-- 🔴 **CRITICAL**: May cause crashes or severe instability
-- 🟠 **HIGH**: Significant issues, features may break
-- 🟡 **MEDIUM**: Moderate issues, some conflicts
-- 🟢 **LOW**: Minor issues, cosmetic conflicts
-
-### Example Output
-
-```
-⚠️  CRITICAL: 3 critical conflicts detected.
-  - Tuning 'buff_confident' (ID: 0x12345678) modified by 2 mods
-  - Resource 0xC0DB5AE7 (Object Definition) in 3 mods
-  - Script injection conflict in sim_info module
-
-💡 TIP: 5 duplicate mods found (15MB wasted space)
-
-✅ 142 mods have no conflicts
-```
-
----
-
-## 🏗️ Project Structure
-
-```
-simanalysis/
-├── src/simanalysis/
-│   ├── analyzers/          # Analysis pipeline
-│   │   └── mod_analyzer.py # Main analyzer class
-│   ├── detectors/          # Conflict detectors
-│   │   ├── base.py         # Base detector framework
-│   │   ├── tuning_conflicts.py
-│   │   └── resource_conflicts.py
-│   ├── parsers/            # File format parsers
-│   │   ├── dbpf.py         # DBPF package parser
-│   │   ├── tuning.py       # XML tuning parser
-│   │   └── script.py       # Python script analyzer
-│   ├── scanners/           # Directory scanning
-│   │   └── mod_scanner.py  # Recursive mod finder
-│   ├── models.py           # Data models
-│   ├── exceptions.py       # Custom exceptions
-│   └── __init__.py
-│
-├── tests/                  # Test suite; see docs/STATUS.md for current gates
-│   ├── unit/
-│   │   ├── analyzers/
-│   │   ├── detectors/
-│   │   ├── parsers/
-│   │   └── scanners/
-│   └── integration/
-│
-├── docs/                   # Documentation
-│   ├── STATUS.md
-│   ├── DBPF_FORMAT.md
-│   └── archive/status/     # Historical generated reports
-│
-├── pyproject.toml         # Package configuration
-├── pytest.ini             # Test configuration
-└── README.md
-```
-
----
-
-## 🧪 Development
-
-### Running Tests
+## Useful CLI Commands
 
 ```bash
-# Run all tests
-pytest
+# Static Mods analysis
+simanalysis analyze "~/Documents/Electronic Arts/The Sims 4/Mods" --output report.json --format json
 
-# Run with coverage
-pytest --cov=src/simanalysis --cov-report=html
+# Local inventory ledger
+simanalysis ledger scan "~/Documents/Electronic Arts/The Sims 4" --format json
+simanalysis ledger history --format json
 
-# Run specific test module
-pytest tests/unit/detectors/
+# Doctor and trust surfaces
+simanalysis doctor "~/Documents/Electronic Arts/The Sims 4" --format json
+simanalysis patch-day status "~/Documents/Electronic Arts/The Sims 4" --format json
+simanalysis cache status "~/Documents/Electronic Arts/The Sims 4" --format json
+simanalysis save-protector status "~/Documents/Electronic Arts/The Sims 4" --format json
+simanalysis tray status "~/Documents/Electronic Arts/The Sims 4" --format json
 
-# Run with verbose output
-pytest -v
+# Update Desk planning and guarded loose-file copy actions
+simanalysis updates plan /path/to/staging --mods "~/Documents/Electronic Arts/The Sims 4/Mods" --format json
+simanalysis updates commit /path/to/plan.json --action update-001 --format json
+simanalysis updates undo /path/to/update-manifest.json --format json
 ```
 
-### Code Quality
+Mutating commands are intentionally narrow. They should refuse unsafe paths,
+symlinks, stale evidence, process-guard failures, collisions, and missing
+manifest proof.
+
+## Desktop Development
 
 ```bash
-# Format code
-black src/ tests/
-
-# Lint code
-ruff check src/ tests/
-
-# Type checking
-mypy src/
-```
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-### Development Setup
-
-```bash
-# Clone repository
-git clone https://github.com/justaride/Simanalysis.git
-cd Simanalysis
-
-# Install development dependencies from pyproject.toml extras
-pip install -e ".[dev,docs]"
-
-# Or use the compatibility shim
-pip install -r requirements-dev.txt
-
-# Install pre-commit hooks
-pre-commit install
-
-# Run tests
-pytest
-```
-
----
-
-## 📚 Documentation
-
-- [Current Status](docs/STATUS.md) - Current status index and verification contract
-- [Implementation Roadmap](IMPLEMENTATION_ROADMAP.md) - Development plan
-- [Project Structure](PROJECT_STRUCTURE.md) - Code organization
-- [DBPF Format Notes](docs/DBPF_FORMAT.md) - DBPF format notes and parser limits
-- [Contributing Guide](CONTRIBUTING.md) - How to contribute
-
----
-
-## 🔮 Roadmap
-
-### Current Baseline
-- ✅ Complete file format parsing
-- ✅ Tuning and resource conflict detection
-- ✅ Performance metrics
-- ✅ Report generation
-- ✅ Modern React web interface with glass-morphism design
-- ✅ Phase 0 resource type truth pass and real fixture corpus gate
-
-See [Current Status](docs/STATUS.md) for the verified branch-level status and
-known limitations.
-
-### Planned Features
-- 🔄 Mod compatibility database
-- 🔄 Automatic fix suggestions
-- 🔄 Integration with mod managers
-- 🔄 Real-time file watching
-
----
-
-## 🌐 Web Interface
-
-Simanalysis includes a modern React-based web interface for visual mod analysis.
-
-### Running the Web UI
-
-```bash
-# Navigate to web directory
-cd web
-
-# Install dependencies
 npm install
-
-# Start development server (default port 5173, or specify custom)
-npm run dev -- --port 8888
+npm --prefix web install
+npm run tauri dev
 ```
 
-Visit `http://localhost:8888` to access the interface.
+See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) and
+[docs/release-smoke.md](docs/release-smoke.md) for the Tauri sidecar packaging
+path.
 
-### Web UI Features
+## Release Gates
 
-| View | Description |
-|------|-------------|
-| **Dashboard** | Health score, conflict severity charts, visual explorer |
-| **Mod Manager** | Grid/list view with search, filtering, and thumbnails |
-| **Conflict Resolver** | Detailed conflicts with severity filtering and duplicate management |
-| **Tray Organizer** | Manage CC tray files |
-| **Save Analyzer** | Analyze save game files |
+Before a Public v3 release candidate, run the relevant local gates:
 
-### UI Highlights
-
-- 🎨 **Glass-morphism design** - Modern translucent cards with backdrop blur
-- ✨ **Smooth animations** - Powered by Framer Motion
-- 📱 **Collapsible sidebar** - Hover to reveal toggle, state persisted
-- 🌙 **Dark theme** - Optimized for extended use
-- 📊 **Interactive charts** - Recharts with gradient styling
-- ⚡ **Virtualized lists** - Handle 1000+ mods efficiently
-- 🎯 **Welcome hero** - Guided onboarding for new users
-- 🚀 **Optimized builds** - Code-split bundles, ~91 KB gzipped initial load
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Q: "No conflicts detected but game still crashes"**
-A: Simanalysis detects static conflicts. Some issues only occur at runtime (hardware-specific, game bugs, etc.). Use Better Exceptions to catch these.
-
-**Q: "Analysis is slow with many mods"**
-A: Disable hash calculation for faster scans:
-```python
-analyzer = ModAnalyzer(calculate_hashes=False)
+```bash
+ruff check .
+ruff format --check .
+mypy src
+pytest -q
+pytest -m real --no-cov
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo test --manifest-path src-tauri/Cargo.toml --lib
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+node --test web/src/*.test.js web/src/views/*.test.js
+npm --prefix web run lint
+npm --prefix web run build
+python scripts/release_smoke.py --mode full
+python scripts/release_security.py --mode full --output dist/sbom
 ```
 
-**Q: "Can't find certain conflicts"**
-A: Ensure parsing is enabled:
-```python
-analyzer = ModAnalyzer(
-    parse_tunings=True,
-    parse_scripts=True
-)
-```
+CI must be green before merging release work. Signing/notarization must be
+verified on real artifacts before docs or changelogs claim signed builds.
 
----
+## Documentation
 
-## 📄 License
+- [Current status](docs/STATUS.md)
+- [Implementation status](IMPLEMENTATION_STATUS.md)
+- [Public v3 workplan](docs/public-v3-workplan.md)
+- [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
+- [Release smoke harness](docs/release-smoke.md)
+- [Release security and SBOM gate](docs/release-security.md)
+- [DBPF format notes](docs/DBPF_FORMAT.md)
 
-MIT License - See [LICENSE](LICENSE) for details
+## License
 
----
-
-## 🙏 Acknowledgments
-
-- **TwistedMexi** - Inspiration from Better Exceptions
-- **Sims 4 Modding Community** - For creating amazing mods
-- **Contributors** - Everyone who helps improve this tool
-
----
-
-## 📞 Support
-
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/justaride/Simanalysis/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/justaride/Simanalysis/discussions)
-- 📧 **Contact**: Via GitHub
-
----
-
-## 🌟 Star History
-
-If this tool helped you, consider giving it a star! ⭐
-
----
-
-*"In complexity, we find clarity. In chaos, we find patterns."* - Derrick, PhD in Simology
-
-**Made with ❤️ for The Sims modding community**
+MIT License. See [LICENSE](LICENSE).

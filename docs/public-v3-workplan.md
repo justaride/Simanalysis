@@ -484,6 +484,14 @@ known.
 **Done when:** Public docs, changelog, status docs, and presentation describe
 the same shipped surface.
 
+**Implementation note:** The public docs pass now replaces the old README
+product claims with a source-install, Public v3 development status, shipped
+surface, limitation, release-gate, and not-EA/Maxis-affiliated summary. Status
+docs and the presentation are aligned with the completed Update Desk, trust,
+intelligence, smoke, and SBOM/security slices while keeping signing,
+notarization, safe archive installation, and profile-aware re-enable workflows
+explicitly pending.
+
 ## Standard Verification Gates
 
 ### Backend gate
