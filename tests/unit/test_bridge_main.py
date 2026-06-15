@@ -300,6 +300,7 @@ def test_treatment_apply_restore_status_commands_are_dispatched(monkeypatch):
     monkeypatch.setitem(commands.DISPATCH, "treatment-apply", fake_handler)
     monkeypatch.setitem(commands.DISPATCH, "treatment-restore", fake_handler)
     monkeypatch.setitem(commands.DISPATCH, "treatment-status", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "treatment-handoff", fake_handler)
 
     apply_code, apply_events = _run(monkeypatch, ["treatment-apply", "manifest.json"])
     restore_code, restore_events = _run(
@@ -307,16 +308,19 @@ def test_treatment_apply_restore_status_commands_are_dispatched(monkeypatch):
         ["treatment-restore", "manifest.json", "--step", "all"],
     )
     status_code, status_events = _run(monkeypatch, ["treatment-status", "manifest.json"])
+    handoff_code, handoff_events = _run(monkeypatch, ["treatment-handoff", "manifest.json"])
 
-    assert apply_code == restore_code == status_code == 0
+    assert apply_code == restore_code == status_code == handoff_code == 0
     assert called == [
         ("treatment-apply", "manifest.json", None),
         ("treatment-restore", "manifest.json", "all"),
         ("treatment-status", "manifest.json", None),
+        ("treatment-handoff", "manifest.json", None),
     ]
     assert [event["type"] for event in apply_events] == ["result", "done"]
     assert [event["type"] for event in restore_events] == ["result", "done"]
     assert [event["type"] for event in status_events] == ["result", "done"]
+    assert [event["type"] for event in handoff_events] == ["result", "done"]
 
 
 def test_live_monitor_command_is_dispatched(monkeypatch, tmp_path):

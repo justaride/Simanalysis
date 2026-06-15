@@ -363,6 +363,18 @@ def treatment_status(args: argparse.Namespace, emit: Emitter) -> None:
     emit.done()
 
 
+def treatment_handoff(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("treatment-handoff")
+    session = treatment.load_session(args.manifest_path)
+    emit.result(
+        {
+            "manifest_path": session["manifest_path"],
+            "handoff": treatment.render_handoff(session),
+        }
+    )
+    emit.done()
+
+
 DISPATCH = {
     "scan-mods": scan_mods,
     "scan-tray": scan_tray,
@@ -383,4 +395,5 @@ DISPATCH = {
     "treatment-outcome": treatment_outcome,
     "treatment-restore": treatment_restore,
     "treatment-status": treatment_status,
+    "treatment-handoff": treatment_handoff,
 }

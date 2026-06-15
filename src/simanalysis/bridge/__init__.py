@@ -94,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_treatment_status = sub.add_parser("treatment-status")
     p_treatment_status.add_argument("manifest_path")
 
+    p_treatment_handoff = sub.add_parser("treatment-handoff")
+    p_treatment_handoff.add_argument("manifest_path")
+
     p_live_monitor = sub.add_parser("live-monitor")
     p_live_monitor.add_argument("path")
     p_live_monitor.add_argument("--mods", default=None)

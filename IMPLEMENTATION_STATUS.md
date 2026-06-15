@@ -136,10 +136,12 @@ The combined Doctor payload is now shared outside the desktop bridge and exposed
 through `simanalysis doctor` for read-only script-crash plus UI-exception
 autopsy in text or JSON form. The existing Treatment/Auto-Bisect session engine
 is now exposed through `simanalysis bisect start`, `status`, `next`,
-`record-verdict`, `restore`, and read-only Markdown `handoff`; mutating steps
-remain manifest-based and keep the game-process guard. Ledger-aware crash
-history, timeline correlation, richer verdict objects, and symptom playbooks
-remain future Doctor/Bisect work.
+`record-verdict`, `restore`, and read-only Markdown `handoff`. The desktop
+sidecar/Tauri path can also request the same handoff through
+`simanalysis-bridge treatment-handoff`; mutating steps remain manifest-based
+and keep the game-process guard. Ledger-aware crash history, timeline
+correlation, richer verdict objects, and symptom playbooks remain future
+Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
