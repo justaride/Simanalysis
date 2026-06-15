@@ -3,10 +3,12 @@ import { invoke } from '@tauri-apps/api/core';
 import Sidebar from './Sidebar';
 import { Toaster, toast } from 'sonner';
 import { Download } from 'lucide-react';
+import { hasTauriInvoke } from '../tauriRuntime';
 
 function Layout({ children }) {
     useEffect(() => {
-        // Check for updates
+        if (!hasTauriInvoke(window)) return;
+
         invoke('check_updates')
             .then(update => {
                 if (update) {
