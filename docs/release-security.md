@@ -48,6 +48,18 @@ is declared security-ready.
 claim signed/notarized artifacts until the relevant platform checks are actually
 green.
 
+The signing status file is a preflight, not a release approval. It records
+whether the local machine has the expected signing inputs before artifact
+verification runs:
+
+- macOS: `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`,
+  `APPLE_TEAM_ID`, and `security find-identity -v -p codesigning`.
+- Windows: `WINDOWS_SIGNING_CERT`.
+- Linux: the distribution signing decision remains explicit release evidence.
+
+Secret values are not written to the report; only presence, non-secret identity
+labels, tool output, and blockers are recorded.
+
 Verify the built release artifact before publishing:
 
 ```bash

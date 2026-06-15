@@ -139,7 +139,9 @@ bridge smoke on a temporary Sims-like tree without mutating live Sims paths.
 v3 SBOM/security gate; the 2026-06-15 SBOM/security run passed Bandit,
 `pip-audit`, root/web npm production audits, and Cargo lock metadata checks.
 Signing and notarization remain pending until real release artifacts are
-verified. The same script can now write
+verified. The same script now writes a non-secret signing preflight with macOS
+identity/env readiness, Windows certificate-env readiness, and concrete
+blockers; it can also write
 `release-artifact-status.json` for built artifacts and fail strict mode unless
 required binaries, macOS code signing/notarization, and Windows Authenticode
 checks pass. The local macOS `.app` artifact is not distribution-ready yet:
