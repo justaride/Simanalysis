@@ -137,10 +137,24 @@ def run_command(cmd: list[str], *, cwd: Path = ROOT, timeout: int = 900) -> None
 
 
 def install_python_build_dependencies() -> None:
-    if shutil.which("uv"):
+    has_pip = (
+        subprocess.run(
+            [sys.executable, "-m", "pip", "--version"],
+            cwd=ROOT,
+            env=_env_with_pythonpath(),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+    if has_pip:
+        run_command([sys.executable, "-m", "pip", "install", "-e", ".[dev]", "pyinstaller"])
+        return
+    if shutil.which("uv") and (ROOT / ".venv").exists():
         run_command(["uv", "pip", "install", "-e", ".[dev]", "pyinstaller"], timeout=1200)
         return
-    run_command([sys.executable, "-m", "pip", "install", "-e", ".[dev]", "pyinstaller"])
+    raise SystemExit("Python build dependencies require pip or an existing uv virtualenv")
 
 
 def _bridge_json_events(cmd: list[str], *, timeout: int = 60) -> list[dict[str, object]]:

@@ -450,6 +450,13 @@ inspection; signed artifact verification where applicable.
 **Done when:** Release artifacts can be distributed without normal users needing
 developer bypass steps.
 
+**Implementation note:** The release security surface now has
+[`release-security.md`](release-security.md) and
+`python scripts/release_security.py --mode sbom|check|full`. The gate generates
+CycloneDX SBOM files, runs Bandit, `pip-audit`, root/web npm production audits,
+and Cargo lock metadata resolution. Signing/notarization statuses remain
+explicitly pending until real platform evidence exists.
+
 ### Slice 13: Honest Docs Release Pass
 
 **Goal:** Make public docs match the product that actually shipped.
