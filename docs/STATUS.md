@@ -18,11 +18,12 @@ history plus per-file change events in `src/simanalysis/inventory.py`; the
 public CLI exposes `simanalysis ledger scan|history|events`, and the
 bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`. The read-only Cleanup Planner v1 adds `cleanup-plan`
-for Mods-folder review findings. Operating Table v1 adds manifest-first
-non-visual cleanup staging, apply, restore, and status plumbing, plus the
-`simanalysis ops plan|commit|restore|undo` CLI surface. The shared read-only
-Doctor payload is now available through `simanalysis doctor`, combining script
-crash and UI exception autopsy without changing Sims files, and the
+for Mods-folder review findings, now exposed in the desktop Cleanup route as a
+read-only review surface. Operating Table v1 adds manifest-first non-visual
+cleanup staging, apply, restore, and status plumbing, plus the `simanalysis ops
+plan|commit|restore|undo` CLI surface. The shared read-only Doctor payload is
+now available through `simanalysis doctor`, combining script crash and UI
+exception autopsy without changing Sims files, and the
 manifest-based Treatment/Auto-Bisect engine is available through
 `simanalysis bisect start|status|next|record-verdict|restore|handoff`, with the
 same read-only handoff available to the desktop sidecar as
