@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the read-only `simanalysis bisect handoff` CLI surface that renders a Markdown field handoff from a saved bisection manifest with session state, candidates, steps, warnings, blockers, and recovery commands.
 - Added the read-only `simanalysis-bridge treatment-handoff` sidecar command plus Tauri argument support so the desktop layer can request the same Markdown bisection handoff from a saved manifest.
 - Added a read-only desktop Inventory Ledger route over `inventory-scan`, `inventory-history`, and `inventory-file-events`, with scan summary tiles, filtered snapshot rows, recent scans, latest file events, and scan warnings.
+- Added visual Cleanup Operating Table controls for exported cleanup plans, explicit action selection, manifest staging, status refresh, and confirm-gated apply/restore over the existing bridge commands.
 
 ### Planned
 - Full DBPF package parser implementation

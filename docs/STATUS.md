@@ -20,9 +20,12 @@ bridge/Tauri/web API exposes `inventory-scan`, `inventory-history`, and
 `inventory-file-events`, now exposed in the desktop Inventory route as a
 read-only ledger surface. The read-only Cleanup Planner v1 adds `cleanup-plan`
 for Mods-folder review findings, now exposed in the desktop Cleanup route as a
-read-only review surface. Operating Table v1 adds manifest-first non-visual
-cleanup staging, apply, restore, and status plumbing, plus the `simanalysis ops
-plan|commit|restore|undo` CLI surface. The shared read-only Doctor payload is
+read-only review surface. Operating Table v1 adds manifest-first cleanup
+staging, apply, restore, and status plumbing, plus the `simanalysis ops
+plan|commit|restore|undo` CLI surface. The desktop Cleanup route now exposes
+visual Operating Table controls for external plan JSON export, explicit action
+selection, manifest staging, status refresh, and confirm-gated apply/restore.
+The shared read-only Doctor payload is
 now available through `simanalysis doctor`, combining script crash and UI
 exception autopsy without changing Sims files, and the
 manifest-based Treatment/Auto-Bisect engine is available through
@@ -35,9 +38,9 @@ metadata parsers wired into package scanning, with
 compact parser/resource truth exposed through CLI JSON, the desktop bridge, HTTP
 scan, and WebSocket scan responses. The desktop Dashboard now sources total
 files, space used, severity summary, and file distribution from the current scan
-payload instead of placeholders. Visual cleanup staging/apply/restore, richer
-Doctor verdicts, and symptom playbooks remain pending design approval and
-follow-on slices.
+payload instead of placeholders. Richer Doctor verdicts, symptom playbooks,
+profile-aware state, Patch Day Shield, Cache Doctor, and update staging remain
+pending follow-on slices.
 
 ## Historical Status Snapshots
 

@@ -123,8 +123,10 @@ Implemented on this branch after Cleanup Planner v1:
   operation manifest and applies only explicitly selected actions or an
   explicit all-actions selection.
 - The desktop bridge and Tauri/web API plumbing expose `cleanup-stage`,
-  `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; visual staging,
-  apply, and restore controls remain future work.
+  `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; the desktop Cleanup
+  route now adds visual Operating Table controls for external plan JSON export,
+  explicit action selection, manifest staging, status refresh, and
+  confirm-gated apply/restore.
 
 ## Current Product Reality
 
@@ -149,10 +151,9 @@ guard. Ledger-aware crash history, timeline correlation, richer verdict objects,
 and symptom playbooks remain future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including the visual cleanup
-staging/apply/restore route, profile-aware state, Patch Day Shield, reversible
-workflows beyond cleanup actions, Cache Doctor, update staging, and broader
-real-world corpus coverage.
+roadmap foundations are still incomplete, including profile-aware state, Patch
+Day Shield, reversible workflows beyond cleanup actions, Cache Doctor, update
+staging, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 
@@ -170,7 +171,8 @@ Tauri/web gates remain relevant before publishing UI-affecting changes.
 
 ## Next Work
 
-The read-only visual Inventory route is now present. Operating Table v1
-provides the non-visual journaled action engine for cleanup staging, apply,
-restore, and status; the next cleanup work should design the visual staging and
-restore route around that reversible manifest contract.
+The read-only visual Inventory route is now present. Operating Table v1 now has
+both the journaled backend action engine and a visual Cleanup route for
+manifest-first staging, apply, restore, and status. The next cleanup work should
+exercise the visual route against temp-tree fixtures and broaden reversible
+operations only after the trust gate remains green.

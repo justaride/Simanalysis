@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
+import * as cleanupModel from './cleanupModel.js';
+
+const {
     cleanupCategoryLabel,
     flattenCleanupActions,
     summarizeCleanupPlan,
-} from './cleanupModel.js';
+} = cleanupModel;
 
 const PLAN = {
     plan_id: 'cleanup-20260612-101400',
@@ -69,6 +71,31 @@ const PLAN = {
                     reason: 'The Sims 4 does not load this archive directly from Mods.',
                 },
             ],
+        },
+    ],
+};
+
+const MANIFEST = {
+    operation_id: 'cleanup-op-20260612-101530',
+    manifest_path: '/Sims/The Sims 4/_Simanalysis_Cleanup/manifests/cleanup-op-20260612-101530.json',
+    status: 'partial',
+    warnings: ['Manifest warning'],
+    blockers: ['The Sims 4 is running'],
+    actions: [
+        {
+            action_id: 'duplicate:1',
+            status: 'moved',
+            error: null,
+        },
+        {
+            action_id: 'inactive_archive:1:Mods/download.zip',
+            status: 'blocked',
+            error: 'Hash changed before apply',
+        },
+        {
+            action_id: 'support:1:Mods/readme.txt',
+            status: 'pending',
+            error: null,
         },
     ],
 };
@@ -155,4 +182,103 @@ test('cleanup category labels are plain review language', () => {
     assert.equal(cleanupCategoryLabel('support_file'), 'Support Files');
     assert.equal(cleanupCategoryLabel('misplaced_tray'), 'Tray Files');
     assert.equal(cleanupCategoryLabel('future_category'), 'future category');
+});
+
+test('cleanup action selection is stable and deduplicated', () => {
+    assert.equal(typeof cleanupModel.selectAllCleanupActions, 'function');
+    assert.equal(typeof cleanupModel.toggleCleanupAction, 'function');
+    const actions = flattenCleanupActions(PLAN);
+
+    assert.deepEqual(cleanupModel.selectAllCleanupActions(actions), [
+        'duplicate:1',
+        'inactive_archive:1:Mods/download.zip',
+        'inactive_archive:1:Mods/old.rar',
+    ]);
+    assert.deepEqual(cleanupModel.toggleCleanupAction(['duplicate:1'], 'duplicate:1', true), ['duplicate:1']);
+    assert.deepEqual(cleanupModel.toggleCleanupAction(['duplicate:1'], 'inactive_archive:1:Mods/download.zip', true), [
+        'duplicate:1',
+        'inactive_archive:1:Mods/download.zip',
+    ]);
+    assert.deepEqual(cleanupModel.toggleCleanupAction(['duplicate:1'], 'duplicate:1', false), []);
+});
+
+test('stage readiness requires exported plan and explicit action scope', () => {
+    assert.equal(typeof cleanupModel.canStageCleanupOperation, 'function');
+    assert.equal(
+        cleanupModel.canStageCleanupOperation({
+            planPath: '',
+            selectedActionIds: ['duplicate:1'],
+            allActions: false,
+            actionCount: 3,
+        }),
+        false,
+    );
+    assert.equal(
+        cleanupModel.canStageCleanupOperation({
+            planPath: '/tmp/cleanup-plan.json',
+            selectedActionIds: [],
+            allActions: false,
+            actionCount: 3,
+        }),
+        false,
+    );
+    assert.equal(
+        cleanupModel.canStageCleanupOperation({
+            planPath: '/tmp/cleanup-plan.json',
+            selectedActionIds: ['duplicate:1'],
+            allActions: true,
+            actionCount: 3,
+        }),
+        false,
+    );
+    assert.equal(
+        cleanupModel.canStageCleanupOperation({
+            planPath: '/tmp/cleanup-plan.json',
+            selectedActionIds: ['duplicate:1'],
+            allActions: false,
+            actionCount: 3,
+        }),
+        true,
+    );
+    assert.equal(
+        cleanupModel.canStageCleanupOperation({
+            planPath: '/tmp/cleanup-plan.json',
+            selectedActionIds: [],
+            allActions: true,
+            actionCount: 3,
+        }),
+        true,
+    );
+});
+
+test('cleanup operation summary preserves manifest counts and errors', () => {
+    assert.equal(typeof cleanupModel.summarizeCleanupOperation, 'function');
+    assert.deepEqual(cleanupModel.summarizeCleanupOperation(MANIFEST), {
+        operationId: 'cleanup-op-20260612-101530',
+        manifestPath: '/Sims/The Sims 4/_Simanalysis_Cleanup/manifests/cleanup-op-20260612-101530.json',
+        status: 'partial',
+        actionCount: 3,
+        statusCounts: {
+            moved: 1,
+            blocked: 1,
+            pending: 1,
+        },
+        warnings: ['Manifest warning'],
+        blockers: ['The Sims 4 is running'],
+        errors: ['Hash changed before apply'],
+    });
+});
+
+test('cleanup operation apply and restore gates follow manifest status', () => {
+    assert.equal(typeof cleanupModel.canApplyCleanupOperation, 'function');
+    assert.equal(typeof cleanupModel.canRestoreCleanupOperation, 'function');
+    assert.equal(cleanupModel.canApplyCleanupOperation({ status: 'planned', actions: [{ status: 'pending' }] }), true);
+    assert.equal(cleanupModel.canApplyCleanupOperation({ status: 'partial', actions: [{ status: 'blocked' }] }), true);
+    assert.equal(cleanupModel.canApplyCleanupOperation({ status: 'applied', actions: [{ status: 'moved' }] }), false);
+    assert.equal(cleanupModel.canApplyCleanupOperation({ status: 'planned', actions: [] }), false);
+
+    assert.equal(cleanupModel.canRestoreCleanupOperation({ status: 'applied', actions: [{ status: 'moved' }] }), true);
+    assert.equal(cleanupModel.canRestoreCleanupOperation({ status: 'partial', actions: [{ status: 'restore_pending' }] }), true);
+    assert.equal(cleanupModel.canRestoreCleanupOperation({ status: 'restored', actions: [{ status: 'restored' }] }), false);
+    assert.equal(cleanupModel.canRestoreCleanupOperation({ status: 'planned', actions: [{ status: 'pending' }] }), false);
 });
