@@ -183,6 +183,133 @@ def test_build_doctor_payload_includes_verdicts_and_playbooks(tmp_path: Path) ->
     assert payload["playbooks"][0]["id"] == "bisect-active-doctor-candidates"
 
 
+def test_build_doctor_payload_includes_chronological_timeline(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    older_script = sims4 / "lastException_old.txt"
+    newer_script = sims4 / "lastException.txt"
+    ui_log = sims4 / "lastUIException.txt"
+    older_script.write_text("old crash", encoding="utf-8")
+    newer_script.write_text("new crash", encoding="utf-8")
+    ui_log.write_text("ui crash", encoding="utf-8")
+    old_report = SimpleNamespace(
+        signature="old-script",
+        source_file=str(older_script),
+        report_type="lastException",
+        message="Older script failure",
+        created="2026-06-14T20:00:00Z",
+        game_version="1.107.151",
+    )
+    new_report = SimpleNamespace(
+        signature="new-script",
+        source_file=str(newer_script),
+        report_type="lastException",
+        message="Newer script failure",
+        created="2026-06-15T01:00:00Z",
+        game_version="1.107.151",
+    )
+    ui_report = SimpleNamespace(
+        signature="ui-buildbuy",
+        source_file=str(ui_log),
+        source_files=[str(ui_log)],
+        report_type="lastUIException",
+        message="BuildBuy03B",
+        created="2026-06-15T00:30:00Z",
+        game_version="1.107.151",
+        keys=[123],
+    )
+
+    class FakeCrashAnalyzer:
+        def build_module_index(self, mods_dir: Path, extra_roots: list[Path]) -> dict[str, str]:
+            return {}
+
+        def analyze(self, reports: list[Any], index: dict[str, str]) -> Any:
+            return SimpleNamespace()
+
+    class FakeUiAnalyzer:
+        def build_resource_index(
+            self,
+            mods_dir: Path,
+            extra_roots: list[Path],
+            target_keys: set[int],
+        ) -> dict[int, list[str]]:
+            return {}
+
+        def analyze(self, reports: list[Any], index: dict[int, list[str]]) -> Any:
+            return SimpleNamespace()
+
+    payload = doctor_core.build_doctor_payload(
+        sims4,
+        mods,
+        recursive=False,
+        crash_analyzer_factory=FakeCrashAnalyzer,
+        ui_analyzer_factory=FakeUiAnalyzer,
+        parse_exception=lambda path: {
+            older_script: [old_report],
+            newer_script: [new_report],
+        }[path],
+        parse_ui_exception=lambda path: [ui_report],
+        is_disabled_name=lambda name: False,
+        discover_disabled_roots_fn=lambda base: [],
+        crash_serializer=lambda result: {
+            "summary": {
+                "reports": 2,
+                "active_culprits": 0,
+                "disabled_culprits": 0,
+                "not_installed_culprits": 0,
+                "base_game_only": 2,
+            },
+            "ranked_mods": [],
+            "parse_errors": [],
+        },
+        ui_serializer=lambda result: {
+            "summary": {
+                "unique_findings": 1,
+                "occurrences": 1,
+                "active_findings": 0,
+                "disabled_findings": 0,
+                "not_found_findings": 1,
+                "no_key_findings": 0,
+            },
+            "findings": [],
+            "parse_errors": [],
+            "index_errors": [],
+        },
+    )
+
+    assert payload["timeline"] == [
+        {
+            "kind": "script",
+            "created": "2026-06-14T20:00:00Z",
+            "source_file": str(older_script),
+            "signature": "old-script",
+            "report_type": "lastException",
+            "message": "Older script failure",
+            "game_version": "1.107.151",
+        },
+        {
+            "kind": "ui",
+            "created": "2026-06-15T00:30:00Z",
+            "source_file": str(ui_log),
+            "source_files": [str(ui_log)],
+            "signature": "ui-buildbuy",
+            "report_type": "lastUIException",
+            "message": "BuildBuy03B",
+            "game_version": "1.107.151",
+        },
+        {
+            "kind": "script",
+            "created": "2026-06-15T01:00:00Z",
+            "source_file": str(newer_script),
+            "signature": "new-script",
+            "report_type": "lastException",
+            "message": "Newer script failure",
+            "game_version": "1.107.151",
+        },
+    ]
+
+
 def test_format_doctor_text_surfaces_verdicts_and_playbooks() -> None:
     summary = _summary(script_reports=1, script_active=1)
     payload = {
@@ -209,3 +336,39 @@ def test_format_doctor_text_surfaces_verdicts_and_playbooks() -> None:
     assert "Playbook: Start bisection from Doctor JSON" in report
     assert "simanalysis bisect start <The Sims 4> --doctor-json <doctor.json>" in report
     assert "Active.ts4script" in report
+
+
+def test_format_doctor_text_surfaces_timeline_with_limit() -> None:
+    payload = {
+        "summary": _summary(script_reports=2, ui_findings=1, ui_occurrences=1),
+        "script_crashes": {"ranked_mods": []},
+        "ui_crashes": {"findings": []},
+        "timeline": [
+            {
+                "kind": "script",
+                "created": "2026-06-14T20:00:00Z",
+                "source_file": "/Sims/lastException_old.txt",
+                "message": "Older script failure",
+            },
+            {
+                "kind": "ui",
+                "created": "2026-06-15T00:30:00Z",
+                "source_file": "/Sims/lastUIException.txt",
+                "message": "BuildBuy03B",
+            },
+            {
+                "kind": "script",
+                "created": "2026-06-15T01:00:00Z",
+                "source_file": "/Sims/lastException.txt",
+                "message": "Newer script failure",
+            },
+        ],
+    }
+
+    report = doctor_core.format_doctor_text(payload, limit=2)
+
+    assert "Doctor timeline:" in report
+    assert "script 2026-06-14T20:00:00Z - lastException_old.txt - Older script failure" in report
+    assert "ui 2026-06-15T00:30:00Z - lastUIException.txt - BuildBuy03B" in report
+    assert "... 1 more timeline event hidden by --limit" in report
+    assert "Newer script failure" not in report
