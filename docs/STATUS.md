@@ -46,8 +46,11 @@ Doctor summary, verdict, and playbook context, and the handoff renderer includes
 that context alongside the rollback journal; a BuildBuy03B-style replay test now
 proves the Doctor JSON -> bisect -> verdict -> restore -> handoff path. Doctor
 JSON/text output now includes a read-only script/UI exception timeline sorted in
-deterministic chronological order. Profile-aware state, Patch Day Shield, Cache
-Doctor, and update staging remain pending follow-on slices.
+deterministic chronological order. `simanalysis doctor --inventory-db` can add
+read-only ledger context from an existing SQLite inventory database, including
+recent scan history and latest file events, without starting a new scan or
+mutating files. Profile-aware state, Patch Day Shield, Cache Doctor, and update
+staging remain pending follow-on slices.
 
 ## Historical Status Snapshots
 

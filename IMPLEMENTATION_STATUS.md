@@ -156,8 +156,11 @@ context, and the read-only handoff renders it with the move journal; the replay
 gate covers a BuildBuy03B-style session from Doctor JSON through move, verdict,
 restore, and rollback handoff. The Doctor payload and text output now also
 include a read-only timeline that combines parsed script and UI exception
-reports in deterministic chronological order.
-Ledger-aware crash history remains future Doctor/Bisect work.
+reports in deterministic chronological order. `simanalysis doctor` can also
+take an explicit `--inventory-db` to include read-only ledger context: recent
+inventory scans plus the latest file events, without scanning or mutating the
+Sims folder.
+Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware state, Patch

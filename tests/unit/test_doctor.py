@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from simanalysis import doctor as doctor_core
+from simanalysis.inventory import InventoryScanner
 
 
 def _summary(**overrides: int) -> dict[str, int]:
@@ -372,3 +373,84 @@ def test_format_doctor_text_surfaces_timeline_with_limit() -> None:
     assert "ui 2026-06-15T00:30:00Z - lastUIException.txt - BuildBuy03B" in report
     assert "... 1 more timeline event hidden by --limit" in report
     assert "Newer script failure" not in report
+
+
+def test_doctor_ledger_history_summarizes_recent_scans_and_latest_events(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    package = mods / "Alpha.package"
+    package.write_bytes(b"alpha")
+    db_path = tmp_path / "inventory.sqlite3"
+    scanner = InventoryScanner(db_path)
+    first = scanner.scan(sims4)
+    moved = mods / "Moved" / "Alpha.package"
+    moved.parent.mkdir()
+    package.rename(moved)
+    (sims4 / "lastException.txt").write_text("latest crash", encoding="utf-8")
+    second = scanner.scan(sims4)
+
+    history = doctor_core.doctor_ledger_history(sims4, db_path, limit=2)
+
+    assert history["status"] == "available"
+    assert history["db_path"] == str(db_path)
+    assert [scan["scan_id"] for scan in history["recent_scans"]] == [
+        second.scan_id,
+        first.scan_id,
+    ]
+    assert history["latest_file_events"]["summary"]["moved"] == 1
+    assert history["latest_file_events"]["summary"]["added"] == 1
+    assert (
+        "Mods/Moved/Alpha.package",
+        "moved",
+        "Mods/Alpha.package",
+    ) in {
+        (
+            event["relative_path"],
+            event["change_status"],
+            event["previous_relative_path"],
+        )
+        for event in history["latest_file_events"]["events"]
+    }
+
+
+def test_format_doctor_text_surfaces_ledger_history() -> None:
+    payload = {
+        "summary": _summary(script_reports=1),
+        "script_crashes": {"ranked_mods": []},
+        "ui_crashes": {"findings": []},
+        "ledger_history": {
+            "status": "available",
+            "db_path": "/Sims/inventory.sqlite3",
+            "recent_scans": [
+                {
+                    "scan_id": 7,
+                    "files_total": 42,
+                    "added": 1,
+                    "removed": 0,
+                    "moved": 1,
+                    "modified": 2,
+                    "unchanged": 38,
+                }
+            ],
+            "latest_file_events": {
+                "events": [
+                    {
+                        "relative_path": "Mods/Moved/Alpha.package",
+                        "change_status": "moved",
+                        "previous_relative_path": "Mods/Alpha.package",
+                    }
+                ]
+            },
+            "warnings": [],
+        },
+    }
+
+    report = doctor_core.format_doctor_text(payload)
+
+    assert "Inventory ledger:" in report
+    assert "Status: available" in report
+    assert "Latest scan: 7 | files: 42 | added: 1 | moved: 1 | modified: 2 | removed: 0" in report
+    assert "Mods/Moved/Alpha.package (moved from Mods/Alpha.package)" in report

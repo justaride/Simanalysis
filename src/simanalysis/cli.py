@@ -885,6 +885,12 @@ def ui_crash(
     "--mods", type=click.Path(), default=None, help="Mods dir (default: <sims4_dir>/Mods)"
 )
 @click.option("--recursive", is_flag=True, help="Also scan subfolders for exception logs")
+@click.option(
+    "--inventory-db",
+    type=click.Path(dir_okay=False),
+    default=None,
+    help="Read inventory scan history from this SQLite ledger",
+)
 @click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
 @click.option("--output", "-o", type=click.Path(), default=None, help="Write report to file")
 @click.option("--limit", type=int, default=20, help="Top-N findings to show per status group")
@@ -892,6 +898,7 @@ def doctor(
     sims4_dir: str,
     mods: Optional[str],
     recursive: bool,
+    inventory_db: Optional[str],
     fmt: str,
     output: Optional[str],
     limit: int,
@@ -906,7 +913,15 @@ def doctor(
     if mods and (not mods_dir.exists() or not mods_dir.is_dir()):
         raise click.ClickException(f"Invalid Mods directory path: {mods}")
 
-    payload = build_doctor_payload(base, mods_dir, recursive)
+    if inventory_db:
+        payload = build_doctor_payload(
+            base,
+            mods_dir,
+            recursive,
+            inventory_db=Path(inventory_db).expanduser().resolve(),
+        )
+    else:
+        payload = build_doctor_payload(base, mods_dir, recursive)
     text = json.dumps(payload, indent=2) if fmt == "json" else format_doctor_text(payload, limit)
 
     if output:
