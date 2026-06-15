@@ -69,8 +69,11 @@ moving cache files. Save Protector v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis save-protector status`,
 bridge/Tauri `save-protector-status`, and the Save Protector route, grouping
 saves/backups and surfacing AppleDouble, iCloud-placeholder, symlink, and
-case-collision signals without editing saves. Profile-aware file operations,
-cache-clearing operations, Tray dependency signals, update staging, and
+case-collision signals without editing saves. Tray Protector v0 now exists as a
+read-only CLI/backend surface through `simanalysis tray status`, grouping Tray
+files and surfacing sidecar-only, AppleDouble, iCloud-placeholder, symlink, and
+case-collision signals without editing Tray. Profile-aware file operations,
+cache-clearing operations, desktop Tray Protector flows, update staging, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots

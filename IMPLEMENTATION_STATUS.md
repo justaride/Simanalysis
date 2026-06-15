@@ -213,6 +213,23 @@ Implemented after Cache Doctor v0:
   dependency signals and any future save-adjacent operations remain future
   slices.
 
+## Tray Protector Progress
+
+Implemented after desktop Save Protector v0:
+
+- Added `src/simanalysis/tray_protector.py`, a read-only Tray dependency status
+  helper for the Sims 4 `Tray` directory.
+- Added `simanalysis tray status` with text and JSON output for Tray file
+  counts, grouped stems, anchored `.trayitem` groups, sidecar-only groups,
+  extension counts, warnings, signals, and recommendations.
+- Tray Protector v0 surfaces sidecar files without a `.trayitem` anchor,
+  AppleDouble sidecar files, iCloud placeholder or eviction markers, symlinked
+  Tray entries, non-file entries, and casefold path collisions as
+  evidence-labeled signals.
+- Tray Protector v0 never edits, restores, dedupes, or deletes Tray files.
+  Desktop bridge/UI and any future Tray-adjacent operations remain future
+  slices.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -258,14 +275,16 @@ Doctor v0 is available as a read-only CLI/backend and desktop route for
 reviewing known cache targets and symlink warnings without deleting or moving
 files. Save Protector v0 is available as a read-only CLI/backend for reviewing
 save/backups and filesystem trust signals, with a desktop route over the same
-payload and no save mutation support.
+payload and no save mutation support. Tray Protector v0 is available as a
+read-only CLI/backend for reviewing Tray groups and dependency signals without
+editing Tray files.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
 operations, reversible workflows beyond cleanup actions, cache-clearing
-operations, Tray dependency signals, update staging, profile-aware Patch Day
-re-enable workflows, and broader real-world corpus coverage.
+operations, desktop Tray Protector flows, update staging, profile-aware Patch
+Day re-enable workflows, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 
