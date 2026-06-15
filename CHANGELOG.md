@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the original verdict/playbook context.
 - Added a read-only Doctor timeline to JSON and text output, combining parsed
   script and UI exception evidence in deterministic chronological order.
+- Added explicit read-only inventory ledger context to `simanalysis doctor`
+  through `--inventory-db`, surfacing recent scan history and latest file
+  events in JSON/text output without scanning or mutating files.
 
 ### Planned
 - Full DBPF package parser implementation

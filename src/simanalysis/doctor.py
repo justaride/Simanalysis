@@ -9,6 +9,7 @@ from typing import Any
 from simanalysis import serialization
 from simanalysis.analyzers.crash_analyzer import CrashAnalyzer, _is_disabled_name
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
+from simanalysis.inventory import InventoryScanner
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 
@@ -221,6 +222,42 @@ def doctor_timeline(
     )
 
 
+def doctor_ledger_history(
+    sims4_dir: Path | str,
+    inventory_db: Path | str,
+    *,
+    limit: int = 5,
+    scanner_factory: Callable[[Path | str], Any] = InventoryScanner,
+) -> dict[str, Any]:
+    """Return read-only inventory context for Doctor reports when explicitly requested."""
+    root = Path(sims4_dir).expanduser().resolve()
+    db_path = Path(inventory_db).expanduser().resolve()
+    safe_limit = max(limit, 1)
+    scanner = scanner_factory(db_path)
+    warnings: list[str] = []
+    recent_scans: list[dict[str, object]] = []
+    latest_file_events: dict[str, object] | None = None
+
+    try:
+        recent_scans = scanner.list_scan_history(root, limit=safe_limit)
+    except ValueError as exc:
+        warnings.append(str(exc))
+
+    if recent_scans:
+        try:
+            latest_file_events = scanner.latest_file_events(root, include_unchanged=False)
+        except ValueError as exc:
+            warnings.append(str(exc))
+
+    return {
+        "status": "available" if recent_scans else "no_scans",
+        "db_path": str(db_path),
+        "recent_scans": recent_scans,
+        "latest_file_events": latest_file_events,
+        "warnings": warnings,
+    }
+
+
 def build_doctor_payload(
     base: Path,
     mods_dir: Path,
@@ -235,6 +272,7 @@ def build_doctor_payload(
     discover_disabled_roots_fn: Callable[[Path], Iterable[Path]] = discover_disabled_roots,
     crash_serializer: Callable[[Any], dict[str, Any]] = serialization.crash_result_to_dict,
     ui_serializer: Callable[[Any], dict[str, Any]] = serialization.ui_result_to_dict,
+    inventory_db: Path | None = None,
 ) -> dict[str, Any]:
     """Build a combined script/UI Doctor payload without mutating the Sims folder."""
     pattern = "**/lastException*.txt" if recursive else "lastException*.txt"
@@ -286,7 +324,7 @@ def build_doctor_payload(
         progress_callback("ui-crashes")
 
     summary = doctor_summary(crash_payload, ui_payload)
-    return {
+    payload = {
         "summary": summary,
         "verdicts": doctor_verdicts(summary),
         "playbooks": doctor_playbooks(summary),
@@ -294,6 +332,9 @@ def build_doctor_payload(
         "script_crashes": crash_payload,
         "ui_crashes": ui_payload,
     }
+    if inventory_db is not None:
+        payload["ledger_history"] = doctor_ledger_history(base, inventory_db)
+    return payload
 
 
 def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
@@ -371,6 +412,48 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
         if hidden > 0:
             plural = "event" if hidden == 1 else "events"
             lines.append(f"  ... {hidden} more timeline {plural} hidden by --limit")
+        lines.append("")
+
+    ledger = payload.get("ledger_history")
+    if isinstance(ledger, dict):
+        lines.append("Inventory ledger:")
+        lines.append(f"  - Status: {ledger.get('status', 'unknown')}")
+        db_path = ledger.get("db_path")
+        if db_path:
+            lines.append(f"  - Database: {db_path}")
+        scans = ledger.get("recent_scans", [])
+        if isinstance(scans, list) and scans:
+            latest_scan = scans[0]
+            if isinstance(latest_scan, dict):
+                lines.append(
+                    "  - Latest scan: "
+                    f"{latest_scan.get('scan_id', 'unknown')} | "
+                    f"files: {latest_scan.get('files_total', 0)} | "
+                    f"added: {latest_scan.get('added', 0)} | "
+                    f"moved: {latest_scan.get('moved', 0)} | "
+                    f"modified: {latest_scan.get('modified', 0)} | "
+                    f"removed: {latest_scan.get('removed', 0)}"
+                )
+        latest_events = ledger.get("latest_file_events")
+        if isinstance(latest_events, dict):
+            events = latest_events.get("events", [])
+            if isinstance(events, list) and events:
+                lines.append("  - Latest file events:")
+                for event in events[:safe_limit]:
+                    if not isinstance(event, dict):
+                        continue
+                    relative_path = event.get("relative_path", "unknown")
+                    status = event.get("change_status", "unknown")
+                    previous = event.get("previous_relative_path")
+                    suffix = f" from {previous}" if previous else ""
+                    lines.append(f"    - {relative_path} ({status}{suffix})")
+                hidden = len(events) - safe_limit
+                if hidden > 0:
+                    lines.append(f"    ... {hidden} more ledger event(s) hidden by --limit")
+        warnings = ledger.get("warnings", [])
+        if isinstance(warnings, list):
+            for warning in warnings:
+                lines.append(f"  - Warning: {warning}")
         lines.append("")
 
     script_mods = [

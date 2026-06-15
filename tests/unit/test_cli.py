@@ -560,6 +560,66 @@ class TestCLI:
         assert json.loads(result.output) == payload
         assert calls["args"] == (sims4.resolve(), mods.resolve(), False)
 
+    def test_doctor_json_accepts_explicit_inventory_db(
+        self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test doctor can enrich its payload from an explicit inventory ledger."""
+        import simanalysis.doctor as doctor_core
+
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        mods.mkdir(parents=True)
+        db_path = tmp_path / "inventory.sqlite3"
+        payload = {
+            "summary": {
+                "script_reports": 0,
+                "script_active": 0,
+                "script_disabled": 0,
+                "script_not_installed": 0,
+                "script_base_game_only": 0,
+                "ui_findings": 0,
+                "ui_occurrences": 0,
+                "ui_active": 0,
+                "ui_disabled": 0,
+                "ui_not_found": 0,
+                "ui_no_key": 0,
+                "parse_errors": 0,
+                "index_errors": 0,
+            },
+            "ledger_history": {"status": "available", "recent_scans": []},
+            "script_crashes": {"ranked_mods": []},
+            "ui_crashes": {"findings": []},
+        }
+        calls: dict[str, object] = {}
+
+        def fake_build_doctor_payload(
+            base: Path,
+            mods_dir: Path,
+            recursive: bool,
+            *,
+            inventory_db=None,
+        ) -> dict:
+            calls["args"] = (base, mods_dir, recursive, inventory_db)
+            return payload
+
+        monkeypatch.setattr(doctor_core, "build_doctor_payload", fake_build_doctor_payload)
+
+        result = runner.invoke(
+            cli,
+            [
+                "doctor",
+                str(sims4),
+                "--inventory-db",
+                str(db_path),
+                "--format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["ledger_history"]["status"] == "available"
+        assert calls["args"] == (sims4.resolve(), mods.resolve(), False, db_path.resolve())
+
     def test_doctor_text_output_file(
         self, runner: CliRunner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
