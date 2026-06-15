@@ -58,8 +58,12 @@ exists as a read-only CLI/backend/desktop surface through
 `GameVersion.txt` with app-owned baseline state, marks
 script/UI/gameplay/CAS categories as `unknown_after_patch` after a version
 change, and records explicit baselines without changing Mods, saves, or Tray
-files. Profile Manager Light v0 now exists in desktop Settings for storing an
-active Sims 4 root in app config, deriving Mods/Tray/saves/cache paths, and
+files. The Patch Day desktop route now also reads Profile Manager Light app
+config to show the active Sims 4 profile, compare it with the selected Patch
+Day folder, recommend a separate safe test profile after detected patches, and
+surface a Cache Doctor recommendation without automatic re-enable or profile
+mutation. Profile Manager Light v0 now exists in desktop Settings for storing
+an active Sims 4 root in app config, deriving Mods/Tray/saves/cache paths, and
 remembering known roots without changing Sims files; primary desktop views use
 those paths as input defaults without scanning or mutating files on load.
 Cache Doctor v0 now exists as a read-only CLI/backend/desktop surface through

@@ -149,7 +149,14 @@ Implemented after the Doctor ledger-history work:
 - Added a desktop Patch Day route for choosing a Sims 4 folder, checking
   current baseline status, reviewing post-patch risk classes, and
   confirm-recording a new baseline. Recording updates only Simanalysis state.
-- Update staging and profile-aware re-enable workflows remain future slices.
+- Added desktop Patch Day profile workflow guidance that reads Profile Manager
+  Light app config, shows the active Sims 4 profile alongside the selected
+  Patch Day folder, keeps automatic re-enable disabled, recommends a separate
+  safe test profile after detected patches, and surfaces a Cache Doctor
+  recommendation without changing Mods, saves, Tray, cache files, or profile
+  state.
+- Update staging and manifest-backed profile re-enable workflows remain future
+  slices.
 
 ## Profile Manager Light Progress
 
