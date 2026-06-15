@@ -754,6 +754,57 @@ class TestCLI:
         assert beta.exists()
         assert not disabled_alpha.exists()
 
+    def test_bisect_handoff_writes_markdown_without_mutating_session(
+        self, runner: CliRunner, tmp_path: Path
+    ) -> None:
+        """Test bisect handoff creates a read-only Markdown field log from a manifest."""
+        sims4 = tmp_path / "The Sims 4"
+        mods = sims4 / "Mods"
+        mods.mkdir(parents=True)
+        alpha = mods / "Alpha.ts4script"
+        beta = mods / "Beta.ts4script"
+        alpha.write_bytes(b"alpha")
+        beta.write_bytes(b"beta")
+        doctor_json = tmp_path / "doctor.json"
+        doctor_json.write_text(
+            json.dumps(
+                {
+                    "script_crashes": {
+                        "findings": [],
+                        "ranked_mods": [
+                            {"mod": "Alpha.ts4script", "status": "active", "confidence": "high"},
+                            {"mod": "Beta.ts4script", "status": "active", "confidence": "medium"},
+                        ],
+                    },
+                    "ui_crashes": {"findings": []},
+                }
+            ),
+            encoding="utf-8",
+        )
+        start = runner.invoke(
+            cli,
+            ["bisect", "start", str(sims4), "--doctor-json", str(doctor_json), "--format", "json"],
+        )
+        manifest = Path(json.loads(start.output)["manifest_path"])
+        before_manifest = manifest.read_bytes()
+        output = tmp_path / "handoff.md"
+
+        result = runner.invoke(
+            cli,
+            ["bisect", "handoff", str(manifest), "--output", str(output)],
+        )
+
+        assert result.exit_code == 0, result.output
+        assert "Wrote handoff" in result.output
+        assert manifest.read_bytes() == before_manifest
+        assert alpha.exists()
+        assert beta.exists()
+        assert not Path(json.loads(before_manifest)["disabled_dir"]).exists()
+        handoff = output.read_text(encoding="utf-8")
+        assert "# Simanalysis Bisect Handoff" in handoff
+        assert f"Manifest: `{manifest}`" in handoff
+        assert f'simanalysis bisect restore "{manifest}" --step all' in handoff
+
     def test_analyze_empty_directory(self, runner: CliRunner, tmp_path: Path) -> None:
         """Test analyze with empty directory."""
         empty_dir = tmp_path / "empty"

@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the manifest-first `simanalysis ops plan|commit|restore|undo` CLI surface; commits require explicit action IDs or `--all-actions` and still use Operating Table guards and manifests.
 - Added the read-only `simanalysis doctor` CLI surface over the shared Doctor payload, combining script crash and UI exception autopsy with text and JSON output.
 - Added the manifest-based `simanalysis bisect start|status|next|record-verdict|restore` CLI surface over the existing Treatment/Auto-Bisect engine.
+- Added the read-only `simanalysis bisect handoff` CLI surface that renders a Markdown field handoff from a saved bisection manifest with session state, candidates, steps, warnings, blockers, and recovery commands.
 
 ### Planned
 - Full DBPF package parser implementation

@@ -1055,6 +1055,22 @@ def bisect_restore(manifest_file: str, step: str, fmt: str) -> None:
         _echo_bisect_session(session)
 
 
+@bisect.command("handoff")
+@click.argument("manifest_file", type=click.Path(exists=True, dir_okay=False))
+@click.option("--output", "-o", type=click.Path(), default=None, help="Write Markdown to file")
+def bisect_handoff(manifest_file: str, output: Optional[str]) -> None:
+    """Render a read-only Markdown field handoff from a bisection manifest."""
+    from simanalysis.treatment import load_session, render_handoff
+
+    session = load_session(manifest_file)
+    handoff = render_handoff(session)
+    if output:
+        Path(output).expanduser().write_text(handoff, encoding="utf-8")
+        click.echo(f"Wrote handoff to {output}")
+    else:
+        click.echo(handoff)
+
+
 @cli.command()
 @click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
 @click.option(

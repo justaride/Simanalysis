@@ -817,6 +817,36 @@ def test_different_issue_marks_manual_review(
     assert session["steps"][-1]["outcome"] == "different_issue"
 
 
+def test_render_handoff_summarizes_session_and_recovery_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _allow_file_moves(monkeypatch)
+    manifest, mods, _ = _saved_bisect_session(tmp_path, ["Alpha", "Beta", "Gamma"])
+    apply_next_step(manifest)
+    session = record_outcome(manifest, "issue_gone")
+    session["warnings"].append("Fixture warning: verify against the latest crash log.")
+    session["blockers"].append("Fixture blocker: pause before another mutation.")
+
+    handoff = treatment.render_handoff(session)
+
+    assert "# Simanalysis Bisect Handoff" in handoff
+    assert "Session: `bisect-test`" in handoff
+    assert f"Manifest: `{manifest}`" in handoff
+    assert "Status: `planned`" in handoff
+    assert "Candidates: 3" in handoff
+    assert "Remaining: 2" in handoff
+    assert "Current Removed: 2" in handoff
+    assert f"- `Alpha` - folder - `{mods / 'Alpha'}`" in handoff
+    assert f"- `Beta` - folder - `{mods / 'Beta'}`" in handoff
+    assert "Step `step-1` - `applied` - outcome `issue_gone`" in handoff
+    assert "Fixture warning: verify against the latest crash log." in handoff
+    assert "Fixture blocker: pause before another mutation." in handoff
+    assert f'simanalysis bisect restore "{manifest}" --step all' in handoff
+    assert f'simanalysis bisect record-verdict "{manifest}" --verdict same_issue' in handoff
+    assert "Handoff generation is read-only" in handoff
+
+
 def test_contains_symlink_detects_nested_symlink(tmp_path: Path) -> None:
     root = tmp_path / "root"
     root.mkdir()
