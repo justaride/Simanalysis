@@ -45,6 +45,11 @@ function titleLabel(value) {
     return `${label.slice(0, 1).toUpperCase()}${label.slice(1)}`;
 }
 
+function doctorKindLabel(kind) {
+    if (kind === 'ui') return 'UI';
+    return titleLabel(kind);
+}
+
 function formatEvidence(evidence) {
     return asArray(evidence)
         .map((item) => {
@@ -54,6 +59,15 @@ function formatEvidence(evidence) {
             return `${label}: ${value}`;
         })
         .filter(Boolean);
+}
+
+function basename(path) {
+    const value = String(path || '');
+    return value.split(/[\\/]/).filter(Boolean).pop() || value || 'Unknown source';
+}
+
+function count(value) {
+    return Number.isFinite(value) ? value : 0;
 }
 
 export function summarizeDoctorVerdicts(result = {}) {
@@ -89,4 +103,59 @@ export function summarizeDoctorPlaybooks(result = {}) {
         requires: asArray(playbook?.requires),
         reason: playbook?.reason || '',
     }));
+}
+
+export function summarizeDoctorTimeline(result = {}) {
+    return asArray(result?.timeline).map((event) => {
+        const kind = event?.kind || 'unknown';
+        const created = event?.created || '';
+        const sourceFile = event?.source_file || '';
+        return {
+            id: `${kind}-${created}-${sourceFile}`,
+            kind,
+            kindLabel: doctorKindLabel(kind),
+            created,
+            sourceFile,
+            sourceName: basename(sourceFile),
+            message: event?.message || '',
+        };
+    });
+}
+
+export function summarizeDoctorLedgerHistory(result = {}) {
+    const history = result?.ledger_history;
+    if (!history || typeof history !== 'object') return null;
+
+    const latestScan = asArray(history.recent_scans)[0] || null;
+    return {
+        status: history.status || 'unknown',
+        statusLabel: titleLabel(history.status),
+        dbPath: history.db_path || '',
+        latestScan: latestScan
+            ? {
+                  scanId: latestScan.scan_id ?? null,
+                  scannedAt: latestScan.scanned_at || '',
+                  filesTotal: count(latestScan.files_total),
+                  added: count(latestScan.added),
+                  moved: count(latestScan.moved),
+                  modified: count(latestScan.modified),
+                  removed: count(latestScan.removed),
+                  unchanged: count(latestScan.unchanged),
+              }
+            : null,
+        events: asArray(history.latest_file_events?.events).map((event) => {
+            const status = event?.change_status || 'unknown';
+            const path = event?.relative_path || '';
+            const previousPath = event?.previous_relative_path || '';
+            return {
+                id: `${status}-${path}-${previousPath}`,
+                path,
+                status,
+                statusLabel: titleLabel(status),
+                previousPath,
+                detail: previousPath ? `from ${previousPath}` : '',
+            };
+        }),
+        warnings: asArray(history.warnings),
+    };
 }

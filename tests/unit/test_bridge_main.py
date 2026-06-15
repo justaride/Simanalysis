@@ -61,15 +61,32 @@ def test_doctor_scan_command_is_dispatched(monkeypatch, tmp_path):
         called["path"] = args.path
         called["mods"] = args.mods
         called["recursive"] = args.recursive
+        called["inventory_db"] = args.inventory_db
         emit.result({"ok": True})
         emit.done()
 
     monkeypatch.setitem(commands.DISPATCH, "doctor-scan", fake_doctor_scan)
 
-    code, events = _run(monkeypatch, ["doctor-scan", str(tmp_path), "--mods", str(tmp_path)])
+    db_path = tmp_path / "inventory.sqlite3"
+    code, events = _run(
+        monkeypatch,
+        [
+            "doctor-scan",
+            str(tmp_path),
+            "--mods",
+            str(tmp_path),
+            "--inventory-db",
+            str(db_path),
+        ],
+    )
 
     assert code == 0
-    assert called == {"path": str(tmp_path), "mods": str(tmp_path), "recursive": False}
+    assert called == {
+        "path": str(tmp_path),
+        "mods": str(tmp_path),
+        "recursive": False,
+        "inventory_db": str(db_path),
+    }
     assert [event["type"] for event in events] == ["result", "done"]
 
 

@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added explicit read-only inventory ledger context to `simanalysis doctor`
   through `--inventory-db`, surfacing recent scan history and latest file
   events in JSON/text output without scanning or mutating files.
+- Added `inventoryDb` plumbing for desktop Doctor scans through the web API,
+  Tauri sidecar arguments, and `simanalysis-bridge doctor-scan --inventory-db`.
+- Added desktop Doctor timeline and Inventory Ledger panels that render
+  evidence already present in the shared Doctor payload without starting a new
+  inventory scan or mutating Sims files.
 
 ### Planned
 - Full DBPF package parser implementation

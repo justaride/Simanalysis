@@ -181,12 +181,15 @@ def _build_doctor_payload(
     mods_dir: Path,
     recursive: bool,
     progress_callback: Callable[[str], None] | None = None,
+    *,
+    inventory_db: Path | None = None,
 ) -> dict[str, Any]:
     return doctor_core.build_doctor_payload(
         base,
         mods_dir,
         recursive,
         progress_callback,
+        inventory_db=inventory_db,
         crash_analyzer_factory=CrashAnalyzer,
         ui_analyzer_factory=UICrashAnalyzer,
         parse_exception=parse_exception_file,
@@ -201,6 +204,8 @@ def _build_doctor_payload(
 def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
     base = _require_dir(args.path)
     mods_dir = _require_dir(args.mods) if args.mods else base / "Mods"
+    inventory_db_arg = getattr(args, "inventory_db", None)
+    inventory_db = Path(inventory_db_arg).expanduser().resolve() if inventory_db_arg else None
 
     emit.start("doctor-scan", total=2)
     progress_count = 0
@@ -210,7 +215,13 @@ def doctor_scan(args: argparse.Namespace, emit: Emitter) -> None:
         progress_count += 1
         emit.progress(progress_count, 2, stage=stage, force=True)
 
-    payload = _build_doctor_payload(base, mods_dir, args.recursive, emit_doctor_progress)
+    payload = _build_doctor_payload(
+        base,
+        mods_dir,
+        args.recursive,
+        emit_doctor_progress,
+        inventory_db=inventory_db,
+    )
     emit.result(payload)
     emit.done()
 

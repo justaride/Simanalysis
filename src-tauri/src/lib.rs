@@ -34,6 +34,8 @@ struct AnalysisOptions {
     #[serde(default)]
     doctor_json_path: Option<String>,
     #[serde(default)]
+    inventory_db: Option<String>,
+    #[serde(default)]
     save: bool,
     #[serde(default)]
     outcome: Option<String>,
@@ -173,6 +175,10 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             if let Some(mods) = opts.mods_path.as_deref() {
                 args.push("--mods".into());
                 args.push(mods.into());
+            }
+            if let Some(inventory_db) = opts.inventory_db.as_deref() {
+                args.push("--inventory-db".into());
+                args.push(inventory_db.into());
             }
             if opts.recursive {
                 args.push("--recursive".into());
@@ -732,6 +738,25 @@ mod tests {
         };
         let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
         assert_eq!(args, vec!["doctor-scan", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_doctor_scan_args_with_inventory_db() {
+        let opts = AnalysisOptions {
+            recursive: false,
+            inventory_db: Some("/Sims/inventory.sqlite3".into()),
+            ..Default::default()
+        };
+        let args = build_args("doctor-scan", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "doctor-scan",
+                "/Sims/The Sims 4",
+                "--inventory-db",
+                "/Sims/inventory.sqlite3",
+            ]
+        );
     }
 
     #[test]
