@@ -3,6 +3,7 @@
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { cleanupPlanOptions } from './cleanupApiModel';
+import { doctorScanOptions } from './doctorApiModel';
 import {
   inventoryFileEventsOptions,
   inventoryHistoryOptions,
@@ -81,8 +82,8 @@ export const api = {
     runAnalysis('scan-tray', path, {}, callbacks),
   analyzeSave: (savePath, modsPath, callbacks) =>
     runAnalysis('analyze-save', savePath, { modsPath }, callbacks),
-  scanDoctor: (sims4Path, modsPath, callbacks) =>
-    runAnalysis('doctor-scan', sims4Path, { modsPath, recursive: false }, callbacks),
+  scanDoctor: (sims4Path, modsPath, callbacks, options = {}) =>
+    runAnalysis('doctor-scan', sims4Path, doctorScanOptions(modsPath, options), callbacks),
   scanInventory: (sims4Path, callbacks, options = {}) =>
     runAnalysis('inventory-scan', sims4Path, inventoryScanOptions(options), callbacks),
   inventoryHistory: (sims4Path, callbacks, options = {}) =>

@@ -159,7 +159,10 @@ include a read-only timeline that combines parsed script and UI exception
 reports in deterministic chronological order. `simanalysis doctor` can also
 take an explicit `--inventory-db` to include read-only ledger context: recent
 inventory scans plus the latest file events, without scanning or mutating the
-Sims folder.
+Sims folder. The desktop Doctor route can pass the same explicit inventory
+database through the Tauri sidecar and now renders the Doctor timeline plus
+ledger status, latest scan counts, recent file events, and ledger warnings from
+the shared payload.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several

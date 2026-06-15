@@ -69,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_doctor.add_argument("path")
     p_doctor.add_argument("--mods", default=None)
     p_doctor.add_argument("--recursive", action="store_true")
+    p_doctor.add_argument("--inventory-db", default=None)
 
     p_treatment_plan = sub.add_parser("treatment-plan")
     p_treatment_plan.add_argument("path")

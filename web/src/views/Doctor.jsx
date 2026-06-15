@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
     AlertTriangle,
     CheckCircle,
+    Clock,
+    Database,
     Download,
     FileWarning,
     FolderOpen,
@@ -17,7 +19,12 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
-import { summarizeDoctorPlaybooks, summarizeDoctorVerdicts } from './doctorModel';
+import {
+    summarizeDoctorLedgerHistory,
+    summarizeDoctorPlaybooks,
+    summarizeDoctorTimeline,
+    summarizeDoctorVerdicts,
+} from './doctorModel';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
 
@@ -246,6 +253,124 @@ function DoctorGuidance({ verdicts, playbooks }) {
     );
 }
 
+function TimelinePanel({ timeline }) {
+    if (timeline.length === 0) return null;
+    const visible = timeline.slice(0, 6);
+    return (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/40">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-5 py-4">
+                <div className="flex items-center gap-2">
+                    <Clock className="text-cyan-300" size={20} />
+                    <h2 className="text-lg font-semibold text-white">Evidence Timeline</h2>
+                </div>
+                <span className="rounded-md border border-gray-700 px-2 py-1 text-xs text-gray-400">
+                    {timeline.length}
+                </span>
+            </div>
+            <div className="space-y-3 p-5">
+                {visible.map((event) => (
+                    <div key={event.id} className="border-l border-gray-700 pl-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded bg-cyan-950/50 px-2 py-1 text-xs font-semibold uppercase text-cyan-200">
+                                {event.kindLabel}
+                            </span>
+                            <span className="font-mono text-xs text-gray-500">{event.created || 'unknown time'}</span>
+                        </div>
+                        <p className="mt-2 text-sm font-medium text-white">{event.message || 'No message'}</p>
+                        <p className="mt-1 truncate font-mono text-xs text-gray-500" title={event.sourceFile}>
+                            {event.sourceName}
+                        </p>
+                    </div>
+                ))}
+                {timeline.length > visible.length && (
+                    <p className="text-xs text-gray-500">
+                        +{timeline.length - visible.length} more timeline event(s)
+                    </p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function LedgerPanel({ ledger }) {
+    if (!ledger) return null;
+    const visibleEvents = ledger.events.slice(0, 5);
+    return (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/40">
+            <div className="flex items-center justify-between gap-3 border-b border-gray-800 px-5 py-4">
+                <div className="flex items-center gap-2">
+                    <Database className="text-emerald-300" size={20} />
+                    <h2 className="text-lg font-semibold text-white">Inventory Ledger</h2>
+                </div>
+                <span className="rounded-md border border-gray-700 px-2 py-1 text-xs uppercase text-gray-400">
+                    {ledger.statusLabel}
+                </span>
+            </div>
+            <div className="space-y-4 p-5">
+                {ledger.dbPath && (
+                    <p className="truncate font-mono text-xs text-gray-500" title={ledger.dbPath}>
+                        {ledger.dbPath}
+                    </p>
+                )}
+                {ledger.latestScan ? (
+                    <div className="grid gap-3 text-sm text-gray-300 sm:grid-cols-3">
+                        <p>
+                            <span className="block text-xs uppercase text-gray-500">Files</span>
+                            {ledger.latestScan.filesTotal}
+                        </p>
+                        <p>
+                            <span className="block text-xs uppercase text-gray-500">Changed</span>
+                            {ledger.latestScan.added + ledger.latestScan.moved + ledger.latestScan.modified + ledger.latestScan.removed}
+                        </p>
+                        <p>
+                            <span className="block text-xs uppercase text-gray-500">Scan</span>
+                            {ledger.latestScan.scanId ?? 'unknown'}
+                        </p>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">No inventory scan history in this database.</p>
+                )}
+                {visibleEvents.length > 0 && (
+                    <div className="space-y-2">
+                        {visibleEvents.map((event) => (
+                            <div key={event.id} className="rounded-lg border border-gray-800 bg-black/20 p-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="rounded bg-gray-800 px-2 py-1 text-xs uppercase text-gray-300">
+                                        {event.statusLabel}
+                                    </span>
+                                    {event.detail && <span className="text-xs text-gray-500">{event.detail}</span>}
+                                </div>
+                                <p className="mt-2 truncate font-mono text-xs text-gray-300" title={event.path}>
+                                    {event.path}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {ledger.warnings.length > 0 && (
+                    <div className="space-y-1">
+                        {ledger.warnings.map((warning) => (
+                            <p key={warning} className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-2 text-xs text-amber-100">
+                                {warning}
+                            </p>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function DoctorEvidenceContext({ timeline, ledger }) {
+    if (timeline.length === 0 && !ledger) return null;
+    return (
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
+            <TimelinePanel timeline={timeline} />
+            <LedgerPanel ledger={ledger} />
+        </section>
+    );
+}
+
 function ScriptFinding({ item }) {
     const evidence = item.evidence || [];
     return (
@@ -414,8 +539,10 @@ function Doctor() {
     const navigate = useNavigate();
     const [simsPath, setSimsPath] = useState(location.state?.simsPath || DEFAULT_SIMS_PATH);
     const [modsPath, setModsPath] = useState(location.state?.modsPath || '');
+    const [inventoryDb, setInventoryDb] = useState(location.state?.inventoryDb || '');
     const [showSimsPicker, setShowSimsPicker] = useState(false);
     const [showModsPicker, setShowModsPicker] = useState(false);
+    const [showInventoryDbPicker, setShowInventoryDbPicker] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [progress, setProgress] = useState(null);
     const [error, setError] = useState(null);
@@ -424,6 +551,8 @@ function Doctor() {
     const groups = useMemo(() => buildGroups(result), [result]);
     const verdicts = useMemo(() => summarizeDoctorVerdicts(result), [result]);
     const playbooks = useMemo(() => summarizeDoctorPlaybooks(result), [result]);
+    const timeline = useMemo(() => summarizeDoctorTimeline(result), [result]);
+    const ledger = useMemo(() => summarizeDoctorLedgerHistory(result), [result]);
     const summary = result?.summary || {};
     const activeTotal = (summary.script_active || 0) + (summary.ui_active || 0);
     const disabledTotal = (summary.script_disabled || 0) + (summary.ui_disabled || 0);
@@ -440,19 +569,26 @@ function Doctor() {
         setProgress(null);
         setResult(null);
 
-        api.scanDoctor(simsPath.trim(), modsPath.trim() || null, {
-            onProgress: (nextProgress) => setProgress(nextProgress),
-            onComplete: (data) => {
-                setResult(data);
-                setIsScanning(false);
-                setProgress(null);
+        api.scanDoctor(
+            simsPath.trim(),
+            modsPath.trim() || null,
+            {
+                onProgress: (nextProgress) => setProgress(nextProgress),
+                onComplete: (data) => {
+                    setResult(data);
+                    setIsScanning(false);
+                    setProgress(null);
+                },
+                onError: (message) => {
+                    setError(message);
+                    setIsScanning(false);
+                    setProgress(null);
+                },
             },
-            onError: (message) => {
-                setError(message);
-                setIsScanning(false);
-                setProgress(null);
+            {
+                inventoryDb: inventoryDb.trim() || null,
             },
-        });
+        );
     };
 
     const handleExport = () => {
@@ -510,7 +646,7 @@ function Doctor() {
                 </motion.header>
 
                 <section className="glass-card p-5">
-                    <div className="grid gap-4 lg:grid-cols-[1fr_1fr_auto]">
+                    <div className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_auto]">
                         <div>
                             <label className="mb-2 block text-sm font-medium text-gray-300">Sims 4 Folder</label>
                             <div className="flex gap-2">
@@ -541,6 +677,24 @@ function Doctor() {
                                     onClick={() => setShowModsPicker(true)}
                                     className="rounded-lg border border-gray-700 bg-gray-800 px-3 text-gray-200 hover:bg-gray-700"
                                     title="Browse for Mods folder"
+                                >
+                                    <FolderOpen size={18} />
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-300">Inventory Ledger DB</label>
+                            <div className="flex gap-2">
+                                <input
+                                    value={inventoryDb}
+                                    onChange={(event) => setInventoryDb(event.target.value)}
+                                    placeholder="Optional inventory.sqlite3"
+                                    className="min-w-0 flex-1 rounded-lg border border-gray-700 bg-gray-900/70 px-3 py-2 text-white placeholder:text-gray-600"
+                                />
+                                <button
+                                    onClick={() => setShowInventoryDbPicker(true)}
+                                    className="rounded-lg border border-gray-700 bg-gray-800 px-3 text-gray-200 hover:bg-gray-700"
+                                    title="Browse for inventory database"
                                 >
                                     <FolderOpen size={18} />
                                 </button>
@@ -597,6 +751,7 @@ function Doctor() {
                         </section>
 
                         <DoctorGuidance verdicts={verdicts} playbooks={playbooks} />
+                        <DoctorEvidenceContext timeline={timeline} ledger={ledger} />
 
                         <div className="grid gap-6 xl:grid-cols-4">
                             <FindingGroup
@@ -676,6 +831,13 @@ function Doctor() {
                     onSelect={(path) => setModsPath(path)}
                     initialPath={modsPath || simsPath}
                     selectDirectory={true}
+                />
+                <FilePicker
+                    isOpen={showInventoryDbPicker}
+                    onClose={() => setShowInventoryDbPicker(false)}
+                    onSelect={(path) => setInventoryDb(path)}
+                    initialPath={inventoryDb || simsPath}
+                    selectDirectory={false}
                 />
             </div>
         </div>

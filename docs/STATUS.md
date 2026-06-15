@@ -49,8 +49,10 @@ JSON/text output now includes a read-only script/UI exception timeline sorted in
 deterministic chronological order. `simanalysis doctor --inventory-db` can add
 read-only ledger context from an existing SQLite inventory database, including
 recent scan history and latest file events, without starting a new scan or
-mutating files. Profile-aware state, Patch Day Shield, Cache Doctor, and update
-staging remain pending follow-on slices.
+mutating files. The desktop Doctor route now exposes that same ledger database
+input through the Tauri bridge and renders the timeline plus ledger history
+panels when the shared Doctor payload includes them. Profile-aware state, Patch
+Day Shield, Cache Doctor, and update staging remain pending follow-on slices.
 
 ## Historical Status Snapshots
 

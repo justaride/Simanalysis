@@ -461,6 +461,48 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
     assert data["ui_crashes"]["summary"]["unique_findings"] == 1
 
 
+def test_doctor_scan_passes_explicit_inventory_db(monkeypatch, tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    db_path = tmp_path / "inventory.sqlite3"
+    calls: dict[str, Any] = {}
+
+    def fake_build_doctor_payload(
+        base,
+        mods_dir,
+        recursive,
+        progress_callback=None,
+        *,
+        inventory_db=None,
+    ):
+        calls["args"] = (base, mods_dir, recursive, inventory_db)
+        progress_callback("ledger-context")
+        return {"summary": {}, "ledger_history": {"status": "available"}}
+
+    monkeypatch.setattr(commands, "_build_doctor_payload", fake_build_doctor_payload)
+
+    buf = io.StringIO()
+    commands.doctor_scan(
+        argparse.Namespace(
+            path=str(sims4),
+            mods=None,
+            recursive=False,
+            inventory_db=str(db_path),
+        ),
+        Emitter(buf),
+    )
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert calls["args"] == (sims4, mods, False, db_path)
+    assert (
+        next(event["data"] for event in events if event["type"] == "result")["ledger_history"][
+            "status"
+        ]
+        == "available"
+    )
+
+
 def test_doctor_scan_rejects_missing_sims_dir(tmp_path):
     args = argparse.Namespace(path=str(tmp_path / "missing"), mods=None, recursive=False)
     with pytest.raises(ValueError, match="Invalid directory path"):
