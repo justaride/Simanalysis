@@ -11,7 +11,7 @@ from simanalysis.detectors.base import (
     ConflictDetector,
     ConflictResolutions,
 )
-from simanalysis.formats.types import CASP, COBJ, OBJD, SIMDATA, type_name
+from simanalysis.formats.types import CASP, COBJ, OBJD, SIMDATA, TuningResourceType, type_name
 from simanalysis.load_order import LoadOrderPlan
 from simanalysis.models import ConflictType, Mod, ModConflict
 
@@ -139,6 +139,7 @@ class ResourceConflictDetector(ConflictDetector):
                     f" Simulated winner: {load_order_details['winner_mod_name']} "
                     f"({load_order_details['confidence']} confidence)."
                 )
+        self._add_v2_details(details, resource_type, mod_list)
 
         # Create conflict
         return self.create_conflict(
@@ -150,6 +151,98 @@ class ResourceConflictDetector(ConflictDetector):
             details=details,
             is_core_resource=is_critical,
         )
+
+    def _add_v2_details(
+        self,
+        details: dict[str, Any],
+        resource_type: int,
+        mod_list: list[Mod],
+    ) -> None:
+        """Add v2 conflict explanation metadata without changing legacy fields."""
+        conflict_kind = self._conflict_kind(resource_type, mod_list)
+        details["conflict_kind"] = conflict_kind
+        details["review_status"] = self._review_status(conflict_kind, details)
+        details["recommendation"] = self._recommendation(conflict_kind, details)
+
+    def _conflict_kind(self, resource_type: int, mod_list: list[Mod]) -> str:
+        """Return the calibrated conflict kind for a resource overlap."""
+        if self._looks_like_default_replacement(mod_list):
+            return "default_replacement_ambiguity"
+        if resource_type in {
+            int(TuningResourceType.PieMenuCategory),
+            int(TuningResourceType.UserInterfaceInfo),
+        }:
+            return "ui_conflict"
+        return "likely_override"
+
+    def _review_status(self, conflict_kind: str, details: dict[str, Any]) -> str:
+        """Return whether this needs review or may be intentional."""
+        load_order = details.get("load_order", {})
+        if isinstance(load_order, dict) and load_order.get("winner"):
+            return "intentional_override_possible"
+        if conflict_kind == "default_replacement_ambiguity":
+            return "intentional_override_possible"
+        return "needs_review"
+
+    def _recommendation(self, conflict_kind: str, details: dict[str, Any]) -> dict[str, Any]:
+        """Return profile-aware review guidance for the conflict kind."""
+        load_order = details.get("load_order", {})
+        winner_mod_name = None
+        confidence = "medium"
+        if isinstance(load_order, dict):
+            winner_mod_name = load_order.get("winner_mod_name")
+            confidence = str(load_order.get("confidence") or confidence)
+
+        if conflict_kind == "default_replacement_ambiguity":
+            return {
+                "action": "verify_default_replacement",
+                "confidence": confidence,
+                "profile_aware": True,
+                "winner_mod_name": winner_mod_name,
+                "message": (
+                    "Default replacement or override-style conflicts can be intentional "
+                    "and are not automatically an error; verify the intended winner for "
+                    "the active profile."
+                ),
+            }
+        if conflict_kind == "ui_conflict":
+            return {
+                "action": "review_ui_mod_compatibility",
+                "confidence": confidence,
+                "profile_aware": True,
+                "winner_mod_name": winner_mod_name,
+                "message": (
+                    "UI resource overlaps should be reviewed against the active profile "
+                    "and current patch before assuming compatibility."
+                ),
+            }
+        if winner_mod_name:
+            return {
+                "action": "verify_intentional_override",
+                "confidence": confidence,
+                "profile_aware": True,
+                "winner_mod_name": winner_mod_name,
+                "message": (
+                    "A load-order winner is simulated; verify this override is intended "
+                    "for the active profile before changing files."
+                ),
+            }
+        return {
+            "action": "review_load_order",
+            "confidence": confidence,
+            "profile_aware": True,
+            "message": (
+                "Review the active profile and load order; one resource definition will "
+                "win, but this overlap may be intentional."
+            ),
+        }
+
+    def _looks_like_default_replacement(self, mod_list: list[Mod]) -> bool:
+        """Return whether filenames suggest default replacement semantics."""
+        haystack = " ".join(
+            f"{mod.name} {mod.path.as_posix()}".casefold().replace("\\", "/") for mod in mod_list
+        )
+        return "default replacement" in haystack or "default_replacement" in haystack
 
     def _load_order_details(self, mod_list: list[Mod]) -> dict[str, Any]:
         """Build JSON-safe load-order details for a resource conflict."""
@@ -213,6 +306,17 @@ class ResourceConflictDetector(ConflictDetector):
                     "mod_count": len(mod_list),
                     "affected_mod_names": [mod.name for mod in mod_list],
                     "total_size": sum(mod.size for mod in mod_list),
+                    "conflict_kind": "exact_duplicate",
+                    "review_status": "duplicate_file",
+                    "recommendation": {
+                        "action": "keep_one_copy",
+                        "confidence": "direct",
+                        "profile_aware": True,
+                        "message": (
+                            "These files have identical hashes; keep one copy per active "
+                            "profile unless duplicates are intentionally staged."
+                        ),
+                    },
                 }
 
                 # Create conflict

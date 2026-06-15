@@ -224,6 +224,17 @@ class TestTuningConflictDetector:
         assert conflict.details["tuning_name"] == "trait_active"
         assert conflict.details["tuning_class"] == "Trait"
         assert conflict.details["mod_count"] == 2
+        assert conflict.details["conflict_kind"] == "tuning_conflict"
+        assert conflict.details["review_status"] == "needs_compatibility_review"
+        assert conflict.details["recommendation"] == {
+            "action": "review_tuning_compatibility",
+            "confidence": "direct",
+            "profile_aware": True,
+            "message": (
+                "Review whether this tuning overlap is intentional for the active profile; "
+                "only one tuning definition will win at load time."
+            ),
+        }
 
     def test_conflict_description(
         self, detector: TuningConflictDetector, mods_with_conflict: list[Mod]

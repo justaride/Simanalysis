@@ -96,7 +96,11 @@ conservative evidence layer over verified DBPF resource types, `.ts4script`
 extension evidence, and weak path/name hints, with confidence-labeled CAS,
 Build/Buy, gameplay tuning, UI, script, localization, default replacement,
 animation, dependency, and unknown labels consumed by Doctor, Patch Day, and
-Update Desk without marking mods safe. Update Desk v0 now exists as a read-only
+Update Desk without marking mods safe. Conflict Engine v2 metadata now adds
+`conflict_kind`, review status, and profile-aware recommendations to existing
+resource/hash/tuning conflicts for exact duplicates, likely overrides, default
+replacement ambiguity, UI conflicts, and tuning conflicts without calling
+intentional overrides errors. Update Desk v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis updates
 status`, bridge/Tauri `update-staging-status`, and the Update Desk route,
 classifying staged downloads, source sidecars, corrupt ZIPs, archive path

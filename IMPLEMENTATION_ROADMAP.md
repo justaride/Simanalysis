@@ -242,6 +242,9 @@ Milestones:
      UI conflict, tuning conflict, and script-family mismatch.
    - Make recommendations profile-aware.
    - Avoid labeling intentional overrides as errors.
+   - Initial metadata is available for exact duplicate, likely override,
+     default replacement ambiguity, UI conflict, and tuning conflict cases;
+     script-family mismatch remains pending a script conflict detector.
 
 3. **Performance Doctor**
    - Analyze file count, total size, script count, package resource count,

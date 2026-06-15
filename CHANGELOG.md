@@ -146,6 +146,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tuning, UI, script, localization, default replacement, animation, dependency,
   and unknown labels consumed by Doctor, Patch Day, and Update Desk without
   marking mods safe.
+- Added initial Conflict Engine v2 metadata for resource/hash/tuning conflicts,
+  including `conflict_kind`, review status, and profile-aware recommendations
+  for exact duplicates, likely overrides, default replacement ambiguity, UI
+  conflicts, and tuning conflicts without labeling intentional overrides as
+  errors.
 
 ### Planned
 - Full DBPF package parser implementation
