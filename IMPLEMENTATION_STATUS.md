@@ -228,7 +228,12 @@ Implemented after Cache Doctor v0:
 - Added desktop Save Protector v0 through `save-protector-status` bridge/Tauri
   plumbing, a route, read-only view-models, and profile-aware Sims 4 folder
   defaults.
-- Save Protector v0 never edits, rewrites, restores, or deletes saves. Tray
+- Added Save Protector v1 launch guidance on the desktop route. It combines the
+  existing read-only save status with Profile Manager Light config and Patch Day
+  status evidence, then labels active-profile match, missing evidence, unknown
+  after patch, and manual save-copy testing recommendations without mutating
+  saves.
+- Save Protector still never edits, rewrites, restores, or deletes saves. Tray
   dependency signals and any future save-adjacent operations remain future
   slices.
 

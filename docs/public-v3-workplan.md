@@ -256,6 +256,12 @@ signals, and desktop rendering.
 **Done when:** Save Protector gives actionable read-only launch guidance without
 claiming guaranteed save compatibility.
 
+**Implementation note:** Completed in the desktop Save Protector route by
+combining existing read-only save status with Profile Manager Light config and
+Patch Day status evidence. The shipped workflow labels active-profile match,
+missing evidence, unknown-after-patch risk, and manual save-copy testing
+recommendations; it still does not edit saves or create test copies.
+
 ### Slice 7: Tray Dependency Signals
 
 **Goal:** Add cautious dependency signals for Tray items without pretending the

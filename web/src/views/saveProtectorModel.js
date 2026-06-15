@@ -1,7 +1,16 @@
+import { DEFAULT_SIMS4_PROFILE, normalizeProfileConfig } from './settingsModel.js';
+
 const STATUS_LABELS = {
     review_recommended: ['Review recommended', 'amber'],
     missing_saves_folder: ['Missing saves folder', 'red'],
     no_save_files_found: ['No save files found', 'green'],
+};
+
+const GUIDANCE_STATUS_LABELS = {
+    test_copy_recommended: ['Test copy recommended', 'amber'],
+    missing_evidence: ['Missing evidence', 'amber'],
+    read_only_review: ['Read-only review', 'blue'],
+    no_saves_loaded: ['No saves loaded', 'blue'],
 };
 
 function count(value) {
@@ -77,4 +86,84 @@ export function toSaveSignalRows(payload = {}) {
         message: signal.message || '',
         location: signal.path || (Array.isArray(signal.paths) ? signal.paths.join(', ') : ''),
     }));
+}
+
+function normalizePath(value) {
+    if (typeof value !== 'string') return '';
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    if (trimmed === '/' || trimmed === '\\') return trimmed;
+    return trimmed.replace(/[\\/]+$/, '') || trimmed;
+}
+
+function patchEvidenceLabel(patchStatus = {}) {
+    const risks = Array.isArray(patchStatus.risk_classes) ? patchStatus.risk_classes : [];
+    if (risks.some((risk) => risk.status === 'unknown_after_patch') || patchStatus.patch_detected) {
+        return 'Unknown after patch';
+    }
+    if (patchStatus.status === 'unchanged' || patchStatus.status === 'recorded') {
+        return 'No patch change detected';
+    }
+    if (patchStatus.status === 'missing_game_version') {
+        return 'Game version missing';
+    }
+    return 'Patch evidence missing';
+}
+
+export function summarizeSaveLaunchGuidance(
+    saveStatus = {},
+    profileConfig = {},
+    patchStatus = {},
+    selectedPath = '',
+) {
+    const normalizedConfig = normalizeProfileConfig(profileConfig);
+    const activeProfile = normalizedConfig.activeProfile || DEFAULT_SIMS4_PROFILE;
+    const selectedProfile = normalizePath(selectedPath) || normalizePath(saveStatus.root_path) || activeProfile;
+    const profileMatchesSelected = normalizePath(activeProfile) === selectedProfile;
+    const patchLabel = patchEvidenceLabel(patchStatus);
+    const saveCount = count(saveStatus.primary_save_count);
+    const missingPatchEvidence = patchLabel === 'Patch evidence missing'
+        || patchLabel === 'Game version missing';
+    const unknownAfterPatch = patchLabel === 'Unknown after patch';
+    let status = 'read_only_review';
+
+    if (saveCount === 0 && !saveStatus.status) {
+        status = 'no_saves_loaded';
+    } else if (!profileMatchesSelected || missingPatchEvidence) {
+        status = 'missing_evidence';
+    } else if (unknownAfterPatch) {
+        status = 'test_copy_recommended';
+    }
+
+    const [statusLabel, tone] = GUIDANCE_STATUS_LABELS[status] || ['Read-only review', 'blue'];
+    let launchTitle = 'Review before launch';
+    let launchBody = 'Save Protector has read-only save evidence, but it does not guarantee mod compatibility.';
+    if (status === 'test_copy_recommended') {
+        launchTitle = 'Launch only with a save copy';
+        launchBody = 'These saves are likely tied to the active profile, but patch evidence is unknown-after-patch. Use a copied save for testing before opening important saves.';
+    } else if (status === 'missing_evidence') {
+        launchTitle = 'Resolve missing evidence before launch';
+        launchBody = 'Profile or patch evidence is missing, so Save Protector cannot say whether these saves match the active mod state.';
+    } else if (status === 'no_saves_loaded') {
+        launchTitle = 'Load save status first';
+        launchBody = 'Run Save Protector status before using launch guidance.';
+    }
+
+    return {
+        status,
+        statusLabel,
+        tone,
+        profileStatusLabel: profileMatchesSelected ? 'Active profile selected' : 'Different folder selected',
+        profileTone: profileMatchesSelected ? 'green' : 'amber',
+        activeProfile,
+        selectedProfile,
+        patchEvidenceLabel: patchLabel,
+        launchTitle,
+        launchBody,
+        actionItems: [
+            'Keep the original save files read-only in Simanalysis.',
+            'Use a manual copy or future manifest-backed test-copy workflow before launch.',
+            'Do not assume missing mods are safe after a game patch.',
+        ],
+    };
 }
