@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-notarized distribution candidates.
 - Extended release artifact verification to Windows `.exe` and `.msi`
   candidates using Authenticode status, keeping unsigned installers blocked.
+- Added read-only script-family conflict detection for shared `.ts4script`
+  namespace families, with `executes_code: false` and profile-aware review
+  guidance.
 - Added the Phase 0 real-file corpus contract, `real`/`synthetic` pytest markers, committed package/script/save/tray/log fixtures, and a local-only corpus builder that copies explicitly chosen real fixtures into a git-ignored test root with golden sidecars.
 - Added a conservative `Resource.cfg` parser and package load-order simulator that annotates resource conflicts with simulated winner, participant order, and confidence metadata.
 - Added a conservative read-only STBL v5 parser and scanner integration that extracts keyed UTF-8 strings from Sims 4 string tables with explicit parsed/unsupported/malformed status.
