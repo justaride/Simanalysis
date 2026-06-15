@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added the read-only `simanalysis doctor` CLI surface over the shared Doctor payload, combining script crash and UI exception autopsy with text and JSON output.
 - Added the manifest-based `simanalysis bisect start|status|next|record-verdict|restore` CLI surface over the existing Treatment/Auto-Bisect engine.
 - Added the read-only `simanalysis bisect handoff` CLI surface that renders a Markdown field handoff from a saved bisection manifest with session state, candidates, steps, warnings, blockers, and recovery commands.
+- Added the read-only `simanalysis-bridge treatment-handoff` sidecar command plus Tauri argument support so the desktop layer can request the same Markdown bisection handoff from a saved manifest.
 
 ### Planned
 - Full DBPF package parser implementation

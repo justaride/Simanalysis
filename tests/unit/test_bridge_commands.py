@@ -818,6 +818,36 @@ def test_treatment_status_emits_loaded_session(monkeypatch):
     assert events[1]["data"] == {"manifest_path": "manifest.json", "status": "planned"}
 
 
+def test_treatment_handoff_emits_markdown_payload(monkeypatch):
+    calls = {}
+
+    def fake_load_session(manifest_path):
+        calls["manifest_path"] = manifest_path
+        return {"manifest_path": manifest_path, "status": "planned"}
+
+    def fake_render_handoff(session):
+        calls["session"] = session
+        return "# Simanalysis Bisect Handoff\n"
+
+    monkeypatch.setattr(commands.treatment, "load_session", fake_load_session)
+    monkeypatch.setattr(commands.treatment, "render_handoff", fake_render_handoff)
+
+    buf = io.StringIO()
+    commands.treatment_handoff(argparse.Namespace(manifest_path="manifest.json"), Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "treatment-handoff"
+    assert events[1]["data"] == {
+        "manifest_path": "manifest.json",
+        "handoff": "# Simanalysis Bisect Handoff\n",
+    }
+    assert calls == {
+        "manifest_path": "manifest.json",
+        "session": {"manifest_path": "manifest.json", "status": "planned"},
+    }
+
+
 def test_treatment_restore_emits_restored_session(monkeypatch):
     calls = {}
 

@@ -235,8 +235,8 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
                 args.push(step.into());
             }
         }
-        "treatment-status" => {
-            args.push("treatment-status".into());
+        "treatment-status" | "treatment-handoff" => {
+            args.push(kind.into());
             args.push(path.into());
         }
         other => return Err(format!("unknown analysis kind: {other}")),
@@ -970,6 +970,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["treatment-status", "/Sims/session.json"]);
+    }
+
+    #[test]
+    fn builds_treatment_handoff_args() {
+        let args = build_args(
+            "treatment-handoff",
+            "/Sims/session.json",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["treatment-handoff", "/Sims/session.json"]);
     }
 
     #[test]
