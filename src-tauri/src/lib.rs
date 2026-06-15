@@ -997,7 +997,11 @@ mod tests {
         let args = build_args("update-staging-commit", "/tmp/update-plan.json", &opts).unwrap();
         assert_eq!(
             args,
-            vec!["update-staging-commit", "/tmp/update-plan.json", "--all-actions"]
+            vec![
+                "update-staging-commit",
+                "/tmp/update-plan.json",
+                "--all-actions"
+            ]
         );
     }
 
