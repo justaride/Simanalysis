@@ -151,6 +151,23 @@ Implemented after the Doctor ledger-history work:
   confirm-recording a new baseline. Recording updates only Simanalysis state.
 - Update staging and profile-aware re-enable workflows remain future slices.
 
+## Profile Manager Light Progress
+
+Implemented after Patch Day Shield v0:
+
+- Replaced the static desktop Settings placeholder with a Profile Manager Light
+  surface backed by the existing Tauri app config commands.
+- The Settings route now loads `active_sims4_profile`, derives Mods, Tray,
+  saves, and cache-root paths from that selected Sims 4 user folder, and stores
+  known profile roots for quick selection.
+- Saving a profile updates Simanalysis app state only, including
+  `last_scan_path` as the active profile's `Mods` folder for compatibility with
+  existing scan views.
+- The UI labels the safety boundary explicitly: Profile Manager Light does not
+  move, enable, disable, quarantine, delete, or rewrite Sims files.
+- Full profile switching, profile-aware Operating Table actions, and
+  profile-aware Patch Day re-enable workflows remain future slices.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -188,14 +205,16 @@ ledger status, latest scan counts, recent file events, and ledger warnings from
 the shared payload. Patch Day Shield v0 is available as a read-only CLI and
 desktop surface for detecting `GameVersion.txt` baseline changes, classifying
 mod categories as unknown after a patch, and recording an explicit baseline in
-Simanalysis state without changing Mods, saves, or Tray files.
+Simanalysis state without changing Mods, saves, or Tray files. Profile Manager
+Light v0 is available in desktop Settings for remembering an active Sims 4 root
+and deriving common folder paths from app state only.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including profile-aware state,
-reversible workflows beyond cleanup actions, Cache Doctor, update staging,
-profile-aware Patch Day re-enable workflows, and broader real-world corpus
-coverage.
+roadmap foundations are still incomplete, including profile-aware file
+operations, reversible workflows beyond cleanup actions, Cache Doctor, update
+staging, profile-aware Patch Day re-enable workflows, and broader real-world
+corpus coverage.
 
 ## Current Verification Gates
 
