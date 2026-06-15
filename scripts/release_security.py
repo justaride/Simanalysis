@@ -393,17 +393,79 @@ def verify_release_artifacts(paths: list[Path], *, strict: bool = False) -> dict
     return report
 
 
+def _env_status(name: str, *, expose_value: bool = False) -> dict[str, object]:
+    value = os.environ.get(name)
+    status: dict[str, object] = {"name": name, "present": bool(value)}
+    if expose_value and value:
+        status["value"] = value
+    return status
+
+
+def _notarization_env_status() -> dict[str, object]:
+    names = ["APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"]
+    missing = [name for name in names if not os.environ.get(name)]
+    return {
+        "required": names,
+        "present": [name for name in names if name not in missing],
+        "missing": missing,
+    }
+
+
+def _codesigning_identity_status() -> dict[str, object]:
+    result = _run_status(["security", "find-identity", "-v", "-p", "codesigning"])
+    stdout = str(result.get("stdout", ""))
+    valid_count = 0
+    for line in stdout.splitlines():
+        if "valid identities found" not in line:
+            continue
+        parts = line.strip().split()
+        if parts and parts[0].isdigit():
+            valid_count = int(parts[0])
+            break
+    return {
+        "valid_count": valid_count,
+        **result,
+    }
+
+
+def _macos_signing_status() -> dict[str, object]:
+    identity_env = _env_status("APPLE_SIGNING_IDENTITY", expose_value=True)
+    notarization_env = _notarization_env_status()
+    identities = _codesigning_identity_status()
+    blockers: list[str] = []
+    if identities.get("available") is False:
+        blockers.append("macOS security tool is not available")
+    elif int(identities.get("valid_count", 0)) <= 0:
+        blockers.append("No valid macOS code signing identities found")
+    if not identity_env["present"]:
+        blockers.append("APPLE_SIGNING_IDENTITY is not set")
+    for name in notarization_env["missing"]:
+        blockers.append(f"{name} is not set")
+    return {
+        "developer_id_identity_env": identity_env,
+        "notarization_env": notarization_env,
+        "codesigning_identities": identities,
+        "blockers": blockers,
+        "status": "blocked" if blockers else "ready_for_artifact_verification",
+    }
+
+
+def _windows_signing_status() -> dict[str, object]:
+    certificate_env = _env_status("WINDOWS_SIGNING_CERT")
+    blockers = []
+    if not certificate_env["present"]:
+        blockers.append("WINDOWS_SIGNING_CERT is not set")
+    return {
+        "certificate_env": certificate_env,
+        "blockers": blockers,
+        "status": "blocked" if blockers else "ready_for_artifact_verification",
+    }
+
+
 def signing_status() -> dict[str, object]:
     return {
-        "macos": {
-            "developer_id_identity_env": "APPLE_SIGNING_IDENTITY",
-            "notarization_env": ["APPLE_ID", "APPLE_PASSWORD", "APPLE_TEAM_ID"],
-            "status": "pending",
-        },
-        "windows": {
-            "certificate_env": "WINDOWS_SIGNING_CERT",
-            "status": "pending",
-        },
+        "macos": _macos_signing_status(),
+        "windows": _windows_signing_status(),
         "linux": {
             "signing_status": "pending if distributing packaged artifacts",
             "status": "pending",

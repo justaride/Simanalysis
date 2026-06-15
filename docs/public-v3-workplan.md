@@ -473,8 +473,11 @@ and Cargo lock metadata resolution. It can now also inspect built release
 artifacts with `--artifact` and strict signing/notarization verification, writing
 `release-artifact-status.json`. It verifies macOS `.app` bundles with
 `codesign`/`stapler` and Windows `.exe`/`.msi` artifacts with Authenticode.
-Signing/notarization statuses remain explicitly pending until real platform
-evidence exists and strict artifact verification passes.
+`signing-status.json` is a non-secret signing preflight that records local macOS
+identity/env readiness, notarization env readiness, Windows certificate-env
+readiness, and blockers. Signing/notarization statuses remain explicitly
+pending until real platform evidence exists and strict artifact verification
+passes.
 
 **Verification note:** On 2026-06-15,
 `uv run --extra dev --with 'bandit[toml]>=1.9,<2.0' --with pip-audit python scripts/release_security.py --mode full`

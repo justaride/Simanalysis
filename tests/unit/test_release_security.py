@@ -36,9 +36,86 @@ def test_generated_web_sbom_reflects_fixed_form_data_lock(tmp_path: Path) -> Non
 def test_signing_status_never_claims_signed_artifacts() -> None:
     status = signing_status()
 
-    assert status["macos"]["status"] == "pending"
-    assert status["windows"]["status"] == "pending"
+    assert status["macos"]["status"] in {"blocked", "ready_for_artifact_verification"}
+    assert status["windows"]["status"] in {"blocked", "ready_for_artifact_verification"}
     assert "Do not describe artifacts as signed" in status["claim"]
+
+
+def test_signing_status_reports_missing_macos_identity_and_notarization_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("APPLE_SIGNING_IDENTITY", raising=False)
+    monkeypatch.delenv("APPLE_ID", raising=False)
+    monkeypatch.delenv("APPLE_PASSWORD", raising=False)
+    monkeypatch.delenv("APPLE_TEAM_ID", raising=False)
+    monkeypatch.setattr(
+        release_security,
+        "_run_status",
+        lambda _cmd: {
+            "available": True,
+            "returncode": 0,
+            "stdout": "     0 valid identities found",
+            "stderr": "",
+        },
+    )
+
+    status = signing_status()
+
+    macos = status["macos"]
+    assert macos["status"] == "blocked"
+    assert macos["codesigning_identities"]["valid_count"] == 0
+    assert macos["developer_id_identity_env"]["present"] is False
+    assert macos["notarization_env"]["missing"] == [
+        "APPLE_ID",
+        "APPLE_PASSWORD",
+        "APPLE_TEAM_ID",
+    ]
+    assert "No valid macOS code signing identities found" in macos["blockers"]
+
+
+def test_signing_status_reports_ready_macos_preflight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("APPLE_SIGNING_IDENTITY", "Developer ID Application: Example")
+    monkeypatch.setenv("APPLE_ID", "dev@example.com")
+    monkeypatch.setenv("APPLE_PASSWORD", "not-secret-in-output")
+    monkeypatch.setenv("APPLE_TEAM_ID", "TEAM123")
+    monkeypatch.setattr(
+        release_security,
+        "_run_status",
+        lambda _cmd: {
+            "available": True,
+            "returncode": 0,
+            "stdout": (
+                '  1) ABCDEF1234567890 "Developer ID Application: Example"\n'
+                "     1 valid identities found"
+            ),
+            "stderr": "",
+        },
+    )
+
+    status = signing_status()
+
+    macos = status["macos"]
+    assert macos["status"] == "ready_for_artifact_verification"
+    assert macos["codesigning_identities"]["valid_count"] == 1
+    assert macos["developer_id_identity_env"]["present"] is True
+    assert macos["developer_id_identity_env"]["value"] == "Developer ID Application: Example"
+    assert macos["notarization_env"]["missing"] == []
+    assert "not-secret-in-output" not in json.dumps(macos)
+
+
+def test_signing_status_reports_missing_windows_certificate_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("WINDOWS_SIGNING_CERT", raising=False)
+
+    status = signing_status()
+
+    windows = status["windows"]
+    assert windows["status"] == "blocked"
+    assert windows["certificate_env"]["present"] is False
+    assert "WINDOWS_SIGNING_CERT is not set" in windows["blockers"]
 
 
 def test_verify_release_artifacts_reports_unsigned_macos_app(

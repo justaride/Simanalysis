@@ -335,13 +335,17 @@ Implemented after desktop Tray Protector v0:
   Sims paths.
 - Added `scripts/release_security.py` and `docs/release-security.md` for
   CycloneDX SBOM generation, Python/web/Rust security checks, and explicit
-  pending signing/notarization status. The same gate can inspect built release
-  artifacts with `--artifact`, write `release-artifact-status.json`, and fail
-  strict mode unless required binaries, macOS code signing/notarization, and
-  Windows Authenticode checks pass. On 2026-06-15, the SBOM/security gate passed
-  Bandit, `pip-audit`, root/web npm production audits, and Cargo lock metadata,
-  but strict artifact verification remained blocked because the local macOS app
-  bundle was not distribution-ready for codesign/notarization.
+  signing/notarization readiness. The signing preflight records non-secret
+  macOS Developer ID env presence, notarization env presence, local
+  codesigning identity count, Windows signing certificate env presence, and
+  concrete blockers without treating that as release approval. The same gate
+  can inspect built release artifacts with `--artifact`, write
+  `release-artifact-status.json`, and fail strict mode unless required
+  binaries, macOS code signing/notarization, and Windows Authenticode checks
+  pass. On 2026-06-15, the SBOM/security gate passed Bandit, `pip-audit`,
+  root/web npm production audits, and Cargo lock metadata, but strict artifact
+  verification remained blocked because the local macOS app bundle was not
+  distribution-ready for codesign/notarization.
 
 ## Classification Progress
 

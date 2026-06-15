@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recorded Public v3 release evidence: full macOS `.app` smoke now passes with
   bundled sidecar and source bridge smoke, and SBOM/security checks pass, while
   strict signing remains blocked until real distribution-ready artifacts exist.
+- Added a non-secret signing readiness preflight to the release security gate,
+  reporting macOS identity/env readiness, Windows certificate-env readiness, and
+  concrete blockers before artifact verification.
 - Added read-only script-family conflict detection for shared `.ts4script`
   namespace families, with `executes_code: false` and profile-aware review
   guidance.
