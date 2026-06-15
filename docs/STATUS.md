@@ -65,11 +65,12 @@ those paths as input defaults without scanning or mutating files on load.
 Cache Doctor v0 now exists as a read-only CLI/backend/desktop surface through
 `simanalysis cache status`, bridge/Tauri `cache-status`, and the Cache Doctor
 route, reporting known cache targets and symlink warnings without deleting or
-moving cache files. Save Protector v0 now exists as a read-only CLI/backend
-through `simanalysis save-protector status`, grouping saves/backups and
-surfacing AppleDouble, iCloud-placeholder, symlink, and case-collision signals
-without editing saves. Profile-aware file operations, cache-clearing operations,
-desktop Save Protector flows, Tray dependency signals, update staging, and
+moving cache files. Save Protector v0 now exists as a read-only
+CLI/backend/desktop surface through `simanalysis save-protector status`,
+bridge/Tauri `save-protector-status`, and the Save Protector route, grouping
+saves/backups and surfacing AppleDouble, iCloud-placeholder, symlink, and
+case-collision signals without editing saves. Profile-aware file operations,
+cache-clearing operations, Tray dependency signals, update staging, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots

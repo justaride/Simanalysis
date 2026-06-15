@@ -150,6 +150,10 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("cache-status".into());
             args.push(path.into());
         }
+        "save-protector-status" => {
+            args.push("save-protector-status".into());
+            args.push(path.into());
+        }
         "cleanup-plan" => {
             args.push("cleanup-plan".into());
             args.push(path.into());
@@ -872,6 +876,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["cache-status", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_save_protector_status_args() {
+        let args = build_args(
+            "save-protector-status",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["save-protector-status", "/Sims/The Sims 4"]);
     }
 
     #[test]

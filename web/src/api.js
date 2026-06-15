@@ -5,6 +5,7 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 import { cleanupPlanOptions } from './cleanupApiModel';
 import { cacheDoctorOptions } from './cacheDoctorApiModel';
 import { doctorScanOptions } from './doctorApiModel';
+import { saveProtectorOptions } from './saveProtectorApiModel';
 import {
   inventoryFileEventsOptions,
   inventoryHistoryOptions,
@@ -98,6 +99,8 @@ export const api = {
     runAnalysis('patch-day-record', sims4Path, patchDayOptions(options), callbacks),
   cacheStatus: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cache-status', sims4Path, cacheDoctorOptions(options), callbacks),
+  saveProtectorStatus: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('save-protector-status', sims4Path, saveProtectorOptions(options), callbacks),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>

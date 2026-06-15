@@ -260,6 +260,32 @@ def test_cache_status_emits_read_only_cache_payload(tmp_path):
     assert cache_file.exists()
 
 
+def test_save_protector_status_emits_read_only_save_payload(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    saves = sims4 / "saves"
+    saves.mkdir(parents=True)
+    save_file = saves / "Slot_00000001.save"
+    backup_file = saves / "Slot_00000001.save.ver0"
+    save_file.write_bytes(b"save")
+    backup_file.write_bytes(b"backup")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4))
+    commands.save_protector_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "save-protector-status"
+    result = events[1]["data"]
+    assert result["status"] == "review_recommended"
+    assert result["mutates_files"] is False
+    assert result["primary_save_count"] == 1
+    assert result["backup_count"] == 1
+    assert result["save_groups"][0]["slot"] == "Slot_00000001"
+    assert save_file.exists()
+    assert backup_file.exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

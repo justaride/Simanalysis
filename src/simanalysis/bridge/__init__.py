@@ -53,6 +53,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_cache_status = sub.add_parser("cache-status")
     p_cache_status.add_argument("path")
 
+    p_save_protector_status = sub.add_parser("save-protector-status")
+    p_save_protector_status.add_argument("path")
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)
