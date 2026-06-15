@@ -62,8 +62,11 @@ files. Profile Manager Light v0 now exists in desktop Settings for storing an
 active Sims 4 root in app config, deriving Mods/Tray/saves/cache paths, and
 remembering known roots without changing Sims files; primary desktop views use
 those paths as input defaults without scanning or mutating files on load.
-Profile-aware file operations, Cache Doctor, update staging, and
-profile-aware Patch Day re-enable workflows remain pending follow-on slices.
+Cache Doctor v0 now exists as a read-only CLI/backend through `simanalysis
+cache status`, reporting known cache targets and symlink warnings without
+deleting or moving cache files. Profile-aware file operations, desktop Cache
+Doctor flows, cache-clearing operations, update staging, and profile-aware
+Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots
 
