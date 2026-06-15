@@ -33,9 +33,11 @@ copy, and download that Markdown handoff from a saved session without moving
 files. The True Engine now has conservative read-only STBL v5 and SimData
 metadata parsers wired into package scanning, with
 compact parser/resource truth exposed through CLI JSON, the desktop bridge, HTTP
-scan, and WebSocket scan responses. Visual cleanup staging/apply/restore,
-richer Doctor verdicts, and symptom playbooks remain pending design approval
-and follow-on slices.
+scan, and WebSocket scan responses. The desktop Dashboard now sources total
+files, space used, severity summary, and file distribution from the current scan
+payload instead of placeholders. Visual cleanup staging/apply/restore, richer
+Doctor verdicts, and symptom playbooks remain pending design approval and
+follow-on slices.
 
 ## Historical Status Snapshots
 

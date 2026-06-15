@@ -5,27 +5,12 @@ import { Activity, ShieldCheck, ShieldAlert, FileText, HardDrive, TrendingUp } f
 import { motion } from 'framer-motion';
 import VisualConflictExplorer from '../components/VisualConflictExplorer';
 import WelcomeHero from '../components/WelcomeHero';
+import { dashboardStats } from './dashboardModel';
 
 function Dashboard() {
     const { modScanResult } = useAppContext();
     const conflicts = useMemo(() => modScanResult?.conflicts || [], [modScanResult?.conflicts]);
-    const totalFiles = modScanResult?.total_files || 0;
-
-    const stats = useMemo(() => {
-        const severityCounts = {
-            critical: conflicts.filter(c => c.severity === 'critical').length,
-            high: conflicts.filter(c => c.severity === 'high').length,
-            medium: conflicts.filter(c => c.severity === 'medium').length,
-            low: conflicts.filter(c => c.severity === 'low').length,
-        };
-
-        const fileTypes = [
-            { name: '.package', value: Math.floor(totalFiles * 0.8) },
-            { name: '.ts4script', value: Math.floor(totalFiles * 0.2) },
-        ];
-
-        return { severityCounts, fileTypes };
-    }, [conflicts, totalFiles]);
+    const stats = useMemo(() => dashboardStats(modScanResult || {}), [modScanResult]);
 
     const severityData = [
         { name: 'Critical', value: stats.severityCounts.critical, color: '#ef4444' },
@@ -33,8 +18,6 @@ function Dashboard() {
         { name: 'Medium', value: stats.severityCounts.medium, color: '#eab308' },
         { name: 'Low', value: stats.severityCounts.low, color: '#3b82f6' },
     ].filter(d => d.value > 0);
-
-    const healthScore = Math.max(0, 100 - (stats.severityCounts.critical * 10) - (stats.severityCounts.high * 5) - (stats.severityCounts.medium * 2));
 
     const getHealthColor = (score) => {
         if (score >= 90) return 'text-green-400';
@@ -90,14 +73,14 @@ function Dashboard() {
             <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <motion.div
                     whileHover={{ scale: 1.02 }}
-                    className={`glass-card p-6 flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br ${getHealthGradient(healthScore)}`}
+                    className={`glass-card p-6 flex flex-col items-center justify-center relative overflow-hidden bg-gradient-to-br ${getHealthGradient(stats.healthScore)}`}
                 >
                     <div className="absolute top-0 right-0 p-4 opacity-10">
                         <ShieldCheck size={64} />
                     </div>
                     <span className="text-gray-400 text-sm font-medium uppercase tracking-wider mb-2">Game Health</span>
-                    <div className={`text-5xl font-bold ${getHealthColor(healthScore)}`}>
-                        {healthScore}%
+                    <div className={`text-5xl font-bold ${getHealthColor(stats.healthScore)}`}>
+                        {stats.healthScore}%
                     </div>
                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-2">
                         <TrendingUp size={12} />
@@ -112,7 +95,7 @@ function Dashboard() {
                         </div>
                         <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">Total Mods</span>
                     </div>
-                    <div className="text-4xl font-bold text-white">{totalFiles}</div>
+                    <div className="text-4xl font-bold text-white">{stats.totalFiles}</div>
                     <div className="text-xs text-gray-500 mt-1">Files scanned</div>
                 </motion.div>
 
@@ -134,8 +117,8 @@ function Dashboard() {
                         </div>
                         <span className="text-gray-400 text-sm font-medium uppercase tracking-wider">Space Used</span>
                     </div>
-                    <div className="text-4xl font-bold text-white">-- GB</div>
-                    <div className="text-xs text-gray-500 mt-1">Estimated size</div>
+                    <div className="text-4xl font-bold text-white">{stats.totalSizeLabel}</div>
+                    <div className="text-xs text-gray-500 mt-1">From scanned files</div>
                 </motion.div>
             </motion.div>
 
@@ -193,42 +176,49 @@ function Dashboard() {
                         <div className="w-2 h-2 rounded-full bg-purple-500" />
                         File Distribution
                     </h3>
-                    <ResponsiveContainer width="100%" height="85%">
-                        <BarChart data={stats.fileTypes} barCategoryGap="20%">
-                            <XAxis
-                                dataKey="name"
-                                stroke="#6b7280"
-                                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                axisLine={{ stroke: '#374151' }}
-                            />
-                            <YAxis
-                                stroke="#6b7280"
-                                tick={{ fill: '#9ca3af', fontSize: 12 }}
-                                axisLine={{ stroke: '#374151' }}
-                            />
-                            <Tooltip
-                                cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
-                                contentStyle={{
-                                    backgroundColor: 'rgba(31, 41, 55, 0.95)',
-                                    borderColor: 'rgba(75, 85, 99, 0.5)',
-                                    borderRadius: '12px',
-                                    color: '#fff',
-                                    backdropFilter: 'blur(8px)',
-                                }}
-                            />
-                            <Bar
-                                dataKey="value"
-                                fill="url(#barGradient)"
-                                radius={[8, 8, 0, 0]}
-                            />
-                            <defs>
-                                <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#3b82f6" />
-                                    <stop offset="100%" stopColor="#8b5cf6" />
-                                </linearGradient>
-                            </defs>
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {stats.fileTypes.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="85%">
+                            <BarChart data={stats.fileTypes} barCategoryGap="20%">
+                                <XAxis
+                                    dataKey="name"
+                                    stroke="#6b7280"
+                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                    axisLine={{ stroke: '#374151' }}
+                                />
+                                <YAxis
+                                    stroke="#6b7280"
+                                    tick={{ fill: '#9ca3af', fontSize: 12 }}
+                                    axisLine={{ stroke: '#374151' }}
+                                />
+                                <Tooltip
+                                    cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(31, 41, 55, 0.95)',
+                                        borderColor: 'rgba(75, 85, 99, 0.5)',
+                                        borderRadius: '12px',
+                                        color: '#fff',
+                                        backdropFilter: 'blur(8px)',
+                                    }}
+                                />
+                                <Bar
+                                    dataKey="value"
+                                    fill="url(#barGradient)"
+                                    radius={[8, 8, 0, 0]}
+                                />
+                                <defs>
+                                    <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3b82f6" />
+                                        <stop offset="100%" stopColor="#8b5cf6" />
+                                    </linearGradient>
+                                </defs>
+                            </BarChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                            <FileText size={48} className="text-gray-600 mb-3" />
+                            <p className="font-medium">No file rows in this scan</p>
+                        </div>
+                    )}
                 </div>
             </motion.div>
 
