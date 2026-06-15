@@ -151,6 +151,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for exact duplicates, likely overrides, default replacement ambiguity, UI
   conflicts, and tuning conflicts without labeling intentional overrides as
   errors.
+- Added static Script Security Analyzer v1 evidence for `.ts4script` archives,
+  surfacing network, subprocess, dynamic execution, obfuscation, unexpected
+  binary, corrupt archive, and path-traversal signals in Doctor and Update Desk
+  without executing script code or making malware claims.
 
 ### Planned
 - Full DBPF package parser implementation

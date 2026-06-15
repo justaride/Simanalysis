@@ -367,6 +367,28 @@ Implemented after Classification v1:
 - Script-family mismatch remains a future follow-on because the current codebase
   does not yet have a script conflict detector to attach that metadata to.
 
+## Script Security Progress
+
+Implemented after initial Conflict Engine v2 metadata:
+
+- Added `src/simanalysis/script_security.py`, a static `.ts4script` review
+  helper that opens script archives as ZIP files and reads Python source text
+  without importing, executing, extracting, or decompiling mod code.
+- Script security review reports `risk_level`, `signals`,
+  `elevated_signal_count`, `module_count`, and `executes_code: false`.
+- Signals cover network-capable imports, subprocess imports/calls, dynamic
+  execution APIs such as `eval`/`exec`, obfuscation hints, unexpected native or
+  binary files, corrupt archives, and archive path traversal.
+- Archive path traversal returns a blocked/elevated review result without
+  extracting any archive member.
+- Doctor payloads now include `script_security_summary`, and Doctor text output
+  surfaces static script-risk counts without changing crash verdict ordering.
+- Update Desk staged items and loose/archive review actions now include
+  per-script `script_security` evidence alongside classification, source
+  binding, and archive scan evidence.
+- These signals are elevated-risk review hints only; Simanalysis still does not
+  claim malware detection or script safety.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -429,7 +451,9 @@ conservative evidence layer in Doctor, Patch Day, and Update Desk, but it does
 not mark mods safe and does not replace manual post-patch review. Conflict
 Engine v2 metadata now makes existing resource/hash/tuning conflicts more
 actionable with exact-duplicate, likely-override, default-replacement, UI, and
-tuning labels while preserving manual review boundaries.
+tuning labels while preserving manual review boundaries. Static script-security
+review is available in Doctor and Update Desk for elevated-risk script signals,
+but it is not malware detection and does not execute script code.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several

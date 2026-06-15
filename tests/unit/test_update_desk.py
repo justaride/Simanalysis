@@ -39,7 +39,8 @@ def test_update_staging_status_classifies_downloads_and_source_bindings(
     package = staging / "loose.package"
     script = staging / "helper.ts4script"
     package.write_bytes(b"package")
-    script.write_bytes(b"script")
+    with ZipFile(script, "w") as zip_file:
+        zip_file.writestr("helper.py", "import socket\n")
 
     status = build_update_staging_status(staging)
 
@@ -59,6 +60,8 @@ def test_update_staging_status_classifies_downloads_and_source_bindings(
     assert items["loose.package"]["classification"]["label"] == "unknown"
     assert items["helper.ts4script"]["classification"]["label"] == "script"
     assert items["helper.ts4script"]["classification"]["confidence"] == "high"
+    assert items["helper.ts4script"]["script_security"]["risk_level"] == "elevated"
+    assert items["helper.ts4script"]["script_security"]["executes_code"] is False
     assert package.exists()
     assert script.exists()
     assert archive.exists()

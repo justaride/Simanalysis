@@ -1,6 +1,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from zipfile import ZipFile
 
 from simanalysis import doctor as doctor_core
 from simanalysis.inventory import InventoryScanner
@@ -113,7 +114,8 @@ def test_build_doctor_payload_includes_verdicts_and_playbooks(tmp_path: Path) ->
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"
     mods.mkdir(parents=True)
-    (mods / "helper.ts4script").write_bytes(b"script")
+    with ZipFile(mods / "helper.ts4script", "w") as zip_file:
+        zip_file.writestr("helper.py", "import subprocess\n")
     (sims4 / "lastException.txt").write_text("crash", encoding="utf-8")
     (sims4 / "lastUIException.txt").write_text("ui", encoding="utf-8")
     crash_report = type("CrashReport", (), {"signature": "crash-signature"})()
@@ -182,6 +184,8 @@ def test_build_doctor_payload_includes_verdicts_and_playbooks(tmp_path: Path) ->
     assert payload["summary"]["script_active"] == 1
     assert payload["classification_summary"]["label_counts"] == {"script": 1}
     assert payload["classification_summary"]["automatic_safe_marking"] is False
+    assert payload["script_security_summary"]["risk_counts"] == {"elevated": 1}
+    assert payload["script_security_summary"]["executes_code"] is False
     assert payload["verdicts"][0]["id"] == "active-script-suspects"
     assert payload["verdicts"][1]["id"] == "active-ui-findings"
     assert payload["playbooks"][0]["id"] == "bisect-active-doctor-candidates"
