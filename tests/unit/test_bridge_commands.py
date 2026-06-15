@@ -286,6 +286,35 @@ def test_save_protector_status_emits_read_only_save_payload(tmp_path):
     assert backup_file.exists()
 
 
+def test_tray_protector_status_emits_read_only_tray_payload(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    tray = sims4 / "Tray"
+    tray.mkdir(parents=True)
+    trayitem = tray / "family.trayitem"
+    sidecar = tray / "family.hhi"
+    orphan = tray / "orphan.bpi"
+    trayitem.write_bytes(b"tray")
+    sidecar.write_bytes(b"hhi")
+    orphan.write_bytes(b"bpi")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4))
+    commands.tray_protector_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "tray-protector-status"
+    result = events[1]["data"]
+    assert result["status"] == "review_recommended"
+    assert result["mutates_files"] is False
+    assert result["tray_file_count"] == 3
+    assert result["anchored_group_count"] == 1
+    assert result["sidecar_only_group_count"] == 1
+    assert trayitem.exists()
+    assert sidecar.exists()
+    assert orphan.exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

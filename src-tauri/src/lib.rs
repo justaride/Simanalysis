@@ -150,8 +150,8 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             args.push("cache-status".into());
             args.push(path.into());
         }
-        "save-protector-status" => {
-            args.push("save-protector-status".into());
+        "save-protector-status" | "tray-protector-status" => {
+            args.push(kind.into());
             args.push(path.into());
         }
         "cleanup-plan" => {
@@ -887,6 +887,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(args, vec!["save-protector-status", "/Sims/The Sims 4"]);
+    }
+
+    #[test]
+    fn builds_tray_protector_status_args() {
+        let args = build_args(
+            "tray-protector-status",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["tray-protector-status", "/Sims/The Sims 4"]);
     }
 
     #[test]

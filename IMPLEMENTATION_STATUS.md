@@ -226,9 +226,11 @@ Implemented after desktop Save Protector v0:
   AppleDouble sidecar files, iCloud placeholder or eviction markers, symlinked
   Tray entries, non-file entries, and casefold path collisions as
   evidence-labeled signals.
+- Added desktop Tray Protector v0 through `tray-protector-status` bridge/Tauri
+  plumbing, a Tray Protector route, profile-aware Sims 4 folder defaults, and
+  view-model tests over the same read-only Tray status payload.
 - Tray Protector v0 never edits, restores, dedupes, or deletes Tray files.
-  Desktop bridge/UI and any future Tray-adjacent operations remain future
-  slices.
+  Any future Tray-adjacent operations remain future slices.
 
 ## Current Product Reality
 
@@ -276,15 +278,15 @@ reviewing known cache targets and symlink warnings without deleting or moving
 files. Save Protector v0 is available as a read-only CLI/backend for reviewing
 save/backups and filesystem trust signals, with a desktop route over the same
 payload and no save mutation support. Tray Protector v0 is available as a
-read-only CLI/backend for reviewing Tray groups and dependency signals without
-editing Tray files.
+read-only CLI/backend and desktop route for reviewing Tray groups and
+dependency signals without editing Tray files.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
 operations, reversible workflows beyond cleanup actions, cache-clearing
-operations, desktop Tray Protector flows, update staging, profile-aware Patch
-Day re-enable workflows, and broader real-world corpus coverage.
+operations, update staging, profile-aware Patch Day re-enable workflows, and
+broader real-world corpus coverage.
 
 ## Current Verification Gates
 

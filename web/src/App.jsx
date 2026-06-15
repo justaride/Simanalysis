@@ -6,6 +6,7 @@ const Dashboard = lazy(() => import('./views/Dashboard'));
 const ModManager = lazy(() => import('./views/ModManager'));
 const Inventory = lazy(() => import('./views/Inventory'));
 const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
+const TrayProtector = lazy(() => import('./views/TrayProtector'));
 const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
 const Cleanup = lazy(() => import('./views/Cleanup'));
@@ -34,6 +35,7 @@ function App() {
                     <Route path="/mods" element={<ModManager />} />
                     <Route path="/inventory" element={<Inventory />} />
                     <Route path="/tray" element={<TrayOrganizer />} />
+                    <Route path="/tray-protector" element={<TrayProtector />} />
                     <Route path="/save-analyzer" element={<SaveAnalyzer />} />
                     <Route path="/conflicts" element={<Conflicts />} />
                     <Route path="/cleanup" element={<Cleanup />} />

@@ -6,6 +6,7 @@ import { cleanupPlanOptions } from './cleanupApiModel';
 import { cacheDoctorOptions } from './cacheDoctorApiModel';
 import { doctorScanOptions } from './doctorApiModel';
 import { saveProtectorOptions } from './saveProtectorApiModel';
+import { trayProtectorOptions } from './trayProtectorApiModel';
 import {
   inventoryFileEventsOptions,
   inventoryHistoryOptions,
@@ -101,6 +102,8 @@ export const api = {
     runAnalysis('cache-status', sims4Path, cacheDoctorOptions(options), callbacks),
   saveProtectorStatus: (sims4Path, callbacks, options = {}) =>
     runAnalysis('save-protector-status', sims4Path, saveProtectorOptions(options), callbacks),
+  trayProtectorStatus: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('tray-protector-status', sims4Path, trayProtectorOptions(options), callbacks),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>
