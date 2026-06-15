@@ -80,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added read-only Tray Protector v0 CLI/backend through `simanalysis tray
   status`, grouping Tray files and surfacing sidecar-only, AppleDouble,
   iCloud-placeholder, symlink, and case-collision signals without editing Tray.
+- Added desktop Tray Protector v0 through `tray-protector-status`
+  bridge/Tauri plumbing, a Tray Protector route, and profile-aware Sims 4
+  folder defaults over the same read-only Tray status payload.
 
 ### Planned
 - Full DBPF package parser implementation

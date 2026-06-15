@@ -25,6 +25,7 @@ from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 from simanalysis.patch_day import build_patch_day_status, record_patch_baseline
 from simanalysis.save_protector import build_save_protector_status
 from simanalysis.services.thumbnail_service import ThumbnailService
+from simanalysis.tray_protector import build_tray_status
 
 
 def _require_dir(path: str) -> Path:
@@ -150,6 +151,13 @@ def save_protector_status(args: argparse.Namespace, emit: Emitter) -> None:
     path = _require_dir(args.path)
     emit.start("save-protector-status")
     emit.result(build_save_protector_status(path))
+    emit.done()
+
+
+def tray_protector_status(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("tray-protector-status")
+    emit.result(build_tray_status(path))
     emit.done()
 
 
@@ -433,6 +441,7 @@ DISPATCH = {
     "patch-day-record": patch_day_record,
     "cache-status": cache_status,
     "save-protector-status": save_protector_status,
+    "tray-protector-status": tray_protector_status,
     "cleanup-plan": cleanup_plan,
     "cleanup-stage": cleanup_stage,
     "cleanup-apply": cleanup_apply,

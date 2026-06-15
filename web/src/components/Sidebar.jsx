@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope, RadioTower, Stethoscope, ClipboardList, Database, ShieldCheck, HardDrive, Save } from 'lucide-react';
+import { LayoutDashboard, Package, Home, FileSearch, AlertTriangle, Settings, ChevronLeft, ChevronRight, Microscope, RadioTower, Stethoscope, ClipboardList, Database, ShieldCheck, HardDrive, Save, Archive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function isCompactViewport() {
@@ -40,6 +40,7 @@ function Sidebar() {
         { path: '/mods', icon: Package, label: 'Mod Manager' },
         { path: '/inventory', icon: Database, label: 'Inventory' },
         { path: '/tray', icon: Home, label: 'Tray Organizer' },
+        { path: '/tray-protector', icon: Archive, label: 'Tray Protector' },
         { path: '/save-analyzer', icon: FileSearch, label: 'Save Analyzer' },
         { path: '/conflicts', icon: AlertTriangle, label: 'Conflicts' },
         { path: '/cleanup', icon: ClipboardList, label: 'Cleanup' },
