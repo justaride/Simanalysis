@@ -424,6 +424,25 @@ def patch_day_record(sims4_dir: str, state: Optional[str], fmt: str) -> None:
         click.echo(format_patch_day_text(status))
 
 
+@cli.group("cache")
+def cache() -> None:
+    """Read-only Cache Doctor commands."""
+
+
+@cache.command("status")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def cache_status(sims4_dir: str, fmt: str) -> None:
+    """Inspect known Sims 4 cache targets without changing files."""
+    from simanalysis.cache_doctor import build_cache_status, format_cache_status_text
+
+    status = build_cache_status(sims4_dir)
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_cache_status_text(status))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")

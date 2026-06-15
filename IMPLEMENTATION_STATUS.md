@@ -171,6 +171,24 @@ Implemented after Patch Day Shield v0:
 - Full profile switching, profile-aware Operating Table actions, and
   profile-aware Patch Day re-enable workflows remain future slices.
 
+## Cache Doctor Progress
+
+Implemented after Profile Manager Light v0:
+
+- Added `src/simanalysis/cache_doctor.py`, a read-only Cache Doctor status
+  helper for known Sims 4 cache targets.
+- Added `simanalysis cache status` with text and JSON output for
+  `localthumbcache.package`, `avatarcache.package`, `cache`, `cachestr`,
+  `onlinethumbnailcache`, and `cachewebkit` presence, size, item count,
+  warnings, and recommendations.
+- Symlinked cache targets and symlinked cache-directory entries are skipped
+  with explicit warnings.
+- Cache Doctor v0 never deletes, moves, or rewrites cache files; future cache
+  cleanup must be staged through an Operating Table manifest after snapshot and
+  user approval.
+- Desktop Cache Doctor bridge/UI and cache-clearing operations remain future
+  slices.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -211,14 +229,16 @@ mod categories as unknown after a patch, and recording an explicit baseline in
 Simanalysis state without changing Mods, saves, or Tray files. Profile Manager
 Light v0 is available in desktop Settings for remembering an active Sims 4 root
 and deriving common folder paths from app state only; primary desktop views use
-those paths as input defaults without scanning or mutating files on load.
+those paths as input defaults without scanning or mutating files on load. Cache
+Doctor v0 is available as a read-only CLI/backend for reviewing known cache
+targets and symlink warnings without deleting or moving files.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
-operations, reversible workflows beyond cleanup actions, Cache Doctor, update
-staging, profile-aware Patch Day re-enable workflows, and broader real-world
-corpus coverage.
+operations, reversible workflows beyond cleanup actions, desktop Cache Doctor
+flows, cache-clearing operations, update staging, profile-aware Patch Day
+re-enable workflows, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

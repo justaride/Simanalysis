@@ -65,6 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added profile-aware desktop input defaults for Mod Manager, Inventory,
   Cleanup, Doctor, Treatment, Live Monitor, Patch Day, Tray Organizer, and Save
   Analyzer without starting scans or changing Sims files on load.
+- Added read-only Cache Doctor v0 CLI/backend through `simanalysis cache
+  status`, reporting known cache targets and symlink warnings without deleting
+  or moving files.
 
 ### Planned
 - Full DBPF package parser implementation
