@@ -4,6 +4,7 @@ import test from 'node:test';
 import {
     updateDeskCommitOptions,
     updateDeskOptions,
+    updateDeskOperationStatusOptions,
     updateDeskPlanOptions,
     updateDeskUndoOptions,
 } from './updateDeskApiModel.js';
@@ -13,13 +14,22 @@ test('update desk options are intentionally empty for read-only staging status',
     assert.deepEqual(updateDeskOptions({ ignored: true }), {});
 });
 
-test('update desk plan options require an explicit Mods path', () => {
+test('update desk plan options require an explicit Mods path and preserve explicit output path', () => {
     assert.deepEqual(updateDeskPlanOptions('/Sims/The Sims 4/Mods'), {
         modsPath: '/Sims/The Sims 4/Mods',
     });
     assert.deepEqual(updateDeskPlanOptions('  /Sims/The Sims 4/Mods  '), {
         modsPath: '/Sims/The Sims 4/Mods',
     });
+    assert.deepEqual(
+        updateDeskPlanOptions('/Sims/The Sims 4/Mods', {
+            exportPath: '  /tmp/update-plan.json  ',
+        }),
+        {
+            modsPath: '/Sims/The Sims 4/Mods',
+            exportPath: '/tmp/update-plan.json',
+        },
+    );
     assert.throws(() => updateDeskPlanOptions(''), /modsPath/);
     assert.throws(() => updateDeskPlanOptions(null), /modsPath/);
 });
@@ -43,4 +53,8 @@ test('update desk commit options require explicit actions or all-actions', () =>
 
 test('update desk undo options are intentionally empty', () => {
     assert.deepEqual(updateDeskUndoOptions(), {});
+});
+
+test('update desk operation status options are intentionally empty', () => {
+    assert.deepEqual(updateDeskOperationStatusOptions(), {});
 });

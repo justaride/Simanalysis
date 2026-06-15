@@ -109,6 +109,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   argument plumbing plus web API option builders for the same guarded
   commit/undo contract, while the desktop Update Desk route still exposes no
   install/apply control.
+- Added desktop Update Desk commit/undo controls for explicit planned loose-file
+  copy actions, including Plan JSON export, action selection, confirm-gated
+  commit, manifest status refresh, undo, and refusal/result rendering over the
+  guarded bridge/Tauri contract. Archive extraction remains unavailable.
+- Added a durable Public v3 workplan and HTML presentation for the remaining
+  safety-first release roadmap.
 
 ### Planned
 - Full DBPF package parser implementation

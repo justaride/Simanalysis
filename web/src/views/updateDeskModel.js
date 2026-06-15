@@ -10,6 +10,16 @@ const PLAN_STATUS_LABELS = {
     empty: ['Empty', 'blue'],
 };
 
+const OPERATION_STATUS_LABELS = {
+    planned: ['Planned', 'blue'],
+    applying: ['Applying', 'amber'],
+    applied: ['Applied', 'green'],
+    partial: ['Partial', 'amber'],
+    blocked: ['Blocked', 'red'],
+    undoing: ['Undoing', 'amber'],
+    undone: ['Undone', 'blue'],
+};
+
 const KIND_ORDER = {
     archive: 0,
     package: 1,
@@ -151,4 +161,47 @@ export function toUpdatePlanActionRows(payload = {}) {
             reviewNotes: Array.isArray(action.review_notes) ? action.review_notes : [],
         };
     });
+}
+
+export function getCommitEligibleUpdateActionRows(rows = []) {
+    return rows.filter((row) => row.type === 'copy_staged_file' && row.status === 'planned');
+}
+
+export function toggleUpdateActionSelection(current = [], actionId, checked) {
+    const normalized = String(actionId || '').trim();
+    if (!normalized) return current;
+    if (checked) {
+        return current.includes(normalized) ? current : [...current, normalized];
+    }
+    return current.filter((id) => id !== normalized);
+}
+
+export function canCommitUpdatePlan({
+    planPath,
+    selectedActionIds = [],
+    eligibleActionCount = 0,
+} = {}) {
+    return Boolean(
+        String(planPath || '').trim()
+        && selectedActionIds.length > 0
+        && eligibleActionCount > 0,
+    );
+}
+
+export function summarizeUpdateOperation(payload = {}) {
+    const [statusLabel, tone] = OPERATION_STATUS_LABELS[payload.status] || ['No operation', 'blue'];
+    const actions = Array.isArray(payload.actions) ? payload.actions : [];
+    return {
+        operationId: payload.operation_id || null,
+        status: payload.status || 'none',
+        statusLabel,
+        tone,
+        manifestPath: payload.manifest_path || null,
+        copiedCount: actions.filter((action) => action.status === 'copied').length,
+        blockedCount: actions.filter((action) => action.status === 'blocked').length,
+        undoneCount: actions.filter((action) => action.status === 'undone').length,
+        warningCount: Array.isArray(payload.warnings) ? payload.warnings.length : 0,
+        blockerCount: Array.isArray(payload.blockers) ? payload.blockers.length : 0,
+        canUndo: ['applying', 'applied', 'partial', 'undoing'].includes(payload.status),
+    };
 }

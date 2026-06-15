@@ -65,6 +65,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_update_staging_plan = sub.add_parser("update-staging-plan")
     p_update_staging_plan.add_argument("path")
     p_update_staging_plan.add_argument("--mods", dest="mods_path", required=True)
+    p_update_staging_plan.add_argument("--output", dest="export", default=None)
 
     p_update_staging_commit = sub.add_parser("update-staging-commit")
     p_update_staging_commit.add_argument("path")
@@ -73,6 +74,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     p_update_staging_undo = sub.add_parser("update-staging-undo")
     p_update_staging_undo.add_argument("path")
+
+    p_update_staging_operation_status = sub.add_parser("update-staging-operation-status")
+    p_update_staging_operation_status.add_argument("path")
 
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")

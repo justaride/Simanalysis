@@ -2,8 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    canCommitUpdatePlan,
+    getCommitEligibleUpdateActionRows,
     summarizeUpdateInstallPlan,
+    summarizeUpdateOperation,
     summarizeUpdateDeskStatus,
+    toggleUpdateActionSelection,
     toUpdatePlanActionRows,
     toUpdateItemRows,
     toUpdateSignalRows,
@@ -248,6 +252,109 @@ test('update install plan action rows keep blockers and review-only archive acti
     ]);
 });
 
+test('update install plan exposes only planned copy actions as commit eligible', () => {
+    const rows = toUpdatePlanActionRows(UPDATE_PLAN);
+
+    assert.deepEqual(getCommitEligibleUpdateActionRows(rows), [
+        {
+            id: 'update-copy-001',
+            type: 'copy_staged_file',
+            typeLabel: 'Copy Staged File',
+            status: 'planned',
+            statusLabel: 'Planned',
+            sourceName: 'loose.package',
+            sourceRelativePath: 'loose.package',
+            destinationRelativePath: 'loose.package',
+            expectedSizeLabel: '2 KB',
+            sourceStatus: 'bound',
+            sourceLabel: 'Bound',
+            archiveStatus: 'not_archive',
+            archiveLabel: 'Not Archive',
+            blockers: [],
+            reviewNotes: [],
+        },
+    ]);
+});
+
+test('update action selection toggles explicit copy actions without duplicates', () => {
+    assert.deepEqual(toggleUpdateActionSelection([], 'update-copy-001', true), [
+        'update-copy-001',
+    ]);
+    assert.deepEqual(
+        toggleUpdateActionSelection(['update-copy-001'], 'update-copy-001', true),
+        ['update-copy-001'],
+    );
+    assert.deepEqual(
+        toggleUpdateActionSelection(['update-copy-001', 'update-copy-002'], 'update-copy-001', false),
+        ['update-copy-002'],
+    );
+});
+
+test('update commit gate requires a saved plan path and explicit selected actions', () => {
+    assert.equal(
+        canCommitUpdatePlan({
+            planPath: '/tmp/update-plan.json',
+            selectedActionIds: ['update-copy-001'],
+            eligibleActionCount: 1,
+        }),
+        true,
+    );
+    assert.equal(
+        canCommitUpdatePlan({
+            planPath: '',
+            selectedActionIds: ['update-copy-001'],
+            eligibleActionCount: 1,
+        }),
+        false,
+    );
+    assert.equal(
+        canCommitUpdatePlan({
+            planPath: '/tmp/update-plan.json',
+            selectedActionIds: [],
+            eligibleActionCount: 1,
+        }),
+        false,
+    );
+    assert.equal(
+        canCommitUpdatePlan({
+            planPath: '/tmp/update-plan.json',
+            selectedActionIds: ['update-copy-001'],
+            eligibleActionCount: 0,
+        }),
+        false,
+    );
+});
+
+test('update operation summary exposes manifest status and undo availability', () => {
+    assert.deepEqual(
+        summarizeUpdateOperation({
+            operation_id: 'update-op-001',
+            status: 'applied',
+            manifest_path: '/Mods/_Simanalysis_UpdateDesk/manifests/update-op-001.json',
+            actions: [
+                { action_id: 'update-copy-001', status: 'copied' },
+                { action_id: 'update-copy-002', status: 'blocked', error: 'destination exists' },
+            ],
+            warnings: ['review cache after install'],
+            blockers: ['destination exists'],
+        }),
+        {
+            operationId: 'update-op-001',
+            status: 'applied',
+            statusLabel: 'Applied',
+            tone: 'green',
+            manifestPath: '/Mods/_Simanalysis_UpdateDesk/manifests/update-op-001.json',
+            copiedCount: 1,
+            blockedCount: 1,
+            undoneCount: 0,
+            warningCount: 1,
+            blockerCount: 1,
+            canUndo: true,
+        },
+    );
+    assert.equal(summarizeUpdateOperation({ status: 'undone' }).canUndo, false);
+});
+
 test('update desk model falls back without inventing mutation support', () => {
     assert.equal(summarizeUpdateDeskStatus({}).readOnlyLabel, 'Read-only');
     assert.equal(
@@ -259,4 +366,6 @@ test('update desk model falls back without inventing mutation support', () => {
     assert.equal(summarizeUpdateInstallPlan({}).readOnlyLabel, 'Read-only');
     assert.equal(summarizeUpdateInstallPlan({ mutates_mods: true }).modsMutationLabel, 'Mods mutation reported');
     assert.deepEqual(toUpdatePlanActionRows({}), []);
+    assert.deepEqual(getCommitEligibleUpdateActionRows([]), []);
+    assert.deepEqual(summarizeUpdateOperation({}).statusLabel, 'No operation');
 });

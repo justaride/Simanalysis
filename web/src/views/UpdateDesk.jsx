@@ -3,6 +3,7 @@ import {
     AlertTriangle,
     Archive,
     CheckCircle2,
+    CheckSquare,
     ClipboardList,
     Download,
     FileArchive,
@@ -11,6 +12,7 @@ import {
     Loader2,
     Package,
     RefreshCw,
+    RotateCcw,
     ShieldCheck,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,8 +20,12 @@ import api from '../api';
 import FilePicker from '../components/FilePicker';
 import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
+    canCommitUpdatePlan,
+    getCommitEligibleUpdateActionRows,
     summarizeUpdateInstallPlan,
+    summarizeUpdateOperation,
     summarizeUpdateDeskStatus,
+    toggleUpdateActionSelection,
     toUpdatePlanActionRows,
     toUpdateItemRows,
     toUpdateSignalRows,
@@ -27,8 +33,10 @@ import {
 
 const DEFAULT_STAGING_PATH = '~/Downloads/Simanalysis Staging';
 const DEFAULT_MODS_PATH = '~/Documents/Electronic Arts/The Sims 4/Mods';
+const DEFAULT_PLAN_PATH = '~/Downloads/simanalysis-update-plan.json';
 const STORAGE_KEY = 'update-desk-staging-path';
 const MODS_STORAGE_KEY = 'update-desk-mods-path';
+const PLAN_STORAGE_KEY = 'update-desk-plan-path';
 
 const toneClasses = {
     blue: 'border-blue-500/30 bg-blue-950/20 text-blue-200',
@@ -40,6 +48,11 @@ const toneClasses = {
 function readStoredPath() {
     if (typeof localStorage === 'undefined') return DEFAULT_STAGING_PATH;
     return localStorage.getItem(STORAGE_KEY) || DEFAULT_STAGING_PATH;
+}
+
+function readStoredPlanPath() {
+    if (typeof localStorage === 'undefined') return DEFAULT_PLAN_PATH;
+    return localStorage.getItem(PLAN_STORAGE_KEY) || DEFAULT_PLAN_PATH;
 }
 
 function PathField({ label, value, onChange, onBrowse, placeholder, browseTitle }) {
@@ -223,7 +236,7 @@ function StagedItems({ rows }) {
     );
 }
 
-function PlanActions({ rows }) {
+function PlanActions({ rows, selectedActionIds = [], onToggleAction }) {
     if (rows.length === 0) {
         return (
             <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5 text-sm text-gray-500">
@@ -238,11 +251,22 @@ function PlanActions({ rows }) {
                 {rows.map((row) => (
                     <div key={row.id} className="rounded-xl border border-gray-800 bg-gray-950/40 p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                            <div className="min-w-0">
+                            <div className="flex min-w-0 gap-3">
+                                {row.commitEligible && (
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedActionIds.includes(row.id)}
+                                        onChange={(event) => onToggleAction?.(row.id, event.target.checked)}
+                                        className="mt-1 h-4 w-4 shrink-0 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                                        aria-label={`Select ${row.sourceName}`}
+                                    />
+                                )}
+                                <div className="min-w-0">
                                 <p className="break-words font-medium text-white">{row.sourceName}</p>
                                 <p className="mt-1 break-all font-mono text-xs text-gray-500">
                                     {row.sourceRelativePath || row.id}
                                 </p>
+                                </div>
                             </div>
                             <Badge tone={actionTone(row)}>{row.statusLabel}</Badge>
                         </div>
@@ -279,6 +303,7 @@ function PlanActions({ rows }) {
                 <table className="min-w-full divide-y divide-gray-800 text-sm">
                     <thead className="bg-gray-950/60 text-left text-xs uppercase tracking-wider text-gray-500">
                         <tr>
+                            <th className="px-4 py-3 font-medium">Select</th>
                             <th className="px-4 py-3 font-medium">Action</th>
                             <th className="px-4 py-3 font-medium">Status</th>
                             <th className="px-4 py-3 font-medium">Source</th>
@@ -290,6 +315,19 @@ function PlanActions({ rows }) {
                     <tbody className="divide-y divide-gray-800 bg-gray-900/30">
                     {rows.map((row) => (
                         <tr key={row.id} className="align-top">
+                            <td className="px-4 py-3">
+                                {row.commitEligible ? (
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedActionIds.includes(row.id)}
+                                        onChange={(event) => onToggleAction?.(row.id, event.target.checked)}
+                                        className="h-4 w-4 rounded border-gray-600 bg-gray-900 text-emerald-500"
+                                        aria-label={`Select ${row.sourceName}`}
+                                    />
+                                ) : (
+                                    <span className="text-xs text-gray-600">Review</span>
+                                )}
+                            </td>
                             <td className="px-4 py-3"><Badge>{row.typeLabel}</Badge></td>
                             <td className="px-4 py-3"><Badge tone={actionTone(row)}>{row.statusLabel}</Badge></td>
                             <td className="px-4 py-3">
@@ -362,8 +400,109 @@ function SignalRows({ rows }) {
     );
 }
 
+function OperationStatus({ summary, busy, error, onUndo, onRefresh }) {
+    if (!summary.manifestPath && !error) return null;
+    return (
+        <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
+                    <ShieldCheck size={20} className="text-emerald-300" />
+                    Update Operation
+                </h2>
+                {summary.manifestPath && <Badge tone={summary.tone}>{summary.statusLabel}</Badge>}
+            </div>
+            {error && (
+                <div className="mb-4 rounded-lg border border-red-500/30 bg-red-950/20 p-3 text-sm text-red-200">
+                    {error}
+                </div>
+            )}
+            {summary.manifestPath && (
+                <div className="space-y-3">
+                    <p className="break-all rounded bg-black/30 px-3 py-2 font-mono text-xs text-white">
+                        {summary.manifestPath}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                        <div className="rounded bg-black/30 px-3 py-2">
+                            <p className="text-xs uppercase tracking-wider text-gray-500">Copied</p>
+                            <p className="mt-1 font-mono text-gray-200">{summary.copiedCount}</p>
+                        </div>
+                        <div className="rounded bg-black/30 px-3 py-2">
+                            <p className="text-xs uppercase tracking-wider text-gray-500">Blocked</p>
+                            <p className="mt-1 font-mono text-gray-200">{summary.blockedCount}</p>
+                        </div>
+                        <div className="rounded bg-black/30 px-3 py-2">
+                            <p className="text-xs uppercase tracking-wider text-gray-500">Undone</p>
+                            <p className="mt-1 font-mono text-gray-200">{summary.undoneCount}</p>
+                        </div>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                            onClick={onRefresh}
+                            disabled={busy || !summary.manifestPath}
+                            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm font-medium text-gray-100 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {busy ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}
+                            Refresh
+                        </button>
+                        <button
+                            onClick={onUndo}
+                            disabled={busy || !summary.canUndo}
+                            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-500/40 bg-amber-950/20 px-3 text-sm font-medium text-amber-100 hover:bg-amber-900/30 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            <RotateCcw size={16} />
+                            Undo
+                        </button>
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+}
+
+function ConfirmUpdateModal({ kind, selectedCount, operationSummary, busy, onCancel, onConfirm }) {
+    if (!kind) return null;
+    const isUndo = kind === 'undo';
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+            <div className="w-full max-w-lg rounded-2xl border border-gray-700 bg-gray-950 p-6 shadow-2xl">
+                <h2 className="flex items-center gap-2 text-xl font-semibold text-white">
+                    {isUndo ? <RotateCcw size={20} /> : <CheckSquare size={20} />}
+                    {isUndo ? 'Undo update operation?' : 'Commit selected update actions?'}
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-gray-300">
+                    {isUndo
+                        ? 'Simanalysis will remove copied update files only when they still match the update manifest evidence. Staged downloads are preserved.'
+                        : `Simanalysis will copy ${selectedCount} selected loose package/script action${selectedCount === 1 ? '' : 's'} into Mods. Archives are not extracted and existing Mods files are not overwritten.`}
+                </p>
+                {isUndo && operationSummary.manifestPath && (
+                    <p className="mt-4 break-all rounded bg-black/30 px-3 py-2 font-mono text-xs text-gray-400">
+                        {operationSummary.manifestPath}
+                    </p>
+                )}
+                <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                    <button
+                        onClick={onCancel}
+                        disabled={busy}
+                        className="rounded-lg border border-gray-700 px-4 py-2 text-sm font-medium text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        onClick={onConfirm}
+                        disabled={busy}
+                        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        {busy ? 'Working...' : isUndo ? 'Undo' : 'Commit Selected'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function UpdateDesk() {
     const [stagingPath, setStagingPath] = useState(readStoredPath);
+    const [planPath, setPlanPath] = useState(readStoredPlanPath);
     const [modsPath, setModsPath] = useProfileDefaultPath('modsPath', {
         storageKey: MODS_STORAGE_KEY,
         fallback: DEFAULT_MODS_PATH,
@@ -371,17 +510,39 @@ function UpdateDesk() {
     const [pickerTarget, setPickerTarget] = useState(null);
     const [status, setStatus] = useState(null);
     const [plan, setPlan] = useState(null);
+    const [operation, setOperation] = useState(null);
+    const [selectedActionIds, setSelectedActionIds] = useState([]);
+    const [confirmKind, setConfirmKind] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isPlanning, setIsPlanning] = useState(false);
+    const [isOperating, setIsOperating] = useState(false);
     const [error, setError] = useState(null);
     const [planError, setPlanError] = useState(null);
+    const [operationError, setOperationError] = useState(null);
 
     const summary = useMemo(() => summarizeUpdateDeskStatus(status || {}), [status]);
     const itemRows = useMemo(() => toUpdateItemRows(status || {}), [status]);
     const signalRows = useMemo(() => toUpdateSignalRows(status || {}), [status]);
     const planSummary = useMemo(() => summarizeUpdateInstallPlan(plan || {}), [plan]);
-    const planRows = useMemo(() => toUpdatePlanActionRows(plan || {}), [plan]);
+    const planRows = useMemo(() => {
+        const rows = toUpdatePlanActionRows(plan || {});
+        const eligibleIds = new Set(getCommitEligibleUpdateActionRows(rows).map((row) => row.id));
+        return rows.map((row) => ({
+            ...row,
+            commitEligible: eligibleIds.has(row.id),
+        }));
+    }, [plan]);
+    const eligibleActionRows = useMemo(
+        () => getCommitEligibleUpdateActionRows(planRows),
+        [planRows],
+    );
+    const operationSummary = useMemo(() => summarizeUpdateOperation(operation || {}), [operation]);
     const issueCount = summary.warningCount + summary.signalCount;
+    const canCommitSelected = canCommitUpdatePlan({
+        planPath,
+        selectedActionIds,
+        eligibleActionCount: eligibleActionRows.length,
+    });
 
     const handleStatus = () => {
         const target = stagingPath.trim();
@@ -410,6 +571,7 @@ function UpdateDesk() {
     const handlePlan = () => {
         const target = stagingPath.trim();
         const mods = modsPath.trim();
+        const output = planPath.trim();
         if (!target) {
             toast.error('Choose a staging folder first');
             return;
@@ -418,14 +580,23 @@ function UpdateDesk() {
             toast.error('Choose a Mods folder first');
             return;
         }
+        if (!output) {
+            toast.error('Choose a Plan JSON path first');
+            return;
+        }
 
         localStorage.setItem(STORAGE_KEY, target);
         localStorage.setItem(MODS_STORAGE_KEY, mods);
+        localStorage.setItem(PLAN_STORAGE_KEY, output);
         setPlanError(null);
+        setOperationError(null);
         setIsPlanning(true);
         api.updateDeskPlan(target, mods, {
             onComplete: (result) => {
                 setPlan(result);
+                setPlanPath(result?.manifest_path || output);
+                setSelectedActionIds([]);
+                setOperation(null);
                 setIsPlanning(false);
                 toast.success('Update Desk plan ready');
             },
@@ -434,12 +605,84 @@ function UpdateDesk() {
                 setIsPlanning(false);
                 toast.error(`Update Desk plan failed: ${message}`);
             },
+        }, { exportPath: output });
+    };
+
+    const toggleAction = (actionId, checked) => {
+        setSelectedActionIds((current) => toggleUpdateActionSelection(current, actionId, checked));
+    };
+
+    const selectAllEligible = () => {
+        setSelectedActionIds(eligibleActionRows.map((row) => row.id));
+    };
+
+    const commitSelected = () => {
+        if (!canCommitSelected) {
+            toast.error('Choose planned copy actions and keep a Plan JSON path.');
+            return;
+        }
+
+        setIsOperating(true);
+        setOperationError(null);
+        api.updateDeskCommit(planPath.trim(), {
+            onComplete: (result) => {
+                setOperation(result);
+                setIsOperating(false);
+                setConfirmKind(null);
+                toast.success('Update Desk commit complete');
+            },
+            onError: (message) => {
+                setOperationError(message);
+                setIsOperating(false);
+                setConfirmKind(null);
+                toast.error(`Update Desk commit failed: ${message}`);
+            },
+        }, { actions: selectedActionIds });
+    };
+
+    const refreshOperation = () => {
+        if (!operationSummary.manifestPath) return;
+        setIsOperating(true);
+        setOperationError(null);
+        api.updateDeskOperationStatus(operationSummary.manifestPath, {
+            onComplete: (result) => {
+                setOperation(result);
+                setIsOperating(false);
+                toast.success('Update Desk operation refreshed');
+            },
+            onError: (message) => {
+                setOperationError(message);
+                setIsOperating(false);
+                toast.error(`Update Desk operation refresh failed: ${message}`);
+            },
+        });
+    };
+
+    const undoOperation = () => {
+        if (!operationSummary.manifestPath) return;
+        setIsOperating(true);
+        setOperationError(null);
+        api.updateDeskUndo(operationSummary.manifestPath, {
+            onComplete: (result) => {
+                setOperation(result);
+                setIsOperating(false);
+                setConfirmKind(null);
+                toast.success('Update Desk undo complete');
+            },
+            onError: (message) => {
+                setOperationError(message);
+                setIsOperating(false);
+                setConfirmKind(null);
+                toast.error(`Update Desk undo failed: ${message}`);
+            },
         });
     };
 
     const handlePathSelect = (path) => {
         if (pickerTarget === 'mods') {
             setModsPath(path);
+        } else if (pickerTarget === 'plan') {
+            setPlanPath(path);
         } else {
             setStagingPath(path);
         }
@@ -462,7 +705,7 @@ function UpdateDesk() {
             </div>
 
             <section className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end">
                     <PathField
                         label="Staging Folder"
                         value={stagingPath}
@@ -478,6 +721,14 @@ function UpdateDesk() {
                         onBrowse={() => setPickerTarget('mods')}
                         placeholder={DEFAULT_MODS_PATH}
                         browseTitle="Choose Mods folder"
+                    />
+                    <PathField
+                        label="Plan JSON"
+                        value={planPath}
+                        onChange={setPlanPath}
+                        onBrowse={() => setPickerTarget('plan')}
+                        placeholder={DEFAULT_PLAN_PATH}
+                        browseTitle="Choose plan JSON"
                     />
                     <button
                         onClick={handleStatus}
@@ -537,7 +788,11 @@ function UpdateDesk() {
                                     {planSummary.readOnlyLabel}
                                 </span>
                             </div>
-                            <PlanActions rows={planRows} />
+                            <PlanActions
+                                rows={planRows}
+                                selectedActionIds={selectedActionIds}
+                                onToggleAction={toggleAction}
+                            />
                         </div>
 
                         <div className="space-y-4">
@@ -568,8 +823,40 @@ function UpdateDesk() {
                                             <p className="mt-1 font-mono text-gray-200">{planSummary.actionCount}</p>
                                         </div>
                                     </div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                        <button
+                                            onClick={selectAllEligible}
+                                            disabled={isOperating || eligibleActionRows.length === 0}
+                                            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-950/20 px-3 text-sm font-medium text-emerald-100 hover:bg-emerald-900/30 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            <CheckSquare size={16} />
+                                            Select Copy Actions
+                                        </button>
+                                        <button
+                                            onClick={() => setSelectedActionIds([])}
+                                            disabled={isOperating || selectedActionIds.length === 0}
+                                            className="flex h-10 items-center justify-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-3 text-sm font-medium text-gray-100 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            Clear Selection
+                                        </button>
+                                    </div>
+                                    <button
+                                        onClick={() => setConfirmKind('commit')}
+                                        disabled={isOperating || !canCommitSelected}
+                                        className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                        {isOperating ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+                                        Commit Selected ({selectedActionIds.length})
+                                    </button>
                                 </div>
                             </section>
+                            <OperationStatus
+                                summary={operationSummary}
+                                busy={isOperating}
+                                error={operationError}
+                                onUndo={() => setConfirmKind('undo')}
+                                onRefresh={refreshOperation}
+                            />
                             <MessageList
                                 icon={CheckCircle2}
                                 title="Plan Recommendations"
@@ -647,7 +934,23 @@ function UpdateDesk() {
                 onSelect={handlePathSelect}
                 initialPath={pickerTarget === 'mods'
                     ? (modsPath || DEFAULT_MODS_PATH)
-                    : (stagingPath || DEFAULT_STAGING_PATH)}
+                    : pickerTarget === 'plan'
+                        ? (planPath || DEFAULT_PLAN_PATH)
+                        : (stagingPath || DEFAULT_STAGING_PATH)}
+            />
+            <ConfirmUpdateModal
+                kind={confirmKind}
+                selectedCount={selectedActionIds.length}
+                operationSummary={operationSummary}
+                busy={isOperating}
+                onCancel={() => setConfirmKind(null)}
+                onConfirm={() => {
+                    if (confirmKind === 'undo') {
+                        undoOperation();
+                    } else {
+                        commitSelected();
+                    }
+                }}
             />
         </div>
     );
