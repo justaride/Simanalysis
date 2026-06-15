@@ -9,6 +9,7 @@ from simanalysis import __version__
 from simanalysis.analyzers.mesh_analyzer import MeshAnalyzer
 from simanalysis.detectors.base import ConflictDetector
 from simanalysis.detectors.resource_conflicts import ResourceConflictDetector
+from simanalysis.detectors.script_conflicts import ScriptConflictDetector
 from simanalysis.detectors.tuning_conflicts import TuningConflictDetector
 from simanalysis.load_order import LoadOrderPlan, simulate_package_load_order
 from simanalysis.models import (
@@ -66,6 +67,7 @@ class ModAnalyzer:
             self.detectors = [
                 TuningConflictDetector(),
                 ResourceConflictDetector(),
+                ScriptConflictDetector(),
             ]
             self.mesh_analyzer = MeshAnalyzer()
         else:

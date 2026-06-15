@@ -373,8 +373,10 @@ Implemented after Classification v1:
 - Tuning overlaps now report `conflict_kind: tuning_conflict` with explicit
   compatibility-review guidance that notes only one tuning definition wins at
   load time.
-- Script-family mismatch remains a future follow-on because the current codebase
-  does not yet have a script conflict detector to attach that metadata to.
+- Script namespace overlaps now report
+  `conflict_kind: script_family_mismatch` through a read-only detector that
+  never executes script code, skips identical-hash duplicates, and recommends
+  profile-aware compatibility review instead of deletion.
 
 ## Script Security Progress
 

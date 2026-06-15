@@ -9,11 +9,13 @@ import pytest
 
 from simanalysis.analyzers import ModAnalyzer
 from simanalysis.detectors.base import ConflictDetector
+from simanalysis.detectors.script_conflicts import ScriptConflictDetector
 from simanalysis.models import (
     ConflictType,
     DBPFResource,
     Mod,
     ModType,
+    ScriptModule,
     TuningData,
 )
 
@@ -150,7 +152,8 @@ class TestModAnalyzer:
     def test_analyzer_initialization(self, analyzer: ModAnalyzer) -> None:
         """Test analyzer initializes correctly."""
         assert analyzer.scanner is not None
-        assert len(analyzer.detectors) == 2  # Default detectors
+        assert len(analyzer.detectors) == 3  # Default detectors
+        assert any(isinstance(detector, ScriptConflictDetector) for detector in analyzer.detectors)
 
     def test_analyzer_initialization_with_options(self) -> None:
         """Test analyzer with custom options."""
@@ -195,6 +198,37 @@ class TestModAnalyzer:
 
         assert len(result.mods) == 2
         assert len(result.conflicts) == 0
+
+    def test_analyze_mods_detects_script_family_conflict(self, analyzer: ModAnalyzer) -> None:
+        """Test default analyzer detects script-family namespace collisions."""
+        mods = [
+            Mod(
+                name="alpha.ts4script",
+                path=Path("/mods/alpha.ts4script"),
+                type=ModType.SCRIPT,
+                size=1000,
+                hash="hash-alpha",
+                scripts=[ScriptModule(name="shared/core.py", path="shared/core.py")],
+            ),
+            Mod(
+                name="beta.ts4script",
+                path=Path("/mods/beta.ts4script"),
+                type=ModType.SCRIPT,
+                size=1000,
+                hash="hash-beta",
+                scripts=[ScriptModule(name="shared/hooks.py", path="shared/hooks.py")],
+            ),
+        ]
+
+        result = analyzer.analyze_mods(mods)
+
+        conflict = next(
+            conflict
+            for conflict in result.conflicts
+            if conflict.type == ConflictType.NAMESPACE_COLLISION
+        )
+        assert conflict.details["conflict_kind"] == "script_family_mismatch"
+        assert conflict.details["executes_code"] is False
 
     def test_detect_conflicts(
         self, analyzer: ModAnalyzer, test_mods_with_conflicts: list[Mod]

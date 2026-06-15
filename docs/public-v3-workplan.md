@@ -362,8 +362,10 @@ existing resource, hash-duplicate, and tuning conflict detectors. Conflict
 details now include `conflict_kind`, `review_status`, and profile-aware
 `recommendation` guidance for exact duplicates, likely overrides, default
 replacement ambiguity, UI conflicts, and tuning conflicts without changing
-legacy conflict type/severity fields. Script-family mismatch remains pending
-until the script-security/analyzer surface has a conflict detector to consume.
+legacy conflict type/severity fields. Script-family mismatch now has a
+read-only detector for shared `.ts4script` namespace families; it skips
+identical-hash duplicates, sets `executes_code: false`, and recommends
+profile-aware compatibility review without making malware claims.
 
 ### Slice 10: Script Security Analyzer v1
 

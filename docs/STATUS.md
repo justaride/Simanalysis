@@ -99,11 +99,12 @@ animation, dependency, and unknown labels consumed by Doctor, Patch Day, and
 Update Desk without marking mods safe. Conflict Engine v2 metadata now adds
 `conflict_kind`, review status, and profile-aware recommendations to existing
 resource/hash/tuning conflicts for exact duplicates, likely overrides, default
-replacement ambiguity, UI conflicts, and tuning conflicts without calling
-intentional overrides errors. Static Script Security Analyzer v1 now surfaces
-Doctor and Update Desk evidence for network, subprocess, dynamic execution,
-obfuscation, unexpected binary, corrupt archive, and path-traversal signals in
-`.ts4script` files without executing script code or making malware claims.
+replacement ambiguity, UI conflicts, tuning conflicts, and script-family
+namespace mismatches without calling intentional overrides errors. Static
+Script Security Analyzer v1 now surfaces Doctor and Update Desk evidence for
+network, subprocess, dynamic execution, obfuscation, unexpected binary, corrupt
+archive, and path-traversal signals in `.ts4script` files without executing
+script code or making malware claims.
 Update Desk v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis updates
 status`, bridge/Tauri `update-staging-status`, and the Update Desk route,
