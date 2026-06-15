@@ -97,6 +97,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `update-staging-plan` bridge/Tauri plumbing for the same read-only
   install-plan payload, requiring an explicit Mods path and exposing no desktop
   apply/commit operation.
+- Added desktop Update Desk install-plan preview with explicit Mods path input,
+  snapshot/no-mutation gate labels, copy/archive/blocker action rows, and no
+  install/apply control.
 
 ### Planned
 - Full DBPF package parser implementation

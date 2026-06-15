@@ -259,6 +259,9 @@ Implemented after desktop Tray Protector v0:
 - Added `update-staging-plan` bridge/Tauri plumbing for the same read-only plan
   payload, requiring an explicit Mods path and exposing no apply/commit command
   through desktop.
+- Added desktop Update Desk install-plan preview over the same bridge contract,
+  including explicit Mods path input, snapshot/no-mutation gate labels, and
+  copy/archive/blocker action rows with no install/apply control.
 - Update Desk v0 never extracts archives, installs staged downloads, copies
   files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
   approval and commit remain future slices.
