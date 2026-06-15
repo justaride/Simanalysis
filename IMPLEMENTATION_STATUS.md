@@ -326,6 +326,27 @@ Implemented after desktop Tray Protector v0:
   `docs/simanalysis-public-v3-presentation.html` as the durable Public v3
   roadmap/workplan and executive presentation artifacts.
 
+## Classification Progress
+
+Implemented after Tray Protector dependency signals:
+
+- Added `src/simanalysis/classification.py`, a conservative file classifier
+  that uses verified DBPF resource types, `.ts4script` extension evidence, and
+  weak path/name hints to label files as CAS, Build/Buy, gameplay tuning, UI,
+  script, localization, default replacement, animation, dependency, or unknown.
+- Classification results include confidence, signals, resource type counts
+  where available, and `automatic_safe_marking: false`; script files are not
+  executed and unknown evidence remains unknown.
+- Doctor payloads now include a read-only `classification_summary` for the
+  selected Mods folder, and Doctor text output surfaces the label counts as
+  evidence without changing verdict ordering.
+- Patch Day status can include the same classification summary when a Mods path
+  is supplied, while version-change risk classes remain `unknown_after_patch`
+  and automatic re-enable stays disabled.
+- Update Desk staged items and loose/archive review actions now carry
+  per-file classification evidence alongside source binding and archive scan
+  evidence.
+
 ## Current Product Reality
 
 Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
@@ -383,13 +404,15 @@ members as extraction-staging plan rows without extracting to Mods.
 loose-file copy actions into Mods. Desktop Update Desk can now export a Plan
 JSON, commit explicitly selected loose-file copy actions, refresh the operation
 manifest, and undo through the same guarded bridge/Tauri contract; archive
-install/extraction remains unavailable.
+install/extraction remains unavailable. Classification v1 is available as a
+conservative evidence layer in Doctor, Patch Day, and Update Desk, but it does
+not mark mods safe and does not replace manual post-patch review.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
-operations, broader reversible workflows beyond cleanup and loose update copy
-actions, cache-clearing operations, safe archive update installation,
+operations, broader reversible workflows beyond cleanup, cache quarantine, and
+loose update copy actions, safe archive update installation,
 profile-aware Patch Day re-enable workflows, and broader real-world corpus
 coverage.
 

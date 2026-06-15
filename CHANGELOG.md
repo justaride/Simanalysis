@@ -141,6 +141,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   likely Build/Buy scope, probable sidecar-without-anchor scope, and unknown
   dependency scope. Signals now carry confidence, dependency kind, anchor state,
   and evidence without claiming a missing dependency is certain.
+- Added conservative Classification v1 evidence for `.package`, `.ts4script`,
+  and weak path/name hints, with confidence-labeled CAS, Build/Buy, gameplay
+  tuning, UI, script, localization, default replacement, animation, dependency,
+  and unknown labels consumed by Doctor, Patch Day, and Update Desk without
+  marking mods safe.
 
 ### Planned
 - Full DBPF package parser implementation

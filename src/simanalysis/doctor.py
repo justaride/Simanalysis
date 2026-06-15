@@ -9,6 +9,7 @@ from typing import Any
 from simanalysis import serialization
 from simanalysis.analyzers.crash_analyzer import CrashAnalyzer, _is_disabled_name
 from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_disabled_roots
+from simanalysis.classification import summarize_classifications
 from simanalysis.inventory import InventoryScanner
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
@@ -326,6 +327,7 @@ def build_doctor_payload(
     summary = doctor_summary(crash_payload, ui_payload)
     payload = {
         "summary": summary,
+        "classification_summary": summarize_classifications(mods_dir),
         "verdicts": doctor_verdicts(summary),
         "playbooks": doctor_playbooks(summary),
         "timeline": doctor_timeline(crash_reports, ui_reports),
@@ -394,6 +396,21 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
             next_command = playbook.get("next_command")
             if next_command:
                 lines.append(f"    Command: {next_command}")
+        lines.append("")
+
+    classification_summary = payload.get("classification_summary")
+    if isinstance(classification_summary, dict):
+        label_counts = classification_summary.get("label_counts", {})
+        if isinstance(label_counts, dict) and label_counts:
+            labels = ", ".join(f"{label}: {count}" for label, count in label_counts.items())
+        else:
+            labels = "none"
+        lines.append("Classification evidence:")
+        lines.append(
+            f"  - Files: {classification_summary.get('file_count', 0)} | "
+            f"unknown: {classification_summary.get('unknown_count', 0)} | labels: {labels}"
+        )
+        lines.append("  - Automatic safe marking: no")
         lines.append("")
 
     safe_limit = max(limit, 0)

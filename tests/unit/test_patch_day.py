@@ -50,6 +50,37 @@ def test_patch_day_status_marks_risk_classes_unknown_after_version_change(
     assert "save copy" in " ".join(status["recommendations"]).lower()
 
 
+def test_patch_day_status_can_include_classification_summary_without_safe_marking(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    (sims4 / "GameVersion.txt").write_text("1.108.329.1020\n", encoding="utf-8")
+    (mods / "helper.ts4script").write_bytes(b"script")
+    state_path = tmp_path / "patch-day-state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "roots": {
+                    str(sims4.resolve()): {
+                        "game_version": "1.107.151.1020",
+                        "recorded_at": "2026-06-14T20:00:00Z",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    status = build_patch_day_status(sims4, state_path=state_path, mods_dir=mods)
+
+    assert status["status"] == "changed"
+    assert status["classification_summary"]["label_counts"] == {"script": 1}
+    assert status["classification_summary"]["automatic_safe_marking"] is False
+    assert status["risk_classes"][0]["status"] == "unknown_after_patch"
+
+
 def test_record_patch_baseline_writes_current_game_version(tmp_path: Path) -> None:
     sims4 = tmp_path / "The Sims 4"
     sims4.mkdir()

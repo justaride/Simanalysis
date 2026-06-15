@@ -91,7 +91,12 @@ symlink, and case-collision signals without editing Tray. Tray Protector now
 adds calibrated dependency-scope signals with confidence, dependency kind,
 anchor state, and evidence for likely CAS, likely Build/Buy, probable
 sidecar-without-anchor, and unknown states without claiming guaranteed matches
-or certain missing dependencies. Update Desk v0 now exists as a read-only
+or certain missing dependencies. Classification v1 now exists as a
+conservative evidence layer over verified DBPF resource types, `.ts4script`
+extension evidence, and weak path/name hints, with confidence-labeled CAS,
+Build/Buy, gameplay tuning, UI, script, localization, default replacement,
+animation, dependency, and unknown labels consumed by Doctor, Patch Day, and
+Update Desk without marking mods safe. Update Desk v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis updates
 status`, bridge/Tauri `update-staging-status`, and the Update Desk route,
 classifying staged downloads, source sidecars, corrupt ZIPs, archive path

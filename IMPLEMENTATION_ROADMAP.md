@@ -233,6 +233,8 @@ Milestones:
    - Use DBPF resource types, file names, folder names, companion scripts, and
      known dependency hints.
    - Include confidence and signals for every classification.
+   - Initial implementation is available as a conservative evidence layer in
+     Doctor, Patch Day, and Update Desk; it does not mark files safe.
 
 2. **Conflict Engine v2**
    - Improve TGI overlap grouping.

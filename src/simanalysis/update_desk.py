@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Callable, cast
 from zipfile import BadZipFile, ZipFile, is_zipfile
 
+from simanalysis.classification import classify_file
 from simanalysis.treatment import assert_sims_not_running as assert_sims_not_running
 
 ARCHIVE_EXTENSIONS = {".zip", ".rar", ".7z"}
@@ -316,6 +317,7 @@ def _file_payload(
         "path": str(path),
         "extension": extension,
         "kind": _kind(extension),
+        "classification": classify_file(path, relative_path=relative_path),
         "size_bytes": path.stat().st_size,
         "modified_at": _modified_at(path),
         "source_binding": source_binding,
@@ -539,6 +541,7 @@ def _copy_action(index: int, item: dict[str, Any], mods_root: Path) -> dict[str,
         "destination_relative_path": destination_name,
         "destination_path": str(destination),
         "expected": expected,
+        "classification": item.get("classification", {"label": "unknown"}),
         "source_binding": item.get("source_binding", {"status": "unknown"}),
         "archive_scan": item.get("archive_scan", {"status": "not_archive"}),
         "blockers": blockers,
@@ -578,6 +581,7 @@ def _archive_action(index: int, item: dict[str, Any]) -> dict[str, Any]:
             "size": item.get("size_bytes", 0),
             "sha256": _sha256_hex(Path(str(item["path"]))),
         },
+        "classification": item.get("classification", {"label": "unknown"}),
         "source_binding": item.get("source_binding", {"status": "unknown"}),
         "archive_scan": archive_scan,
         "blockers": blockers,
@@ -1487,11 +1491,14 @@ def format_update_staging_text(status: dict[str, Any]) -> str:
         lines.append("Staged items:")
         for item in items:
             archive_status = item.get("archive_scan", {}).get("status", "not_archive")
+            classification = item.get("classification", {})
+            class_label = classification.get("label", "unknown")
+            class_confidence = classification.get("confidence", "unknown")
             lines.append(
                 f"- {item.get('name', 'unknown')}: {item.get('kind', 'unknown')}, "
                 f"{item.get('size_bytes', 0)} bytes, source "
                 f"{item.get('source_binding', {}).get('status', 'unknown')}, "
-                f"archive {archive_status}"
+                f"archive {archive_status}, class {class_label}/{class_confidence}"
             )
 
     signals = status.get("signals") or []
