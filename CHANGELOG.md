@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a read-only desktop Inventory Ledger route over `inventory-scan`, `inventory-history`, and `inventory-file-events`, with scan summary tiles, filtered snapshot rows, recent scans, latest file events, and scan warnings.
 - Added visual Cleanup Operating Table controls for exported cleanup plans, explicit action selection, manifest staging, status refresh, and confirm-gated apply/restore over the existing bridge commands.
 - Added desktop Doctor verdict and playbook panels sourced from the shared Doctor payload, preserving existing crash/UI findings while exposing the recommended next-step contract.
+- Added Doctor evidence preservation in saved bisection manifests plus a
+  BuildBuy03B-style replay test proving Doctor JSON can start a session, journal
+  a move, record a verdict, restore the tree, and render a rollback handoff with
+  the original verdict/playbook context.
 
 ### Planned
 - Full DBPF package parser implementation
