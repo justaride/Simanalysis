@@ -104,7 +104,7 @@ Implemented on this branch after the inventory ledger:
 - Plans include proposed future destinations but do not create
   `_Simanalysis_Cleanup`, move files, or write Sims-folder manifests.
 - The desktop bridge and Tauri/web API plumbing expose `cleanup-plan`; the
-  visual cleanup route remains future work.
+  desktop Cleanup route now renders that plan as a read-only review surface.
 
 ## Operating Table Progress
 
@@ -122,8 +122,8 @@ Implemented on this branch after Cleanup Planner v1:
   operation manifest and applies only explicitly selected actions or an
   explicit all-actions selection.
 - The desktop bridge and Tauri/web API plumbing expose `cleanup-stage`,
-  `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; the visual cleanup
-  route remains future work.
+  `cleanup-apply`, `cleanup-restore`, and `cleanup-status`; visual staging,
+  apply, and restore controls remain future work.
 
 ## Current Product Reality
 
@@ -146,9 +146,9 @@ and symptom playbooks remain future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
-visual cleanup route, profile-aware state, Patch Day Shield, reversible
-workflows beyond cleanup actions, Cache Doctor, update staging, and broader
-real-world corpus coverage.
+visual cleanup staging/apply/restore route, profile-aware state, Patch Day
+Shield, reversible workflows beyond cleanup actions, Cache Doctor, update
+staging, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

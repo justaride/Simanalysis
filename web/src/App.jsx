@@ -7,6 +7,7 @@ const ModManager = lazy(() => import('./views/ModManager'));
 const TrayOrganizer = lazy(() => import('./views/TrayOrganizer'));
 const SaveAnalyzer = lazy(() => import('./views/SaveAnalyzer'));
 const Conflicts = lazy(() => import('./views/Conflicts'));
+const Cleanup = lazy(() => import('./views/Cleanup'));
 const Doctor = lazy(() => import('./views/Doctor'));
 const LiveMonitor = lazy(() => import('./views/LiveMonitor'));
 const Treatment = lazy(() => import('./views/Treatment'));
@@ -30,6 +31,7 @@ function App() {
                     <Route path="/tray" element={<TrayOrganizer />} />
                     <Route path="/save-analyzer" element={<SaveAnalyzer />} />
                     <Route path="/conflicts" element={<Conflicts />} />
+                    <Route path="/cleanup" element={<Cleanup />} />
                     <Route path="/doctor" element={<Doctor />} />
                     <Route path="/live-monitor" element={<LiveMonitor />} />
                     <Route path="/treatment" element={<Treatment />} />
