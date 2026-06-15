@@ -131,6 +131,14 @@ docs.
 **Done when:** A ZIP can produce safe planned actions without extracting to Mods,
 and unsafe archives stay blockers with evidence.
 
+**Implementation note:** ZIP member planning is now connected to the guarded
+Update Desk commit/undo path for safe `.package` and `.ts4script` members.
+Commit extracts the selected member to staging
+`_Simanalysis_UpdateDesk/archive-members/`, verifies hash/size evidence, and
+then copies the staged member into Mods. Unsafe ZIP members, corrupt ZIPs,
+destination collisions, `.rar`, and `.7z` remain blocked or review-only, and no
+archive extraction targets Mods directly.
+
 ### Slice 3: Update Desk Crash And Property Hardening
 
 **Goal:** Prove Update Desk plan/commit/undo invariants under interrupted and
