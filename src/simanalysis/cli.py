@@ -375,6 +375,55 @@ def _echo_json(payload: dict[str, Any]) -> None:
     click.echo(json.dumps(payload, indent=2, sort_keys=True))
 
 
+def _optional_resolved_path(path: Optional[str]) -> Optional[Path]:
+    return Path(path).expanduser().resolve() if path else None
+
+
+@cli.group("patch-day")
+def patch_day() -> None:
+    """Read-only Patch Day Shield commands."""
+
+
+@patch_day.command("status")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--state", type=click.Path(dir_okay=False), default=None, help="Patch Day state JSON path"
+)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def patch_day_status(sims4_dir: str, state: Optional[str], fmt: str) -> None:
+    """Compare GameVersion.txt with the recorded Patch Day baseline."""
+    from simanalysis.patch_day import build_patch_day_status, format_patch_day_text
+
+    root = Path(sims4_dir).expanduser().resolve()
+    status = build_patch_day_status(root, state_path=_optional_resolved_path(state))
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_patch_day_text(status))
+
+
+@patch_day.command("record")
+@click.argument("sims4_dir", type=click.Path(exists=True, file_okay=False))
+@click.option(
+    "--state", type=click.Path(dir_okay=False), default=None, help="Patch Day state JSON path"
+)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def patch_day_record(sims4_dir: str, state: Optional[str], fmt: str) -> None:
+    """Record the current GameVersion.txt value as the Patch Day baseline."""
+    from simanalysis.patch_day import format_patch_day_text, record_patch_baseline
+
+    root = Path(sims4_dir).expanduser().resolve()
+    try:
+        status = record_patch_baseline(root, state_path=_optional_resolved_path(state))
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if fmt == "json":
+        _echo_json(status)
+    else:
+        click.echo(format_patch_day_text(status))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")

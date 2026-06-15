@@ -51,8 +51,13 @@ read-only ledger context from an existing SQLite inventory database, including
 recent scan history and latest file events, without starting a new scan or
 mutating files. The desktop Doctor route now exposes that same ledger database
 input through the Tauri bridge and renders the timeline plus ledger history
-panels when the shared Doctor payload includes them. Profile-aware state, Patch
-Day Shield, Cache Doctor, and update staging remain pending follow-on slices.
+panels when the shared Doctor payload includes them. Patch Day Shield v0 now
+exists as a read-only CLI/backend surface through
+`simanalysis patch-day status|record`, comparing `GameVersion.txt` with
+app-owned baseline state and marking script/UI/gameplay/CAS categories as
+`unknown_after_patch` after a version change. Profile-aware state, Patch Day
+desktop workflows, Cache Doctor, and update staging remain pending follow-on
+slices.
 
 ## Historical Status Snapshots
 
