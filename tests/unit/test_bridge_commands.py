@@ -2,6 +2,7 @@
 import argparse
 import io
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -418,6 +419,37 @@ def test_update_staging_commit_emits_applied_manifest(monkeypatch, tmp_path):
     assert result["mutates_mods"] is True
     assert (mods / "loose.package").exists()
     assert package.exists()
+
+
+def test_update_staging_commit_refuses_tampered_plan_safety_gates(monkeypatch, tmp_path):
+    import simanalysis.update_desk as update_desk
+
+    monkeypatch.setattr(update_desk, "assert_sims_not_running", lambda: None)
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "loose.package").write_bytes(b"package")
+    plan = update_desk.write_update_install_plan(
+        update_desk.build_update_install_plan(staging, mods),
+        tmp_path / "update-plan.json",
+    )
+    plan_path = Path(str(plan["manifest_path"]))
+    tampered = json.loads(plan_path.read_text(encoding="utf-8"))
+    tampered["mutates_mods"] = True
+    plan_path.write_text(json.dumps(tampered, indent=2, sort_keys=True), encoding="utf-8")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(
+        path=str(plan_path),
+        action=["update-copy-001"],
+        all_actions=False,
+    )
+
+    with pytest.raises(ValueError, match="must not declare Mods mutation"):
+        commands.update_staging_commit(args, Emitter(buf))
+
+    assert not (mods / "loose.package").exists()
 
 
 def test_update_staging_undo_emits_undone_manifest(monkeypatch, tmp_path):

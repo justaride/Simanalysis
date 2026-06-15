@@ -985,6 +985,12 @@ def _validate_update_plan(plan: dict[str, Any]) -> None:
         raise ValueError("Update install plan actions must be a list")
     if plan.get("status") == "blocked":
         raise ValueError("Blocked update install plans cannot be committed")
+    if plan.get("requires_snapshot") is not True:
+        raise ValueError("Update install plan must require snapshot approval")
+    if plan.get("mutates_files") is not False:
+        raise ValueError("Update install plan must be read-only")
+    if plan.get("mutates_mods") is not False:
+        raise ValueError("Update install plan must not declare Mods mutation")
 
 
 def _selected_update_action_ids(
