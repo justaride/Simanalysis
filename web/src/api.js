@@ -125,6 +125,8 @@ export const api = {
   },
   treatmentStatus: (manifestPath, callbacks) =>
     runAnalysis('treatment-status', manifestPath, {}, callbacks),
+  treatmentHandoff: (manifestPath, callbacks) =>
+    runAnalysis('treatment-handoff', manifestPath, {}, callbacks),
 };
 
 export default api;

@@ -138,10 +138,11 @@ autopsy in text or JSON form. The existing Treatment/Auto-Bisect session engine
 is now exposed through `simanalysis bisect start`, `status`, `next`,
 `record-verdict`, `restore`, and read-only Markdown `handoff`. The desktop
 sidecar/Tauri path can also request the same handoff through
-`simanalysis-bridge treatment-handoff`; mutating steps remain manifest-based
-and keep the game-process guard. Ledger-aware crash history, timeline
-correlation, richer verdict objects, and symptom playbooks remain future
-Doctor/Bisect work.
+`simanalysis-bridge treatment-handoff`, and the Treatment desktop route can
+prepare, copy, and download that Markdown handoff from a saved session without
+moving files. Mutating steps remain manifest-based and keep the game-process
+guard. Ledger-aware crash history, timeline correlation, richer verdict objects,
+and symptom playbooks remain future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including the visual inventory route,
