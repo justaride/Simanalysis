@@ -73,9 +73,13 @@ case-collision signals without editing saves. Tray Protector v0 now exists as a
 read-only CLI/backend/desktop surface through `simanalysis tray status`,
 bridge/Tauri `tray-protector-status`, and the Tray Protector route, grouping
 Tray files and surfacing sidecar-only, AppleDouble, iCloud-placeholder,
-symlink, and case-collision signals without editing Tray. Profile-aware file
-operations, cache-clearing operations, update staging, and profile-aware Patch
-Day re-enable workflows remain pending follow-on slices.
+symlink, and case-collision signals without editing Tray. Update Desk v0 now
+exists as a read-only CLI/backend surface through `simanalysis updates status`,
+classifying staged downloads, source sidecars, corrupt ZIPs, archive path
+escapes, iCloud placeholders, AppleDouble files, symlinks, and case collisions
+without extracting archives or changing Mods. Profile-aware file operations,
+cache-clearing operations, update install-plan/commit workflows, and
+profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots
 

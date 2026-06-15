@@ -83,6 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added desktop Tray Protector v0 through `tray-protector-status`
   bridge/Tauri plumbing, a Tray Protector route, and profile-aware Sims 4
   folder defaults over the same read-only Tray status payload.
+- Added read-only Update Desk staging status through `simanalysis updates
+  status`, classifying staged archives, packages, scripts, source sidecars,
+  corrupt ZIPs, archive path-escape risks, iCloud placeholders, AppleDouble
+  files, symlinks, and case collisions without extracting archives or changing
+  Mods.
 
 ### Planned
 - Full DBPF package parser implementation
