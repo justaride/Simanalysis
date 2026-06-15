@@ -129,6 +129,7 @@ export function summarizeUpdateInstallPlan(payload = {}) {
         actionCount: count(payload.action_count),
         copyCount: count(payload.copy_count),
         archiveReviewCount: count(payload.archive_review_count),
+        archiveMemberCount: count(payload.archive_member_count),
         blockedCount: count(payload.blocked_count),
         warningCount: Array.isArray(payload.warnings) ? payload.warnings.length : 0,
         recommendationCount: Array.isArray(payload.recommendations) ? payload.recommendations.length : 0,
@@ -143,7 +144,7 @@ export function toUpdatePlanActionRows(payload = {}) {
     return actions.map((action, index) => {
         const sourceStatus = action.source_binding?.status || 'unknown';
         const archiveStatus = action.archive_scan?.status || 'not_archive';
-        return {
+        const row = {
             id: action.action_id || `update-action-${index}`,
             type: action.action_type || 'unknown',
             typeLabel: words(action.action_type),
@@ -160,6 +161,16 @@ export function toUpdatePlanActionRows(payload = {}) {
             blockers: Array.isArray(action.blockers) ? action.blockers : [],
             reviewNotes: Array.isArray(action.review_notes) ? action.review_notes : [],
         };
+        if (action.archive_member_path) {
+            row.archiveMemberPath = action.archive_member_path;
+        }
+        if (action.extraction_staging_relative_path) {
+            row.extractionStagingRelativePath = action.extraction_staging_relative_path;
+        }
+        if (Object.hasOwn(action, 'extracts_directly_to_mods')) {
+            row.extractsDirectlyToMods = action.extracts_directly_to_mods === true;
+        }
+        return row;
     });
 }
 

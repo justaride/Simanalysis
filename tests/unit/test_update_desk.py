@@ -1,8 +1,9 @@
 """Tests for read-only Update Desk staging status."""
 
 import json
+from hashlib import sha256
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 
 import pytest
 from click.testing import CliRunner
@@ -200,6 +201,143 @@ def test_update_install_plan_reviews_archives_without_extraction(tmp_path: Path)
     assert action["archive_scan"]["member_count"] == 1
     assert action["destination_path"] is None
     assert archive.exists()
+    assert not any(mods.iterdir())
+
+
+def test_update_install_plan_plans_zip_members_to_extraction_staging_without_extracting(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    archive = staging / "cool_mod.zip"
+    with ZipFile(archive, "w") as zip_file:
+        zip_file.writestr("Mods/cool.package", b"package")
+        zip_file.writestr("nested/helper.ts4script", b"script")
+        zip_file.writestr("readme.txt", b"readme")
+
+    plan = build_update_install_plan(staging, mods)
+
+    assert plan["status"] == "ready_for_review"
+    assert plan["archive_review_count"] == 1
+    assert plan["archive_member_count"] == 2
+    member_actions = [
+        action for action in plan["actions"] if action["action_type"] == "stage_archive_member"
+    ]
+    assert [action["archive_member_path"] for action in member_actions] == [
+        "Mods/cool.package",
+        "nested/helper.ts4script",
+    ]
+    package_action = member_actions[0]
+    assert package_action["status"] == "planned"
+    assert package_action["source_relative_path"] == "cool_mod.zip"
+    assert package_action["destination_relative_path"] == "cool.package"
+    assert package_action["destination_path"] == str(mods.resolve() / "cool.package")
+    assert package_action["expected"] == {
+        "size": len(b"package"),
+        "sha256": sha256(b"package").hexdigest(),
+    }
+    assert package_action["extracts_directly_to_mods"] is False
+    assert package_action["extraction_staging_relative_path"].startswith(
+        "_Simanalysis_UpdateDesk/archive-members/cool_mod/"
+    )
+    assert package_action["extraction_staging_path"].startswith(str(staging.resolve()))
+    assert not package_action["extraction_staging_path"].startswith(str(mods.resolve()))
+    assert not (staging / "_Simanalysis_UpdateDesk").exists()
+    assert not any(mods.iterdir())
+
+
+def test_update_install_plan_blocks_duplicate_zip_member_destinations(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    with ZipFile(staging / "duplicates.zip", "w") as zip_file:
+        zip_file.writestr("first/dupe.package", b"first")
+        zip_file.writestr("second/dupe.package", b"second")
+
+    plan = build_update_install_plan(staging, mods)
+
+    assert plan["status"] == "blocked"
+    member_actions = [
+        action for action in plan["actions"] if action["action_type"] == "stage_archive_member"
+    ]
+    assert len(member_actions) == 2
+    assert all("duplicate_destination" in action["blockers"] for action in member_actions)
+    assert not (staging / "_Simanalysis_UpdateDesk").exists()
+    assert not any(mods.iterdir())
+
+
+def test_update_install_plan_blocks_unsafe_zip_members_without_planned_extraction(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    link_info = ZipInfo("Mods/link.package")
+    link_info.external_attr = 0o120777 << 16
+    with ZipFile(staging / "unsafe.zip", "w") as zip_file:
+        zip_file.writestr("../escape.package", b"package")
+        zip_file.writestr(link_info, b"target.package")
+
+    plan = build_update_install_plan(staging, mods)
+
+    assert plan["status"] == "blocked"
+    assert plan["archive_member_count"] == 0
+    archive_action = next(
+        action for action in plan["actions"] if action["action_type"] == "review_archive"
+    )
+    assert {"archive_path_escape", "archive_symlink_entry"} <= set(archive_action["blockers"])
+    assert not any(action["action_type"] == "stage_archive_member" for action in plan["actions"])
+    assert not (staging / "_Simanalysis_UpdateDesk").exists()
+    assert not any(mods.iterdir())
+
+
+def test_update_install_plan_blocks_corrupt_zip_without_planned_extraction(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "broken.zip").write_bytes(b"not a zip")
+
+    plan = build_update_install_plan(staging, mods)
+
+    assert plan["status"] == "blocked"
+    assert plan["archive_member_count"] == 0
+    archive_action = plan["actions"][0]
+    assert archive_action["action_type"] == "review_archive"
+    assert archive_action["blockers"] == ["archive_unreadable"]
+    assert not (staging / "_Simanalysis_UpdateDesk").exists()
+    assert not any(mods.iterdir())
+
+
+def test_update_install_plan_keeps_rar_and_7z_review_only_without_engine(
+    tmp_path: Path,
+) -> None:
+    staging = tmp_path / "Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    (staging / "creator.rar").write_bytes(b"rar")
+    (staging / "set.7z").write_bytes(b"7z")
+
+    plan = build_update_install_plan(staging, mods)
+
+    assert plan["status"] == "blocked"
+    assert plan["archive_member_count"] == 0
+    actions = {action["source_name"]: action for action in plan["actions"]}
+    assert actions["creator.rar"]["action_type"] == "review_archive"
+    assert actions["creator.rar"]["archive_scan"]["status"] == "listing_unsupported"
+    assert actions["creator.rar"]["blockers"] == ["archive_listing_unsupported"]
+    assert actions["set.7z"]["archive_scan"]["status"] == "listing_unsupported"
+    assert not any(action["action_type"] == "stage_archive_member" for action in plan["actions"])
+    assert not (staging / "_Simanalysis_UpdateDesk").exists()
     assert not any(mods.iterdir())
 
 
