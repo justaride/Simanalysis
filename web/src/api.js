@@ -3,6 +3,7 @@
 // calling api.scanMods(path, { onProgress, onComplete, ... }) as before.
 import { invoke, Channel } from '@tauri-apps/api/core';
 import { cleanupPlanOptions } from './cleanupApiModel';
+import { cacheDoctorOptions } from './cacheDoctorApiModel';
 import { doctorScanOptions } from './doctorApiModel';
 import {
   inventoryFileEventsOptions,
@@ -95,6 +96,8 @@ export const api = {
     runAnalysis('patch-day-status', sims4Path, patchDayOptions(options), callbacks),
   patchDayRecord: (sims4Path, callbacks, options = {}) =>
     runAnalysis('patch-day-record', sims4Path, patchDayOptions(options), callbacks),
+  cacheStatus: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('cache-status', sims4Path, cacheDoctorOptions(options), callbacks),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>

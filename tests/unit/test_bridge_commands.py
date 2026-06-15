@@ -239,6 +239,27 @@ def test_patch_day_record_emits_recorded_baseline(tmp_path):
     assert saved["roots"][str(sims4.resolve())]["game_version"] == "1.108.329.1020"
 
 
+def test_cache_status_emits_read_only_cache_payload(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    cache_file = sims4 / "localthumbcache.package"
+    cache_file.write_bytes(b"thumb-cache")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4))
+    commands.cache_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "cache-status"
+    result = events[1]["data"]
+    assert result["status"] == "review_recommended"
+    assert result["mutates_files"] is False
+    assert result["present_count"] == 1
+    assert any(target["id"] == "localthumbcache" for target in result["targets"])
+    assert cache_file.exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"
