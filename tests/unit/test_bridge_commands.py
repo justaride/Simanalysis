@@ -182,6 +182,63 @@ def test_inventory_file_events_emits_latest_changes(tmp_path):
     ]
 
 
+def test_patch_day_status_emits_changed_risk_classes(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    (sims4 / "GameVersion.txt").write_text("1.108.329.1020\n", encoding="utf-8")
+    state_path = tmp_path / "patch-day-state.json"
+    state_path.write_text(
+        json.dumps(
+            {
+                "roots": {
+                    str(sims4.resolve()): {
+                        "game_version": "1.107.151.1020",
+                        "recorded_at": "2026-06-14T20:00:00Z",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), state=str(state_path))
+    commands.patch_day_status(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "patch-day-status"
+    result = events[1]["data"]
+    assert result["status"] == "changed"
+    assert result["patch_detected"] is True
+    assert {risk["id"]: risk["status"] for risk in result["risk_classes"]} == {
+        "script_mods": "unknown_after_patch",
+        "ui_mods": "unknown_after_patch",
+        "gameplay_tuning": "unknown_after_patch",
+        "build_buy_and_cas": "unknown_after_patch",
+    }
+    assert result["automatic_reenable"] is False
+
+
+def test_patch_day_record_emits_recorded_baseline(tmp_path):
+    sims4 = tmp_path / "The Sims 4"
+    sims4.mkdir()
+    (sims4 / "GameVersion.txt").write_text("1.108.329.1020\n", encoding="utf-8")
+    state_path = tmp_path / "patch-day-state.json"
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(sims4), state=str(state_path))
+    commands.patch_day_record(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "patch-day-record"
+    result = events[1]["data"]
+    assert result["status"] == "recorded"
+    saved = json.loads(state_path.read_text(encoding="utf-8"))
+    assert saved["roots"][str(sims4.resolve())]["game_version"] == "1.108.329.1020"
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

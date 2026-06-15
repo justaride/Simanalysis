@@ -50,6 +50,8 @@ struct AnalysisOptions {
     #[serde(default)]
     include_unchanged: bool,
     #[serde(default)]
+    state: Option<String>,
+    #[serde(default)]
     export_path: Option<String>,
     #[serde(default)]
     plan_path: Option<String>,
@@ -134,6 +136,14 @@ fn build_args(kind: &str, path: &str, opts: &AnalysisOptions) -> Result<Vec<Stri
             }
             if opts.include_unchanged {
                 args.push("--include-unchanged".into());
+            }
+        }
+        "patch-day-status" | "patch-day-record" => {
+            args.push(kind.into());
+            args.push(path.into());
+            if let Some(state) = opts.state.as_deref() {
+                args.push("--state".into());
+                args.push(state.into());
             }
         }
         "cleanup-plan" => {
@@ -818,6 +828,35 @@ mod tests {
                 "--include-unchanged",
             ]
         );
+    }
+
+    #[test]
+    fn builds_patch_day_status_args_with_state() {
+        let opts = AnalysisOptions {
+            state: Some("/Sims/patch-day-state.json".into()),
+            ..Default::default()
+        };
+        let args = build_args("patch-day-status", "/Sims/The Sims 4", &opts).unwrap();
+        assert_eq!(
+            args,
+            vec![
+                "patch-day-status",
+                "/Sims/The Sims 4",
+                "--state",
+                "/Sims/patch-day-state.json",
+            ]
+        );
+    }
+
+    #[test]
+    fn builds_patch_day_record_args_without_state() {
+        let args = build_args(
+            "patch-day-record",
+            "/Sims/The Sims 4",
+            &AnalysisOptions::default(),
+        )
+        .unwrap();
+        assert_eq!(args, vec!["patch-day-record", "/Sims/The Sims 4"]);
     }
 
     #[test]

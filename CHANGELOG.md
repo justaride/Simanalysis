@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   against an app-owned baseline state, label post-patch script/UI/gameplay/CAS
   risk classes as `unknown_after_patch`, and never automatically re-enable or
   move Sims files.
+- Added desktop Patch Day Shield v0 plumbing and UI through
+  `patch-day-status|record` bridge/Tauri commands and a Patch Day route for
+  checking game-version baseline status, reviewing risk classes, and recording
+  an explicit baseline without changing Mods, saves, or Tray files.
 
 ### Planned
 - Full DBPF package parser implementation

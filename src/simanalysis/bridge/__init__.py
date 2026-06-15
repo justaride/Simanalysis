@@ -42,6 +42,14 @@ def build_parser() -> argparse.ArgumentParser:
     p_inventory_file_events.add_argument("--db", default=None)
     p_inventory_file_events.add_argument("--include-unchanged", action="store_true")
 
+    p_patch_day_status = sub.add_parser("patch-day-status")
+    p_patch_day_status.add_argument("path")
+    p_patch_day_status.add_argument("--state", default=None)
+
+    p_patch_day_record = sub.add_parser("patch-day-record")
+    p_patch_day_record.add_argument("path")
+    p_patch_day_record.add_argument("--state", default=None)
+
     p_cleanup_plan = sub.add_parser("cleanup-plan")
     p_cleanup_plan.add_argument("path")
     p_cleanup_plan.add_argument("--db", default=None)
