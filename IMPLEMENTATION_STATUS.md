@@ -262,9 +262,18 @@ Implemented after desktop Tray Protector v0:
 - Added desktop Update Desk install-plan preview over the same bridge contract,
   including explicit Mods path input, snapshot/no-mutation gate labels, and
   copy/archive/blocker action rows with no install/apply control.
-- Update Desk v0 never extracts archives, installs staged downloads, copies
-  files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
-  approval and commit remain future slices.
+- Added manifest-backed Update Desk commit/undo backend through
+  `UpdateInstaller`, `simanalysis updates commit|undo`, and
+  `update-staging-commit|update-staging-undo` bridge/Tauri argument plumbing.
+  Commits require explicit selected actions or `--all-actions`, copy only loose
+  staged `.package`/`.ts4script` actions, keep staged downloads in place,
+  record action state and installed hash/size evidence in an update manifest,
+  block while The Sims 4 is running, reject stale plan evidence, path escapes,
+  symlinked sources/destinations, destination collisions, and modified files on
+  undo, and can undo a copied file left behind by a crash during `copying`.
+- Update Desk v0 still never extracts archives, installs archive contents,
+  overwrites existing Mods files, or deletes staged downloads. The desktop
+  Update Desk route remains preview-only and exposes no install/apply control.
 
 ## Current Product Reality
 
@@ -316,16 +325,18 @@ read-only CLI/backend and desktop route for reviewing Tray groups and
 dependency signals without editing Tray files. Update Desk v0 is available as a
 read-only CLI/backend and desktop route for reviewing staged external
 downloads, source sidecars, and safe archive-listing signals without extracting
-archives or changing Mods. `simanalysis updates plan` can generate a read-only
-copy/review/blocker manifest for staged downloads, but snapshot-backed update
-commit remains pending.
+archives. `simanalysis updates plan` can generate a copy/review/blocker
+manifest for staged downloads, and `simanalysis updates commit|undo` can now
+journal and reverse explicit loose-file copy actions into Mods. Desktop Update
+Desk still exposes no install/apply control.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
 roadmap foundations are still incomplete, including profile-aware file
-operations, reversible workflows beyond cleanup actions, cache-clearing
-operations, update install-plan/commit workflows, profile-aware Patch Day
-re-enable workflows, and broader real-world corpus coverage.
+operations, broader reversible workflows beyond cleanup and loose update copy
+actions, cache-clearing operations, desktop update install/apply controls,
+profile-aware Patch Day re-enable workflows, and broader real-world corpus
+coverage.
 
 ## Current Verification Gates
 

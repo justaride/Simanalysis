@@ -100,6 +100,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added desktop Update Desk install-plan preview with explicit Mods path input,
   snapshot/no-mutation gate labels, copy/archive/blocker action rows, and no
   install/apply control.
+- Added manifest-backed Update Desk commit/undo backend and CLI commands
+  through `simanalysis updates commit|undo`; commits require explicit action
+  IDs or `--all-actions`, copy only loose staged `.package`/`.ts4script`
+  actions that still match plan hash/size evidence, preserve staged downloads,
+  and undo only installed files that still match manifest evidence.
+- Added `update-staging-commit` and `update-staging-undo` bridge/Tauri
+  argument plumbing plus web API option builders for the same guarded
+  commit/undo contract, while the desktop Update Desk route still exposes no
+  install/apply control.
 
 ### Planned
 - Full DBPF package parser implementation

@@ -83,9 +83,14 @@ generate a read-only staged-download manifest with copy, archive-review, and
 blocker actions without writing to Mods, and the same payload is available to
 the sidecar/Tauri contract as `update-staging-plan`; desktop Update Desk can
 preview that plan with explicit Mods path input and snapshot/no-mutation gate
-labels, but still exposes no install/apply control. Profile-aware file
-operations, cache-clearing operations, update commit workflows, and
-profile-aware Patch Day re-enable workflows remain pending follow-on slices.
+labels. The backend/CLI/bridge contract now also supports manifest-backed
+`simanalysis updates commit|undo` and `update-staging-commit|update-staging-undo`
+for explicit loose-file copy actions, with game-process, path, symlink,
+hash/size, collision, modified-file-on-undo, and crash-recovery guards. The
+desktop Update Desk route still exposes no install/apply control. Profile-aware
+file operations, cache-clearing operations, desktop update install/apply
+controls, and profile-aware Patch Day re-enable workflows remain pending
+follow-on slices.
 
 ## Historical Status Snapshots
 

@@ -26,7 +26,11 @@ from simanalysis.patch_day import build_patch_day_status, record_patch_baseline
 from simanalysis.save_protector import build_save_protector_status
 from simanalysis.services.thumbnail_service import ThumbnailService
 from simanalysis.tray_protector import build_tray_status
-from simanalysis.update_desk import build_update_install_plan, build_update_staging_status
+from simanalysis.update_desk import (
+    UpdateInstaller,
+    build_update_install_plan,
+    build_update_staging_status,
+)
 
 
 def _require_dir(path: str) -> Path:
@@ -174,6 +178,24 @@ def update_staging_plan(args: argparse.Namespace, emit: Emitter) -> None:
     mods_path = Path(args.mods_path).expanduser().resolve()
     emit.start("update-staging-plan")
     emit.result(build_update_install_plan(staging_path, mods_path))
+    emit.done()
+
+
+def update_staging_commit(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("update-staging-commit")
+    emit.result(
+        UpdateInstaller().commit_plan_file(
+            args.path,
+            selected_action_ids=list(args.action or []),
+            all_actions=bool(args.all_actions),
+        )
+    )
+    emit.done()
+
+
+def update_staging_undo(args: argparse.Namespace, emit: Emitter) -> None:
+    emit.start("update-staging-undo")
+    emit.result(UpdateInstaller().undo(args.path))
     emit.done()
 
 
@@ -460,6 +482,8 @@ DISPATCH = {
     "tray-protector-status": tray_protector_status,
     "update-staging-status": update_staging_status,
     "update-staging-plan": update_staging_plan,
+    "update-staging-commit": update_staging_commit,
+    "update-staging-undo": update_staging_undo,
     "cleanup-plan": cleanup_plan,
     "cleanup-stage": cleanup_stage,
     "cleanup-apply": cleanup_apply,
