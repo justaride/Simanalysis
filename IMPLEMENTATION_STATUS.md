@@ -144,8 +144,12 @@ Implemented after the Doctor ledger-history work:
 - When a version change is detected, Patch Day Shield v0 labels script mods, UI
   mods, gameplay tuning, and Build/Buy/CAS as `unknown_after_patch`, recommends
   a vanilla test plus save-copy test, and keeps `automatic_reenable` false.
-- Desktop Patch Day UI, update staging, and profile-aware re-enable workflows
-  remain future slices.
+- Added `patch-day-status` and `patch-day-record` to the desktop bridge and
+  Tauri sidecar argument layer.
+- Added a desktop Patch Day route for choosing a Sims 4 folder, checking
+  current baseline status, reviewing post-patch risk classes, and
+  confirm-recording a new baseline. Recording updates only Simanalysis state.
+- Update staging and profile-aware re-enable workflows remain future slices.
 
 ## Current Product Reality
 
@@ -181,16 +185,17 @@ inventory scans plus the latest file events, without scanning or mutating the
 Sims folder. The desktop Doctor route can pass the same explicit inventory
 database through the Tauri sidecar and now renders the Doctor timeline plus
 ledger status, latest scan counts, recent file events, and ledger warnings from
-the shared payload. Patch Day Shield v0 is available as a read-only CLI backend
-for detecting `GameVersion.txt` baseline changes and classifying mod categories
-as unknown after a patch; it has not yet been promoted into the desktop product
-layer.
+the shared payload. Patch Day Shield v0 is available as a read-only CLI and
+desktop surface for detecting `GameVersion.txt` baseline changes, classifying
+mod categories as unknown after a patch, and recording an explicit baseline in
+Simanalysis state without changing Mods, saves, or Tray files.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including profile-aware state, Patch
-Day desktop workflows, reversible workflows beyond cleanup actions, Cache
-Doctor, update staging, and broader real-world corpus coverage.
+roadmap foundations are still incomplete, including profile-aware state,
+reversible workflows beyond cleanup actions, Cache Doctor, update staging,
+profile-aware Patch Day re-enable workflows, and broader real-world corpus
+coverage.
 
 ## Current Verification Gates
 

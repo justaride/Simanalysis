@@ -12,6 +12,7 @@ const Cleanup = lazy(() => import('./views/Cleanup'));
 const Doctor = lazy(() => import('./views/Doctor'));
 const LiveMonitor = lazy(() => import('./views/LiveMonitor'));
 const Treatment = lazy(() => import('./views/Treatment'));
+const PatchDay = lazy(() => import('./views/PatchDay'));
 const Settings = lazy(() => import('./views/Settings'));
 
 function LoadingFallback() {
@@ -37,6 +38,7 @@ function App() {
                     <Route path="/doctor" element={<Doctor />} />
                     <Route path="/live-monitor" element={<LiveMonitor />} />
                     <Route path="/treatment" element={<Treatment />} />
+                    <Route path="/patch-day" element={<PatchDay />} />
                     <Route path="/settings" element={<Settings />} />
                 </Routes>
             </Suspense>

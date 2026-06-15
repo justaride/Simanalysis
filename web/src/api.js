@@ -10,6 +10,7 @@ import {
   inventoryScanOptions,
 } from './inventoryApiModel';
 import { cleanupStageOptions } from './operatingTableApiModel';
+import { patchDayOptions } from './patchDayApiModel';
 
 const TREATMENT_OUTCOMES = new Set(['same_issue', 'issue_gone', 'different_issue']);
 const TREATMENT_RESTORE_STEPS = new Set(['latest', 'all']);
@@ -90,6 +91,10 @@ export const api = {
     runAnalysis('inventory-history', sims4Path, inventoryHistoryOptions(options), callbacks),
   inventoryFileEvents: (sims4Path, callbacks, options = {}) =>
     runAnalysis('inventory-file-events', sims4Path, inventoryFileEventsOptions(options), callbacks),
+  patchDayStatus: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('patch-day-status', sims4Path, patchDayOptions(options), callbacks),
+  patchDayRecord: (sims4Path, callbacks, options = {}) =>
+    runAnalysis('patch-day-record', sims4Path, patchDayOptions(options), callbacks),
   cleanupPlan: (sims4Path, callbacks, options = {}) =>
     runAnalysis('cleanup-plan', sims4Path, cleanupPlanOptions(options), callbacks),
   cleanupStage: (sims4Path, callbacks, options = {}) =>

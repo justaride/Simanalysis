@@ -21,6 +21,7 @@ from simanalysis.inventory import InventoryScanner, default_inventory_db_path
 from simanalysis.operating_table import OperatingTable
 from simanalysis.parsers.exception_log import parse_exception_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
+from simanalysis.patch_day import build_patch_day_status, record_patch_baseline
 from simanalysis.services.thumbnail_service import ThumbnailService
 
 
@@ -114,6 +115,25 @@ def inventory_file_events(args: argparse.Namespace, emit: Emitter) -> None:
     )
     result["db_path"] = str(db_path)
     emit.result(result)
+    emit.done()
+
+
+def _patch_day_state_path(args: argparse.Namespace) -> Path | None:
+    state = getattr(args, "state", None)
+    return Path(state).expanduser().resolve() if state else None
+
+
+def patch_day_status(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("patch-day-status")
+    emit.result(build_patch_day_status(path, state_path=_patch_day_state_path(args)))
+    emit.done()
+
+
+def patch_day_record(args: argparse.Namespace, emit: Emitter) -> None:
+    path = _require_dir(args.path)
+    emit.start("patch-day-record")
+    emit.result(record_patch_baseline(path, state_path=_patch_day_state_path(args)))
     emit.done()
 
 
@@ -393,6 +413,8 @@ DISPATCH = {
     "inventory-scan": inventory_scan,
     "inventory-history": inventory_history,
     "inventory-file-events": inventory_file_events,
+    "patch-day-status": patch_day_status,
+    "patch-day-record": patch_day_record,
     "cleanup-plan": cleanup_plan,
     "cleanup-stage": cleanup_stage,
     "cleanup-apply": cleanup_apply,

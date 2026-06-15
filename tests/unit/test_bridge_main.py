@@ -169,6 +169,36 @@ def test_inventory_file_events_command_is_dispatched(monkeypatch, tmp_path):
     assert [event["type"] for event in events] == ["result", "done"]
 
 
+def test_patch_day_commands_are_dispatched(monkeypatch, tmp_path):
+    calls = []
+    state_path = tmp_path / "patch-day-state.json"
+
+    def fake_handler(args, emit):
+        calls.append((args.command, args.path, args.state))
+        emit.result({"ok": True})
+        emit.done()
+
+    monkeypatch.setitem(commands.DISPATCH, "patch-day-status", fake_handler)
+    monkeypatch.setitem(commands.DISPATCH, "patch-day-record", fake_handler)
+
+    status_code, status_events = _run(
+        monkeypatch,
+        ["patch-day-status", str(tmp_path), "--state", str(state_path)],
+    )
+    record_code, record_events = _run(
+        monkeypatch,
+        ["patch-day-record", str(tmp_path), "--state", str(state_path)],
+    )
+
+    assert status_code == record_code == 0
+    assert calls == [
+        ("patch-day-status", str(tmp_path), str(state_path)),
+        ("patch-day-record", str(tmp_path), str(state_path)),
+    ]
+    assert [event["type"] for event in status_events] == ["result", "done"]
+    assert [event["type"] for event in record_events] == ["result", "done"]
+
+
 def test_cleanup_plan_command_is_dispatched(monkeypatch, tmp_path):
     called = {}
     db_path = tmp_path / "inventory.sqlite3"

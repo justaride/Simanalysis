@@ -52,12 +52,14 @@ recent scan history and latest file events, without starting a new scan or
 mutating files. The desktop Doctor route now exposes that same ledger database
 input through the Tauri bridge and renders the timeline plus ledger history
 panels when the shared Doctor payload includes them. Patch Day Shield v0 now
-exists as a read-only CLI/backend surface through
-`simanalysis patch-day status|record`, comparing `GameVersion.txt` with
-app-owned baseline state and marking script/UI/gameplay/CAS categories as
-`unknown_after_patch` after a version change. Profile-aware state, Patch Day
-desktop workflows, Cache Doctor, and update staging remain pending follow-on
-slices.
+exists as a read-only CLI/backend/desktop surface through
+`simanalysis patch-day status|record`, bridge/Tauri
+`patch-day-status|record`, and the Patch Day route. It compares
+`GameVersion.txt` with app-owned baseline state, marks
+script/UI/gameplay/CAS categories as `unknown_after_patch` after a version
+change, and records explicit baselines without changing Mods, saves, or Tray
+files. Profile-aware state, Cache Doctor, update staging, and profile-aware
+Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots
 
