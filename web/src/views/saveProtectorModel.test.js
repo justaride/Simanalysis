@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    summarizeSaveLaunchGuidance,
     summarizeSaveProtectorStatus,
     toSaveGroupRows,
     toSaveSignalRows,
@@ -134,4 +135,62 @@ test('save protector model falls back without inventing mutation support', () =>
     );
     assert.deepEqual(toSaveGroupRows({}), []);
     assert.deepEqual(toSaveSignalRows({}), []);
+});
+
+test('save launch guidance uses profile and patch evidence conservatively', () => {
+    assert.deepEqual(
+        summarizeSaveLaunchGuidance(
+            SAVE_PAYLOAD,
+            { active_sims4_profile: '/Sims/The Sims 4' },
+            {
+                status: 'changed',
+                patch_detected: true,
+                risk_classes: [{ id: 'script_mods', status: 'unknown_after_patch' }],
+            },
+            '/Sims/The Sims 4',
+        ),
+        {
+            status: 'test_copy_recommended',
+            statusLabel: 'Test copy recommended',
+            tone: 'amber',
+            profileStatusLabel: 'Active profile selected',
+            profileTone: 'green',
+            activeProfile: '/Sims/The Sims 4',
+            selectedProfile: '/Sims/The Sims 4',
+            patchEvidenceLabel: 'Unknown after patch',
+            launchTitle: 'Launch only with a save copy',
+            launchBody: 'These saves are likely tied to the active profile, but patch evidence is unknown-after-patch. Use a copied save for testing before opening important saves.',
+            actionItems: [
+                'Keep the original save files read-only in Simanalysis.',
+                'Use a manual copy or future manifest-backed test-copy workflow before launch.',
+                'Do not assume missing mods are safe after a game patch.',
+            ],
+        },
+    );
+});
+
+test('save launch guidance flags missing profile or patch evidence', () => {
+    const guidance = summarizeSaveLaunchGuidance(
+        SAVE_PAYLOAD,
+        { active_sims4_profile: '/Profiles/Main/The Sims 4' },
+        {},
+        '/Profiles/Other/The Sims 4',
+    );
+
+    assert.equal(guidance.status, 'missing_evidence');
+    assert.equal(guidance.profileStatusLabel, 'Different folder selected');
+    assert.equal(guidance.patchEvidenceLabel, 'Patch evidence missing');
+    assert.match(guidance.launchBody, /evidence is missing/);
+});
+
+test('save launch guidance treats missing game version as missing evidence', () => {
+    const guidance = summarizeSaveLaunchGuidance(
+        SAVE_PAYLOAD,
+        { active_sims4_profile: '/Sims/The Sims 4' },
+        { status: 'missing_game_version' },
+        '/Sims/The Sims 4',
+    );
+
+    assert.equal(guidance.status, 'missing_evidence');
+    assert.equal(guidance.patchEvidenceLabel, 'Game version missing');
 });

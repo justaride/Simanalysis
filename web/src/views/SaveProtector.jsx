@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 import {
     AlertTriangle,
     CheckCircle2,
     Clock,
+    CopyCheck,
     FolderOpen,
     Loader2,
     RefreshCw,
@@ -14,6 +16,7 @@ import api from '../api';
 import FilePicker from '../components/FilePicker';
 import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
+    summarizeSaveLaunchGuidance,
     summarizeSaveProtectorStatus,
     toSaveGroupRows,
     toSaveSignalRows,
@@ -81,6 +84,58 @@ function MessageList({ icon: Icon, title, messages, tone }) {
                 {messages.map((message) => (
                     <p key={message} className="break-words text-sm opacity-85">{message}</p>
                 ))}
+            </div>
+        </section>
+    );
+}
+
+function Badge({ label, tone = 'blue' }) {
+    return (
+        <span className={`w-fit rounded-md border px-2 py-1 text-xs uppercase ${
+            toneClasses[tone] || toneClasses.blue
+        }`}>
+            {label}
+        </span>
+    );
+}
+
+function LaunchGuidancePanel({ guidance }) {
+    return (
+        <section className={`rounded-xl border p-5 ${toneClasses[guidance.tone] || toneClasses.blue}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <h2 className="flex items-center gap-2 font-semibold text-white">
+                        <CopyCheck size={18} />
+                        {guidance.launchTitle}
+                    </h2>
+                    <p className="mt-2 text-sm opacity-85">{guidance.launchBody}</p>
+                </div>
+                <Badge label={guidance.statusLabel} tone={guidance.tone} />
+            </div>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs uppercase text-white/60">Profile</span>
+                        <Badge label={guidance.profileStatusLabel} tone={guidance.profileTone} />
+                    </div>
+                    <p className="break-all font-mono text-xs text-white/80">
+                        Active: {guidance.activeProfile}
+                    </p>
+                    <p className="mt-1 break-all font-mono text-xs text-white/60">
+                        Selected: {guidance.selectedProfile}
+                    </p>
+                </div>
+                <div className="min-w-0 rounded-lg border border-white/10 bg-black/20 p-3">
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                        <span className="text-xs uppercase text-white/60">Patch</span>
+                        <Badge label={guidance.patchEvidenceLabel} tone={guidance.tone} />
+                    </div>
+                    <ul className="space-y-1 text-sm opacity-85">
+                        {guidance.actionItems.map((item) => (
+                            <li key={item}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
             </div>
         </section>
     );
@@ -210,12 +265,32 @@ function SaveProtector() {
     });
     const [showFilePicker, setShowFilePicker] = useState(false);
     const [status, setStatus] = useState(null);
+    const [profileConfig, setProfileConfig] = useState({});
+    const [patchStatus, setPatchStatus] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(null);
 
     const summary = useMemo(() => summarizeSaveProtectorStatus(status || {}), [status]);
+    const launchGuidance = useMemo(
+        () => summarizeSaveLaunchGuidance(status || {}, profileConfig, patchStatus, simsPath),
+        [status, profileConfig, patchStatus, simsPath],
+    );
     const saveRows = useMemo(() => toSaveGroupRows(status || {}), [status]);
     const signalRows = useMemo(() => toSaveSignalRows(status || {}), [status]);
+
+    useEffect(() => {
+        let cancelled = false;
+        invoke('get_config')
+            .then((config) => {
+                if (!cancelled) setProfileConfig(config || {});
+            })
+            .catch(() => {
+                if (!cancelled) setProfileConfig({});
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const handleStatus = () => {
         const target = simsPath.trim();
@@ -232,6 +307,10 @@ function SaveProtector() {
                 setStatus(result);
                 setIsLoading(false);
                 toast.success('Save Protector status updated');
+                api.patchDayStatus(target, {
+                    onComplete: (patchResult) => setPatchStatus(patchResult || {}),
+                    onError: () => setPatchStatus({}),
+                });
             },
             onError: (message) => {
                 setError(message);
@@ -287,6 +366,8 @@ function SaveProtector() {
                 <StatTile icon={Clock} label="Backups" value={summary.backupCount} tone="blue" />
                 <StatTile icon={AlertTriangle} label="Signals" value={summary.signalCount + summary.warningCount} tone={(summary.signalCount + summary.warningCount) ? 'amber' : 'green'} />
             </div>
+
+            <LaunchGuidancePanel guidance={launchGuidance} />
 
             <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
                 <div className="rounded-xl border border-gray-800 bg-gray-900/40 p-5">

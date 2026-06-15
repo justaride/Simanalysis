@@ -133,6 +133,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   active Profile Manager Light folder, selected Patch Day folder, no automatic
   re-enable boundary, safe-after-patch test guidance, and Cache Doctor
   recommendation without changing Mods or profile state.
+- Added Save Protector launch guidance on the desktop route, combining
+  read-only save inventory, active Profile Manager Light folder evidence, and
+  Patch Day status to recommend read-only review, missing-evidence resolution,
+  or manual save-copy testing without editing save files.
 
 ### Planned
 - Full DBPF package parser implementation

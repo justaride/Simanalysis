@@ -80,8 +80,11 @@ permanently deleting cache files. Save Protector v0 now exists as a read-only
 CLI/backend/desktop surface through `simanalysis save-protector status`,
 bridge/Tauri `save-protector-status`, and the Save Protector route, grouping
 saves/backups and surfacing AppleDouble, iCloud-placeholder, symlink, and
-case-collision signals without editing saves. Tray Protector v0 now exists as a
-read-only CLI/backend/desktop surface through `simanalysis tray status`,
+case-collision signals without editing saves. Save Protector desktop launch
+guidance now combines read-only save status, active profile evidence, and Patch
+Day status to label missing evidence, unknown-after-patch risk, and manual
+save-copy testing recommendations without mutating saves. Tray Protector v0 now
+exists as a read-only CLI/backend/desktop surface through `simanalysis tray status`,
 bridge/Tauri `tray-protector-status`, and the Tray Protector route, grouping
 Tray files and surfacing sidecar-only, AppleDouble, iCloud-placeholder,
 symlink, and case-collision signals without editing Tray. Update Desk v0 now
