@@ -134,6 +134,9 @@ release smoke harness for the Tauri desktop + Python sidecar packaging path.
 `docs/release-security.md` and `scripts/release_security.py` capture the Public
 v3 SBOM/security gate; signing and notarization remain pending until real
 release artifacts are verified.
+`README.md` has been rewritten for the Public v3 docs pass so the public entry
+point matches the current source-install workflow, shipped safety surfaces,
+limitations, and not-EA/Maxis-affiliated status.
 
 ## Historical Status Snapshots
 

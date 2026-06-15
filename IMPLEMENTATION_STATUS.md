@@ -463,11 +463,10 @@ but it is not malware detection and does not execute script code.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several
-roadmap foundations are still incomplete, including profile-aware file
-operations, broader reversible workflows beyond cleanup, cache quarantine, and
-loose update copy actions, safe archive update installation,
-profile-aware Patch Day re-enable workflows, and broader real-world corpus
-coverage.
+roadmap foundations are still incomplete, including profile-aware operations
+beyond the current specific flows, safe archive update installation,
+profile-aware Patch Day re-enable workflows, signed/notarized public release
+artifacts, and broader real-world corpus coverage.
 
 ## Current Verification Gates
 

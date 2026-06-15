@@ -762,20 +762,20 @@
         </div>
         <div class="metric-row" aria-label="Produktmålinger">
           <div class="metric">
-            <strong>564</strong>
+            <strong>613</strong>
             <span>Python tests passet i siste v3-gate</span>
           </div>
           <div class="metric">
-            <strong>92</strong>
+            <strong>113</strong>
             <span>Web node tests passet</span>
           </div>
           <div class="metric">
-            <strong>40</strong>
+            <strong>47</strong>
             <span>Rust/Tauri lib tests passet</span>
           </div>
           <div class="metric">
             <strong>0</strong>
-            <span>Desktop install/apply-knapp for Update Desk ennå</span>
+            <span>arkivutpakkinger direkte til Mods</span>
           </div>
         </div>
       </section>
@@ -914,42 +914,42 @@
 
       <section class="slide" id="roadmap" data-kicker="07 / Roadmap">
         <p class="eyebrow">Roadmap til ferdig produkt</p>
-        <h2>Fire etapper fra dagens v3 til public-ready.</h2>
+        <h2>Safety-slicene er landet; release-evidensen står igjen.</h2>
         <div class="roadmap">
           <article class="roadmap-stage">
-            <h3>1. Close v3 Safety</h3>
+            <h3>1. v3 Safety lukket</h3>
             <ul>
-              <li>Desktop Update Desk install/apply-kontroller.</li>
-              <li>Trygg arkivinstallering med traversal-, symlink- og corrupt-archive gates.</li>
-              <li>Flere crash-recovery og property-test scenarier.</li>
-              <li>Browser-QA for alle nye desktop-operasjoner.</li>
+              <li>Desktop Update Desk commit/undo for eksplisitte loose-file copy actions.</li>
+              <li>ZIP-planlegging med traversal-, symlink- og corrupt-archive blockers.</li>
+              <li>Crash-recovery og property-lignende invariants for Update Desk.</li>
+              <li>Desktop QA og CI-gates gjennomført for slicene.</li>
             </ul>
           </article>
           <article class="roadmap-stage">
-            <h3>2. Trust Polish</h3>
+            <h3>2. Trust polish landet</h3>
             <ul>
-              <li>Cache-clearing som manifestert quarantine, ikke delete.</li>
-              <li>Patch Day re-enable workflow bundet til profiler.</li>
-              <li>Save Protector v1 med profile/save-sammenheng.</li>
-              <li>Tray dependency signals med tydelig usikkerhet.</li>
+              <li>Cache Doctor quarantine/restore, ikke delete.</li>
+              <li>Patch Day state bundet til Profile Manager Light guidance.</li>
+              <li>Save Protector v1 med profile/save/patch launch guidance.</li>
+              <li>Tray dependency signals med likely/probable/unknown språk.</li>
             </ul>
           </article>
           <article class="roadmap-stage">
-            <h3>3. Intelligence</h3>
+            <h3>3. Intelligence landet</h3>
             <ul>
               <li>Classification v1: CAS, Build/Buy, UI, script, gameplay, default replacement.</li>
-              <li>Conflict Engine v2 med override-intensjon og profile awareness.</li>
+              <li>Conflict Engine v2 metadata for duplicate, override, UI og tuning ambiguity.</li>
               <li>Script Security Analyzer som statisk risikosignal, aldri runtime execution.</li>
-              <li>Exception Analyzer v2 for flere loggformater.</li>
+              <li>Unknown safety overstyres ikke av intelligence-lagene.</li>
             </ul>
           </article>
           <article class="roadmap-stage">
-            <h3>4. Release Package</h3>
+            <h3>4. Release candidate</h3>
             <ul>
-              <li>SBOM, signering/notarisering og sikkerhetsgjennomgang.</li>
-              <li>Ærlig README, changelog og “not EA/Maxis official” branding.</li>
-              <li>Installer/distribusjon for desktop.</li>
-              <li>Public v3 smoke test på frisk maskin og real-world corpus.</li>
+              <li>Tauri smoke harness og source/full release checks er på plass.</li>
+              <li>SBOM/security gate er på plass med pending signing-status.</li>
+              <li>README/changelog/status sier tydelig at appen ikke er EA/Maxis-offisiell.</li>
+              <li>Gjenstår: ekte signering/notarisering og final artifact verification.</li>
             </ul>
           </article>
         </div>
@@ -999,10 +999,10 @@
         </p>
         <p class="sublead">
           Neste fase handler ikke om å legge til mest mulig. Den handler om å
-          lukke Update Desk trygt, polere trust-flater, bevise releasepakken,
-          og bare deretter åpne for mer intelligente integrationslag.
+          bevise releasepakken med ekte signering/notarisering, holde docs
+          ærlige, og bare deretter åpne for mer intelligente integrationslag.
         </p>
-        <span class="ribbon">Neste gate: desktop Update Desk apply + trygg arkivpipeline</span>
+        <span class="ribbon">Neste gate: signering/notarisering + final release artifact smoke</span>
       </section>
 
       <section class="slide" data-kicker="10 / Kilder">
