@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     summarizeDoctorLedgerHistory,
     summarizeDoctorPlaybooks,
@@ -537,8 +538,14 @@ function FindingGroup({ title, description, icon: Icon, tone, groups }) {
 function Doctor() {
     const location = useLocation();
     const navigate = useNavigate();
-    const [simsPath, setSimsPath] = useState(location.state?.simsPath || DEFAULT_SIMS_PATH);
-    const [modsPath, setModsPath] = useState(location.state?.modsPath || '');
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        fallback: location.state?.simsPath || DEFAULT_SIMS_PATH,
+        preserveFallback: Boolean(location.state?.simsPath),
+    });
+    const [modsPath, setModsPath] = useProfileDefaultPath('modsPath', {
+        fallback: location.state?.modsPath || '',
+        preserveFallback: Boolean(location.state?.modsPath),
+    });
     const [inventoryDb, setInventoryDb] = useState(location.state?.inventoryDb || '');
     const [showSimsPicker, setShowSimsPicker] = useState(false);
     const [showModsPicker, setShowModsPicker] = useState(false);

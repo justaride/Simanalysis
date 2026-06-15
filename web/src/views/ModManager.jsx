@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, forwardRef } from 'react';
 import { Search, Filter, Download, Loader2, LayoutGrid, List as ListIcon, Package, FileCode, FolderOpen, Sparkles } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { useAppContext } from '../context/AppContext';
@@ -9,26 +9,18 @@ import { motion, AnimatePresence } from 'framer-motion';
 import FilePicker from '../components/FilePicker';
 import AnimatedProgress from '../components/AnimatedProgress';
 import ModThumbnail from '../components/ModThumbnail';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 
 function ModManager() {
     const { modScanResult, isScanning, scanProgress, startModScan, updateModScanProgress, completeModScan } = useAppContext();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterType, setFilterType] = useState('all');
-    const [scanPath, setScanPath] = useState('');
+    const [scanPath, setScanPath] = useProfileDefaultPath('modsPath', {
+        fallback: '~/Documents/Electronic Arts/The Sims 4/Mods',
+    });
     const [error, setError] = useState(null);
     const [viewMode, setViewMode] = useState('grid');
     const [showFilePicker, setShowFilePicker] = useState(false);
-
-    // Load config on mount
-    useEffect(() => {
-        invoke('get_config')
-            .then(data => {
-                if (data.last_scan_path) {
-                    setScanPath(data.last_scan_path);
-                }
-            })
-            .catch(err => console.error("Failed to load config:", err));
-    }, []);
 
     const handleScan = () => {
         if (!scanPath.trim()) {

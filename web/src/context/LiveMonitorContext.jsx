@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import api from '../api';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import { shouldRecordMonitorEvent } from '../views/liveMonitorModel';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
@@ -16,8 +17,10 @@ function nextStatusFromResult(data) {
 export function LiveMonitorProvider({ children }) {
     const handleRef = useRef(null);
     const runIdRef = useRef(0);
-    const [simsPath, setSimsPath] = useState(DEFAULT_SIMS_PATH);
-    const [modsPath, setModsPath] = useState('');
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        fallback: DEFAULT_SIMS_PATH,
+    });
+    const [modsPath, setModsPath] = useProfileDefaultPath('modsPath');
     const [status, setStatus] = useState('idle');
     const [progress, setProgress] = useState(null);
     const [latestEvent, setLatestEvent] = useState(null);

@@ -163,6 +163,9 @@ Implemented after Patch Day Shield v0:
 - Saving a profile updates Simanalysis app state only, including
   `last_scan_path` as the active profile's `Mods` folder for compatibility with
   existing scan views.
+- The desktop views for Mod Manager, Inventory, Cleanup, Doctor, Treatment,
+  Live Monitor, Patch Day, Tray Organizer, and Save Analyzer now use that app
+  state as input defaults when no route-specific path is already stored.
 - The UI labels the safety boundary explicitly: Profile Manager Light does not
   move, enable, disable, quarantine, delete, or rewrite Sims files.
 - Full profile switching, profile-aware Operating Table actions, and
@@ -207,7 +210,8 @@ desktop surface for detecting `GameVersion.txt` baseline changes, classifying
 mod categories as unknown after a patch, and recording an explicit baseline in
 Simanalysis state without changing Mods, saves, or Tray files. Profile Manager
 Light v0 is available in desktop Settings for remembering an active Sims 4 root
-and deriving common folder paths from app state only.
+and deriving common folder paths from app state only; primary desktop views use
+those paths as input defaults without scanning or mutating files on load.
 Deeper ledger-aware crash interpretation remains future Doctor/Bisect work.
 
 It should not currently be described as generally production-ready. Several

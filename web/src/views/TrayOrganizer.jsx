@@ -3,12 +3,15 @@ import { Grid, List, Search, Download, Loader2, FolderOpen } from 'lucide-react'
 import { useAppContext } from '../context/AppContext';
 import { api } from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 
 function TrayOrganizer() {
     const { trayScanResult, isScanning, startTrayScan, completeTrayScan } = useAppContext();
     const [viewMode, setViewMode] = useState('grid');
     const [searchTerm, setSearchTerm] = useState('');
-    const [scanPath, setScanPath] = useState('');
+    const [scanPath, setScanPath] = useProfileDefaultPath('trayPath', {
+        fallback: '~/Documents/Electronic Arts/The Sims 4/Tray',
+    });
     const [error, setError] = useState(null);
     const [scanProgress, setScanProgress] = useState(null);
     const [showFilePicker, setShowFilePicker] = useState(false);

@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     canRequestTreatmentHandoff,
     summarizeTreatmentHandoff,
@@ -139,8 +140,14 @@ function PathList({ title, paths = [] }) {
 
 function Treatment() {
     const location = useLocation();
-    const [simsPath, setSimsPath] = useState(location.state?.simsPath || DEFAULT_SIMS_PATH);
-    const [modsPath, setModsPath] = useState(location.state?.modsPath || '');
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        fallback: location.state?.simsPath || DEFAULT_SIMS_PATH,
+        preserveFallback: Boolean(location.state?.simsPath),
+    });
+    const [modsPath, setModsPath] = useProfileDefaultPath('modsPath', {
+        fallback: location.state?.modsPath || '',
+        preserveFallback: Boolean(location.state?.modsPath),
+    });
     const [showSimsPicker, setShowSimsPicker] = useState(false);
     const [showModsPicker, setShowModsPicker] = useState(false);
     const [result, setResult] = useState(null);
