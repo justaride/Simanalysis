@@ -59,6 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `patch-day-status|record` bridge/Tauri commands and a Patch Day route for
   checking game-version baseline status, reviewing risk classes, and recording
   an explicit baseline without changing Mods, saves, or Tray files.
+- Added Profile Manager Light v0 in desktop Settings, storing an active Sims 4
+  root in app config, deriving Mods/Tray/saves/cache paths, remembering known
+  profiles, and keeping the scope app-state-only with no Sims-folder mutation.
 
 ### Planned
 - Full DBPF package parser implementation
