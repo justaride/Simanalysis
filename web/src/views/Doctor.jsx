@@ -6,14 +6,18 @@ import {
     Download,
     FileWarning,
     FolderOpen,
+    GitBranch,
+    ListChecks,
     Loader2,
     Microscope,
     Search,
     ShieldCheck,
+    Terminal,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import { summarizeDoctorPlaybooks, summarizeDoctorVerdicts } from './doctorModel';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
 
@@ -131,6 +135,114 @@ function StatTile({ label, value, tone = 'blue' }) {
             <p className="text-xs uppercase tracking-wider opacity-80">{label}</p>
             <p className="mt-2 text-3xl font-bold text-white">{value}</p>
         </div>
+    );
+}
+
+const verdictToneClasses = {
+    red: 'border-red-500/40 bg-red-950/15 text-red-100',
+    amber: 'border-amber-500/40 bg-amber-950/15 text-amber-100',
+    blue: 'border-blue-500/40 bg-blue-950/15 text-blue-100',
+    green: 'border-green-500/40 bg-green-950/15 text-green-100',
+};
+
+function VerdictCard({ verdict }) {
+    const tone = verdictToneClasses[verdict.tone] || verdictToneClasses.blue;
+    return (
+        <div className={`rounded-lg border p-4 ${tone}`}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="min-w-0">
+                    <p className="font-semibold text-white">{verdict.title}</p>
+                    <p className="mt-1 text-sm opacity-80">
+                        {verdict.statusLabel} · {verdict.severityLabel} · {verdict.confidenceLabel}
+                    </p>
+                </div>
+                {verdict.nextActionLabel && (
+                    <span className="w-fit rounded-md border border-white/15 bg-black/20 px-2 py-1 text-xs font-semibold uppercase text-white/85">
+                        {verdict.nextActionLabel}
+                    </span>
+                )}
+            </div>
+            {verdict.evidence.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {verdict.evidence.map((item) => (
+                        <span key={item} className="rounded bg-black/25 px-2 py-1 text-xs text-white/80">
+                            {item}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PlaybookCard({ playbook }) {
+    return (
+        <div className="rounded-lg border border-gray-700/70 bg-gray-900/50 p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="font-semibold text-white">{playbook.title}</p>
+                    <p className="mt-1 text-sm text-gray-400">{playbook.symptom}</p>
+                </div>
+                <span className="rounded-md border border-gray-600 px-2 py-1 text-xs uppercase text-gray-300">
+                    {playbook.available ? 'ready' : 'blocked'}
+                </span>
+            </div>
+            {playbook.reason && <p className="mt-3 text-sm text-gray-400">{playbook.reason}</p>}
+            {playbook.nextCommand && (
+                <div className="mt-3 rounded-lg border border-gray-800 bg-black/30 p-3">
+                    <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        <Terminal size={14} />
+                        Command
+                    </div>
+                    <p className="break-words font-mono text-xs text-gray-200">{playbook.nextCommand}</p>
+                </div>
+            )}
+            {playbook.requires.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {playbook.requires.map((item) => (
+                        <span key={item} className="rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+                            {item}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function DoctorGuidance({ verdicts, playbooks }) {
+    if (verdicts.length === 0 && playbooks.length === 0) return null;
+    return (
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <div className="rounded-xl border border-gray-800 bg-gray-900/40">
+                <div className="flex items-center gap-2 border-b border-gray-800 px-5 py-4">
+                    <ListChecks className="text-blue-300" size={20} />
+                    <h2 className="text-lg font-semibold text-white">Doctor Verdicts</h2>
+                </div>
+                <div className="space-y-3 p-5">
+                    {verdicts.map((verdict) => (
+                        <VerdictCard key={verdict.id} verdict={verdict} />
+                    ))}
+                </div>
+            </div>
+            <div className="rounded-xl border border-gray-800 bg-gray-900/40">
+                <div className="flex items-center gap-2 border-b border-gray-800 px-5 py-4">
+                    <GitBranch className="text-emerald-300" size={20} />
+                    <h2 className="text-lg font-semibold text-white">Playbooks</h2>
+                </div>
+                <div className="space-y-3 p-5">
+                    {playbooks.length > 0 ? (
+                        playbooks.map((playbook) => (
+                            <PlaybookCard key={playbook.id} playbook={playbook} />
+                        ))
+                    ) : (
+                        <p className="rounded-lg border border-gray-800 bg-gray-900/40 p-4 text-sm text-gray-500">
+                            No follow-up playbook for this scan.
+                        </p>
+                    )}
+                </div>
+            </div>
+        </section>
     );
 }
 
@@ -310,6 +422,8 @@ function Doctor() {
     const [result, setResult] = useState(null);
 
     const groups = useMemo(() => buildGroups(result), [result]);
+    const verdicts = useMemo(() => summarizeDoctorVerdicts(result), [result]);
+    const playbooks = useMemo(() => summarizeDoctorPlaybooks(result), [result]);
     const summary = result?.summary || {};
     const activeTotal = (summary.script_active || 0) + (summary.ui_active || 0);
     const disabledTotal = (summary.script_disabled || 0) + (summary.ui_disabled || 0);
@@ -481,6 +595,8 @@ function Doctor() {
                                 tone={(summary.parse_errors || 0) + (summary.index_errors || 0) ? 'amber' : 'blue'}
                             />
                         </section>
+
+                        <DoctorGuidance verdicts={verdicts} playbooks={playbooks} />
 
                         <div className="grid gap-6 xl:grid-cols-4">
                             <FindingGroup
