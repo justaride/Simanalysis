@@ -132,6 +132,9 @@ Simanalysis has a substantial local Sims Doctor foundation, including the Tauri
 desktop shell, Python sidecar bridge, package/script scanning, conflict
 detection, crash/UI autopsy flows, Treatment/Auto-Bisect, and Live Monitoring
 surfaces from earlier shipped slices.
+The desktop Dashboard now derives total file count, space used, severity
+summary, and file-distribution chart values from the current scan payload
+rather than placeholder estimates.
 
 The combined Doctor payload is now shared outside the desktop bridge and exposed
 through `simanalysis doctor` for read-only script-crash plus UI-exception

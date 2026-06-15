@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated DBPF parser/model fixtures and documentation examples so tests no longer validate against false resource IDs.
 - Replaced stale hand-maintained requirements files with pyproject-backed install shims so unused packages are no longer advertised as runtime dependencies.
 - Closed inventory and cleanup SQLite connections deterministically so Python 3.14/pytest no longer reports unraisable unclosed-database warnings.
+- Replaced placeholder Dashboard space usage and hardcoded file-distribution estimates with values derived from the current mod scan payload.
 
 ### Added
 - Added the Phase 0 real-file corpus contract, `real`/`synthetic` pytest markers, committed package/script/save/tray/log fixtures, and a local-only corpus builder that copies explicitly chosen real fixtures into a git-ignored test root with golden sidecars.
