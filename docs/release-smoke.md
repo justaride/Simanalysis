@@ -67,7 +67,8 @@ additional host permissions/tooling and belongs with the final release/Slice 12
 signing pass.
 
 Run [`release-security.md`](release-security.md) after full smoke to generate
-SBOMs and verify dependency/security gates before any public release claim.
+SBOMs, verify dependency/security gates, and inspect the built release artifact
+with `--artifact ... --strict-signing` before any public release claim.
 
 ## Manual First-Run Checklist
 

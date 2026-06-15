@@ -454,8 +454,11 @@ developer bypass steps.
 [`release-security.md`](release-security.md) and
 `python scripts/release_security.py --mode sbom|check|full`. The gate generates
 CycloneDX SBOM files, runs Bandit, `pip-audit`, root/web npm production audits,
-and Cargo lock metadata resolution. Signing/notarization statuses remain
-explicitly pending until real platform evidence exists.
+and Cargo lock metadata resolution. It can now also inspect built release
+artifacts with `--artifact` and strict signing/notarization verification, writing
+`release-artifact-status.json`. Signing/notarization statuses remain explicitly
+pending until real platform evidence exists and strict artifact verification
+passes.
 
 ### Slice 13: Honest Docs Release Pass
 

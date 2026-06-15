@@ -330,7 +330,10 @@ Implemented after desktop Tray Protector v0:
   requires a clean-checkout full smoke plus the Slice 12 signing/SBOM pass.
 - Added `scripts/release_security.py` and `docs/release-security.md` for
   CycloneDX SBOM generation, Python/web/Rust security checks, and explicit
-  pending signing/notarization status.
+  pending signing/notarization status. The same gate can inspect built release
+  artifacts with `--artifact`, write `release-artifact-status.json`, and fail
+  strict mode unless required binaries, code signing, and notarization checks
+  pass.
 
 ## Classification Progress
 
