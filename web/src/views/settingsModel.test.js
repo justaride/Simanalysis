@@ -3,8 +3,10 @@ import test from 'node:test';
 
 import {
     buildProfileConfigPatch,
+    chooseProfileDefaultPath,
     deriveProfileFolders,
     normalizeProfileConfig,
+    profileDefaultsFromConfig,
 } from './settingsModel.js';
 
 test('normalizes profile config with default Sims 4 folder and deduped known profiles', () => {
@@ -59,4 +61,38 @@ test('builds config patch that preserves existing profiles and updates scan path
         ],
         last_scan_path: '/Volumes/External/The Sims 4/Mods',
     });
+});
+
+test('derives cross-view default paths from active profile config', () => {
+    assert.deepEqual(
+        profileDefaultsFromConfig({
+            active_sims4_profile: '/Profiles/Main/The Sims 4',
+        }),
+        {
+            simsPath: '/Profiles/Main/The Sims 4',
+            modsPath: '/Profiles/Main/The Sims 4/Mods',
+            trayPath: '/Profiles/Main/The Sims 4/Tray',
+            savesPath: '/Profiles/Main/The Sims 4/saves',
+            cachePath: '/Profiles/Main/The Sims 4',
+        },
+    );
+});
+
+test('route-specific stored paths override profile defaults', () => {
+    const defaults = profileDefaultsFromConfig({
+        active_sims4_profile: '/Profiles/Main/The Sims 4',
+    });
+
+    assert.equal(
+        chooseProfileDefaultPath(defaults, 'simsPath', '/Manual/The Sims 4', '/Fallback/The Sims 4'),
+        '/Manual/The Sims 4',
+    );
+    assert.equal(
+        chooseProfileDefaultPath(defaults, 'trayPath', '', '/Fallback/Tray'),
+        '/Profiles/Main/The Sims 4/Tray',
+    );
+    assert.equal(
+        chooseProfileDefaultPath({}, 'missingPath', '', '/Fallback/Mods'),
+        '/Fallback/Mods',
+    );
 });

@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     canApplyCleanupOperation,
     canRestoreCleanupOperation,
@@ -303,7 +304,9 @@ function ConfirmOperationModal({ kind, summary, busy, onCancel, onConfirm }) {
 }
 
 function Cleanup() {
-    const [simsPath, setSimsPath] = useState(DEFAULT_SIMS_PATH);
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        fallback: DEFAULT_SIMS_PATH,
+    });
     const [dbPath, setDbPath] = useState('');
     const [planPath, setPlanPath] = useState(DEFAULT_PLAN_PATH);
     const [showSimsPicker, setShowSimsPicker] = useState(false);

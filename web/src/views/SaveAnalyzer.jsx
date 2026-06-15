@@ -3,11 +3,17 @@ import { useAppContext } from '../context/AppContext';
 import api from '../api';
 import { Search, FileText, Package, HardDrive, AlertCircle, CheckCircle, FolderOpen, File } from 'lucide-react';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 
 function SaveAnalyzer() {
     const { saveScanResult, isScanning, startSaveScan, completeSaveScan } = useAppContext();
     const [savePath, setSavePath] = useState('');
-    const [modsPath, setModsPath] = useState('~/Documents/Electronic Arts/The Sims 4/Mods');
+    const [modsPath, setModsPath] = useProfileDefaultPath('modsPath', {
+        fallback: '~/Documents/Electronic Arts/The Sims 4/Mods',
+    });
+    const [saveRootPath] = useProfileDefaultPath('savesPath', {
+        fallback: '~/Documents/Electronic Arts/The Sims 4/saves',
+    });
     const [error, setError] = useState(null);
     const [scanProgress, setScanProgress] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -143,7 +149,7 @@ function SaveAnalyzer() {
                 isOpen={showSavePicker}
                 onClose={() => setShowSavePicker(false)}
                 onSelect={(path) => setSavePath(path)}
-                initialPath={savePath || '~/Documents/Electronic Arts/The Sims 4/saves'}
+                initialPath={savePath || saveRootPath}
                 selectDirectory={false}
                 title="Select Save File"
             />

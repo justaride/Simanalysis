@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import api from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     canRecordPatchBaseline,
     summarizePatchDayStatus,
@@ -165,7 +166,10 @@ function ConfirmRecordModal({ summary, busy, onCancel, onConfirm }) {
 }
 
 function PatchDay() {
-    const [simsPath, setSimsPath] = useState(() => localStorage.getItem('patch-day-root-path') || '');
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        storageKey: 'patch-day-root-path',
+        fallback: DEFAULT_SIMS_PATH,
+    });
     const [statePath, setStatePath] = useState(() => localStorage.getItem('patch-day-state-path') || '');
     const [showFilePicker, setShowFilePicker] = useState(false);
     const [status, setStatus] = useState(null);

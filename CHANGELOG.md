@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Profile Manager Light v0 in desktop Settings, storing an active Sims 4
   root in app config, deriving Mods/Tray/saves/cache paths, remembering known
   profiles, and keeping the scope app-state-only with no Sims-folder mutation.
+- Added profile-aware desktop input defaults for Mod Manager, Inventory,
+  Cleanup, Doctor, Treatment, Live Monitor, Patch Day, Tray Organizer, and Save
+  Analyzer without starting scans or changing Sims files on load.
 
 ### Planned
 - Full DBPF package parser implementation

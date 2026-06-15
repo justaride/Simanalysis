@@ -18,6 +18,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { api } from '../api';
 import FilePicker from '../components/FilePicker';
+import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
     latestHistoryScan,
     summarizeInventoryScan,
@@ -166,7 +167,10 @@ function EventList({ eventRows }) {
 }
 
 function Inventory() {
-    const [simsPath, setSimsPath] = useState(() => localStorage.getItem('inventory-root-path') || '');
+    const [simsPath, setSimsPath] = useProfileDefaultPath('simsPath', {
+        storageKey: 'inventory-root-path',
+        fallback: '~/Documents/Electronic Arts/The Sims 4',
+    });
     const [showFilePicker, setShowFilePicker] = useState(false);
     const [scanResult, setScanResult] = useState(null);
     const [historyResult, setHistoryResult] = useState(null);

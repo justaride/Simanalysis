@@ -83,3 +83,22 @@ export function buildProfileConfigPatch(activeProfile, existingProfiles = []) {
         last_scan_path: joinPath(profile, 'Mods'),
     };
 }
+
+export function profileDefaultsFromConfig(config = {}) {
+    const { activeProfile } = normalizeProfileConfig(config);
+    return {
+        simsPath: activeProfile,
+        modsPath: joinPath(activeProfile, 'Mods'),
+        trayPath: joinPath(activeProfile, 'Tray'),
+        savesPath: joinPath(activeProfile, 'saves'),
+        cachePath: activeProfile,
+    };
+}
+
+export function chooseProfileDefaultPath(defaults = {}, key, storedValue = '', fallback = '') {
+    const stored = normalizePath(storedValue);
+    if (stored) return stored;
+    const profileDefault = normalizePath(defaults[key]);
+    if (profileDefault) return profileDefault;
+    return normalizePath(fallback);
+}
