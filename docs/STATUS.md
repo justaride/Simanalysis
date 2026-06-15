@@ -78,8 +78,10 @@ exists as a read-only CLI/backend/desktop surface through `simanalysis updates
 status`, bridge/Tauri `update-staging-status`, and the Update Desk route,
 classifying staged downloads, source sidecars, corrupt ZIPs, archive path
 escapes, iCloud placeholders, AppleDouble files, symlinks, and case collisions
-without extracting archives or changing Mods. Profile-aware file operations,
-cache-clearing operations, update install-plan/commit workflows, and
+without extracting archives or changing Mods. `simanalysis updates plan` can
+generate a read-only staged-download manifest with copy, archive-review, and
+blocker actions without writing to Mods. Profile-aware file operations,
+cache-clearing operations, update commit workflows, and
 profile-aware Patch Day re-enable workflows remain pending follow-on slices.
 
 ## Historical Status Snapshots

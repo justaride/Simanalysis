@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path, PurePosixPath
 from typing import Any
 from zipfile import BadZipFile, ZipFile, is_zipfile
@@ -15,12 +16,24 @@ SCRIPT_EXTENSIONS = {".ts4script"}
 SOURCE_SIDECAR_SUFFIX = ".source.json"
 
 
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
 def _modified_at(path: Path) -> str | None:
     try:
         timestamp = path.stat().st_mtime
     except OSError:
         return None
     return datetime.fromtimestamp(timestamp, timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def _sha256_hex(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as file:
+        for chunk in iter(lambda: file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _signal(
@@ -353,6 +366,211 @@ def build_update_staging_status(staging_dir: Path | str) -> dict[str, Any]:
         "recommendations": recommendations,
         "mutates_files": False,
     }
+
+
+def _mods_case_index(mods_root: Path) -> dict[str, str]:
+    if not mods_root.exists() or not mods_root.is_dir():
+        return {}
+    return {child.name.casefold(): child.name for child in mods_root.iterdir()}
+
+
+def _destination_blockers(mods_root: Path, destination: Path) -> list[str]:
+    blockers: list[str] = []
+    if not mods_root.exists() or not mods_root.is_dir():
+        return ["mods_folder_missing"]
+
+    if destination.is_symlink():
+        blockers.append("destination_symlink")
+    elif destination.exists():
+        blockers.append("destination_exists")
+
+    case_match = _mods_case_index(mods_root).get(destination.name.casefold())
+    if case_match is not None and case_match != destination.name:
+        blockers.append("case_collision")
+
+    return blockers
+
+
+def _copy_action(index: int, item: dict[str, Any], mods_root: Path) -> dict[str, Any]:
+    source = Path(str(item["path"]))
+    destination_name = Path(str(item["name"])).name
+    destination = mods_root / destination_name
+    blockers = _destination_blockers(mods_root, destination)
+    expected = {
+        "size": item.get("size_bytes", 0),
+        "sha256": _sha256_hex(source),
+    }
+    review_notes: list[str] = []
+    if item.get("source_binding", {}).get("status") != "bound":
+        review_notes.append("source_binding_not_bound")
+
+    return {
+        "action_id": f"update-copy-{index:03d}",
+        "action_type": "copy_staged_file",
+        "status": "blocked" if blockers else "planned",
+        "source_name": item.get("name"),
+        "source_path": item.get("path"),
+        "source_relative_path": item.get("relative_path"),
+        "destination_relative_path": destination_name,
+        "destination_path": str(destination),
+        "expected": expected,
+        "source_binding": item.get("source_binding", {"status": "unknown"}),
+        "archive_scan": item.get("archive_scan", {"status": "not_archive"}),
+        "blockers": blockers,
+        "review_notes": review_notes,
+    }
+
+
+def _archive_blockers(archive_scan: dict[str, Any]) -> list[str]:
+    status = archive_scan.get("status")
+    if status == "unsafe_members":
+        return ["archive_path_escape"]
+    if status == "unreadable_zip":
+        return ["archive_unreadable"]
+    if status == "listing_unsupported":
+        return ["archive_listing_unsupported"]
+    return []
+
+
+def _archive_action(index: int, item: dict[str, Any]) -> dict[str, Any]:
+    archive_scan = item.get("archive_scan", {"status": "not_archive"})
+    blockers = _archive_blockers(archive_scan)
+    return {
+        "action_id": f"update-archive-{index:03d}",
+        "action_type": "review_archive",
+        "status": "blocked" if blockers else "review_required",
+        "source_name": item.get("name"),
+        "source_path": item.get("path"),
+        "source_relative_path": item.get("relative_path"),
+        "destination_relative_path": None,
+        "destination_path": None,
+        "expected": {
+            "size": item.get("size_bytes", 0),
+            "sha256": _sha256_hex(Path(str(item["path"]))),
+        },
+        "source_binding": item.get("source_binding", {"status": "unknown"}),
+        "archive_scan": archive_scan,
+        "blockers": blockers,
+        "review_notes": ["archive_requires_explicit_review"],
+    }
+
+
+def _plan_status(actions: list[dict[str, Any]], staging_status: str) -> str:
+    if staging_status == "missing_staging_folder":
+        return "blocked"
+    if any(action["status"] == "blocked" for action in actions):
+        return "blocked"
+    if not actions:
+        return "empty"
+    return "ready_for_review"
+
+
+def build_update_install_plan(
+    staging_dir: Path | str,
+    mods_dir: Path | str,
+) -> dict[str, Any]:
+    """Build a read-only staged update install plan without changing Mods."""
+    staging_status = build_update_staging_status(staging_dir)
+    mods_root = Path(mods_dir).expanduser().resolve()
+    actions: list[dict[str, Any]] = []
+
+    for item in staging_status.get("items", []):
+        kind = item.get("kind")
+        if kind in {"package", "script"}:
+            actions.append(_copy_action(len(actions) + 1, item, mods_root))
+        elif kind == "archive":
+            actions.append(_archive_action(len(actions) + 1, item))
+
+    blocked_count = sum(1 for action in actions if action["status"] == "blocked")
+    copy_count = sum(1 for action in actions if action["action_type"] == "copy_staged_file")
+    archive_review_count = sum(1 for action in actions if action["action_type"] == "review_archive")
+    status = _plan_status(actions, str(staging_status.get("status", "unknown")))
+
+    recommendations = [
+        "Review this plan before any snapshot-backed commit step.",
+        "Archives are not extracted by this plan; review archive actions separately.",
+        "Do not change Mods until a snapshot and approval gate exists for this plan.",
+    ]
+    if blocked_count:
+        recommendations.insert(0, "Resolve blocked actions before approving an update commit.")
+
+    generated_at = _utc_now()
+    return {
+        "version": 1,
+        "plan_id": "update-plan-" + generated_at.replace("-", "").replace(":", "")[:15],
+        "generated_at": generated_at,
+        "status": status,
+        "staging_status": staging_status.get("status", "unknown"),
+        "staging_path": staging_status.get("staging_path"),
+        "mods_path": str(mods_root),
+        "manifest_path": None,
+        "action_count": len(actions),
+        "copy_count": copy_count,
+        "archive_review_count": archive_review_count,
+        "blocked_count": blocked_count,
+        "requires_snapshot": True,
+        "mutates_files": False,
+        "mutates_mods": False,
+        "actions": actions,
+        "signals": staging_status.get("signals", []),
+        "warnings": staging_status.get("warnings", []),
+        "recommendations": recommendations,
+    }
+
+
+def write_update_install_plan(
+    plan: dict[str, Any],
+    output_path: Path | str,
+) -> dict[str, Any]:
+    """Write a plan manifest explicitly requested by the caller."""
+    path = Path(output_path).expanduser().resolve()
+    if path.exists() and path.is_symlink():
+        raise ValueError(f"Refusing to replace symlinked update plan: {path}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    saved = dict(plan)
+    saved["manifest_path"] = str(path)
+    tmp = path.with_name(f".{path.name}.tmp")
+    tmp.write_text(json.dumps(saved, indent=2, sort_keys=True), encoding="utf-8")
+    tmp.replace(path)
+    return saved
+
+
+def format_update_install_plan_text(plan: dict[str, Any]) -> str:
+    """Format an Update Desk install plan for terminal review."""
+    lines = [
+        "Update Desk Install Plan",
+        f"Status: {plan.get('status', 'unknown')}",
+        f"Staging: {plan.get('staging_path', 'unknown')}",
+        f"Mods: {plan.get('mods_path', 'unknown')}",
+        "Read-only: yes",
+        "Mods mutation: no",
+        f"Snapshot required: {'yes' if plan.get('requires_snapshot') else 'no'}",
+        f"Actions: {plan.get('action_count', 0)}",
+        f"Blocked: {plan.get('blocked_count', 0)}",
+    ]
+    if plan.get("manifest_path"):
+        lines.append(f"Manifest: {plan['manifest_path']}")
+
+    actions = plan.get("actions") or []
+    if actions:
+        lines.append("")
+        lines.append("Actions:")
+        for action in actions:
+            destination = action.get("destination_relative_path") or "(review only)"
+            blockers = action.get("blockers") or []
+            blocker_suffix = f" blocked={','.join(blockers)}" if blockers else ""
+            lines.append(
+                f"- {action.get('action_id')}: {action.get('status')} "
+                f"{action.get('source_name')} -> {destination}{blocker_suffix}"
+            )
+
+    recommendations = plan.get("recommendations") or []
+    if recommendations:
+        lines.append("")
+        lines.append("Recommendations:")
+        lines.extend(f"- {item}" for item in recommendations)
+
+    return "\n".join(lines)
 
 
 def format_update_staging_text(status: dict[str, Any]) -> str:

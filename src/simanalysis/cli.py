@@ -509,6 +509,34 @@ def updates_status(staging_dir: str, fmt: str) -> None:
         click.echo(format_update_staging_text(status))
 
 
+@updates.command("plan")
+@click.argument("staging_dir", type=click.Path(file_okay=False))
+@click.option("--mods", "mods_dir", type=click.Path(file_okay=False), required=True)
+@click.option("--output", "-o", type=click.Path(dir_okay=False), default=None)
+@click.option("--format", "fmt", type=click.Choice(["txt", "json"]), default="txt")
+def updates_plan(
+    staging_dir: str,
+    mods_dir: str,
+    output: Optional[str],
+    fmt: str,
+) -> None:
+    """Build a read-only staged update install plan without changing Mods."""
+    from simanalysis.update_desk import (
+        build_update_install_plan,
+        format_update_install_plan_text,
+        write_update_install_plan,
+    )
+
+    plan = build_update_install_plan(staging_dir, mods_dir)
+    if output:
+        plan = write_update_install_plan(plan, output)
+
+    if fmt == "json":
+        _echo_json(plan)
+    else:
+        click.echo(format_update_install_plan_text(plan))
+
+
 def _echo_ledger_scan_summary(payload: dict[str, Any]) -> None:
     click.echo("Ledger scan complete")
     click.echo(f"Root: {payload['root_path']}")
