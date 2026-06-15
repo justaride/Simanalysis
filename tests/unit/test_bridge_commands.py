@@ -441,6 +441,8 @@ def test_tray_protector_status_emits_read_only_tray_payload(tmp_path):
     assert result["tray_file_count"] == 3
     assert result["anchored_group_count"] == 1
     assert result["sidecar_only_group_count"] == 1
+    assert result["groups"][0]["dependency_signals"][0]["confidence"] == "likely"
+    assert result["groups"][1]["dependency_signals"][0]["confidence"] == "probable"
     assert trayitem.exists()
     assert sidecar.exists()
     assert orphan.exists()

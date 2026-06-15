@@ -41,10 +41,44 @@ def test_tray_status_groups_tray_files_and_sidecar_signals_without_mutating(
     assert groups["family"]["type_hint"] == "Household"
     assert groups["lot_without_anchor"]["has_trayitem"] is False
     signal_ids = {signal["id"] for signal in status["signals"]}
-    assert "sidecar_without_trayitem" in signal_ids
+    assert "probable_build_buy_sidecar_without_anchor" in signal_ids
     assert anchored.exists()
     assert household_info.exists()
     assert orphan_sidecar.exists()
+
+
+def test_tray_dependency_signals_are_confidence_labeled(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    tray = sims4 / "Tray"
+    tray.mkdir(parents=True)
+    (tray / "family.trayitem").write_bytes(b"tray")
+    (tray / "family.hhi").write_bytes(b"hhi")
+    (tray / "lot.trayitem").write_bytes(b"tray")
+    (tray / "lot.bpi").write_bytes(b"bpi")
+    (tray / "orphan.blueprint").write_bytes(b"blueprint")
+    (tray / "solo.trayitem").write_bytes(b"tray")
+
+    status = build_tray_status(sims4)
+
+    groups = {group["stem"]: group for group in status["groups"]}
+    family_signal = groups["family"]["dependency_signals"][0]
+    lot_signal = groups["lot"]["dependency_signals"][0]
+    orphan_signal = groups["orphan"]["dependency_signals"][0]
+    solo_signal = groups["solo"]["dependency_signals"][0]
+
+    assert family_signal["id"] == "likely_cas_dependency_scope"
+    assert family_signal["dependency_kind"] == "cas"
+    assert family_signal["confidence"] == "likely"
+    assert family_signal["evidence"]
+    assert lot_signal["id"] == "likely_build_buy_dependency_scope"
+    assert lot_signal["dependency_kind"] == "build_buy"
+    assert lot_signal["confidence"] == "likely"
+    assert orphan_signal["id"] == "probable_build_buy_sidecar_without_anchor"
+    assert orphan_signal["confidence"] == "probable"
+    assert orphan_signal["anchor_state"] == "missing"
+    assert solo_signal["id"] == "unknown_dependency_scope"
+    assert solo_signal["confidence"] == "unknown"
+    assert all("guarantee" not in signal["message"].lower() for signal in status["signals"])
 
 
 def test_tray_status_reports_missing_tray_folder(tmp_path: Path) -> None:
@@ -105,6 +139,7 @@ def test_format_tray_status_text_surfaces_read_only_boundary(tmp_path: Path) -> 
     assert "Tray Protector" in text
     assert "Read-only: yes" in text
     assert "family" in text
+    assert "[unknown; unknown]" in text
 
 
 def test_tray_status_cli_outputs_json(tmp_path: Path) -> None:

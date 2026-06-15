@@ -289,6 +289,12 @@ unknown evidence, likely/probable dependency labels, and desktop rendering.
 **Done when:** Tray Protector can explain sidecar-only, missing anchor, and
 likely dependency states with calibrated uncertainty.
 
+**Implementation note:** Completed with read-only dependency-scope signals on
+Tray groups and top-level signals. Signals carry confidence, dependency kind,
+anchor state, and evidence for likely CAS, likely Build/Buy, probable
+sidecar-without-anchor, and unknown states. This slice does not perform package
+classification or guarantee that a dependency is present or missing.
+
 ## P2 Product Intelligence
 
 ### Slice 8: Classification v1
