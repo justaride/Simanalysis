@@ -149,6 +149,7 @@ verified on real artifacts before docs or changelogs claim signed builds.
 - [Implementation roadmap](IMPLEMENTATION_ROADMAP.md)
 - [Release smoke harness](docs/release-smoke.md)
 - [Release security and SBOM gate](docs/release-security.md)
+- [Release signing runbook](docs/release-signing-runbook.md)
 - [DBPF format notes](docs/DBPF_FORMAT.md)
 
 ## License

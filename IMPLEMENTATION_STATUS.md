@@ -346,6 +346,10 @@ Implemented after desktop Tray Protector v0:
   root/web npm production audits, and Cargo lock metadata, but strict artifact
   verification remained blocked because the local macOS app bundle was not
   distribution-ready for codesign/notarization.
+- Added `docs/release-signing-runbook.md` as the operator handoff for clearing
+  the remaining Public v3 distribution blocker. It maps the non-secret signing
+  preflight blockers to macOS Developer ID/notarization, Windows Authenticode,
+  Linux distribution-signing decisions, and the final strict artifact evidence.
 
 ## Classification Progress
 

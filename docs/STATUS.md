@@ -146,6 +146,8 @@ blockers; it can also write
 required binaries, macOS code signing/notarization, and Windows Authenticode
 checks pass. The local macOS `.app` artifact is not distribution-ready yet:
 strict signing verification fails before notarization can be trusted.
+`docs/release-signing-runbook.md` captures the operator checklist for clearing
+those blockers without committing secrets or weakening the strict artifact gate.
 `README.md` has been rewritten for the Public v3 docs pass so the public entry
 point matches the current source-install workflow, shipped safety surfaces,
 limitations, and not-EA/Maxis-affiliated status.

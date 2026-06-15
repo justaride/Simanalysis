@@ -478,6 +478,9 @@ identity/env readiness, notarization env readiness, Windows certificate-env
 readiness, and blockers. Signing/notarization statuses remain explicitly
 pending until real platform evidence exists and strict artifact verification
 passes.
+[`release-signing-runbook.md`](release-signing-runbook.md) is the operator
+handoff for clearing those blockers on macOS, Windows, and Linux without
+committing secrets or treating preflight readiness as release approval.
 
 **Verification note:** On 2026-06-15,
 `uv run --extra dev --with 'bandit[toml]>=1.9,<2.0' --with pip-audit python scripts/release_security.py --mode full`

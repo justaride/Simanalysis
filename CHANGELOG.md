@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a non-secret signing readiness preflight to the release security gate,
   reporting macOS identity/env readiness, Windows certificate-env readiness, and
   concrete blockers before artifact verification.
+- Added a Public v3 release signing runbook that maps the remaining signing
+  blockers to macOS, Windows, Linux, and final strict artifact evidence.
 - Added read-only script-family conflict detection for shared `.ts4script`
   namespace families, with `executes_code: false` and profile-aware review
   guidance.
