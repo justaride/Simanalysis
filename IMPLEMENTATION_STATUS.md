@@ -256,6 +256,9 @@ Implemented after desktop Tray Protector v0:
   in explicit review/blocker actions, hashes staged sources, checks destination
   clashes and case collisions, and can write a plan manifest when `--output` is
   provided.
+- Added `update-staging-plan` bridge/Tauri plumbing for the same read-only plan
+  payload, requiring an explicit Mods path and exposing no apply/commit command
+  through desktop.
 - Update Desk v0 never extracts archives, installs staged downloads, copies
   files into Mods, writes snapshots, or mutates Sims folders. Snapshot-backed
   approval and commit remain future slices.

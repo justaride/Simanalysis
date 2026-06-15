@@ -340,6 +340,31 @@ def test_update_staging_status_emits_read_only_update_payload(tmp_path):
     assert package.exists()
 
 
+def test_update_staging_plan_emits_read_only_install_plan(tmp_path):
+    staging = tmp_path / "Update Staging"
+    mods = tmp_path / "Mods"
+    staging.mkdir()
+    mods.mkdir()
+    package = staging / "loose.package"
+    package.write_bytes(b"package")
+
+    buf = io.StringIO()
+    args = argparse.Namespace(path=str(staging), mods_path=str(mods))
+    commands.update_staging_plan(args, Emitter(buf))
+
+    events = [json.loads(line) for line in buf.getvalue().splitlines()]
+    assert [event["type"] for event in events] == ["start", "result", "done"]
+    assert events[0]["task"] == "update-staging-plan"
+    result = events[1]["data"]
+    assert result["status"] == "ready_for_review"
+    assert result["mutates_files"] is False
+    assert result["mutates_mods"] is False
+    assert result["copy_count"] == 1
+    assert result["actions"][0]["action_type"] == "copy_staged_file"
+    assert package.exists()
+    assert not (mods / "loose.package").exists()
+
+
 def test_cleanup_plan_emits_latest_plan_without_export(tmp_path):
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"
