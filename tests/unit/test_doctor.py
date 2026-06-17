@@ -191,6 +191,177 @@ def test_build_doctor_payload_includes_verdicts_and_playbooks(tmp_path: Path) ->
     assert payload["playbooks"][0]["id"] == "bisect-active-doctor-candidates"
 
 
+def test_build_doctor_payload_includes_scope_and_native_crashes(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    archive = sims4 / "_Quarantine_Logs"
+    mods.mkdir(parents=True)
+    archive.mkdir()
+    (sims4 / "lastCrash.txt").write_text(
+        "<root><report>"
+        "<createtime>2026-06-16 22:19:10</createtime>"
+        "<categoryid>gameplay.NativeCrash</categoryid>"
+        "<buildsignature>Local.1.124.55.1230</buildsignature>"
+        "<currentgamestate>Live_Mode</currentgamestate>"
+        "<desyncdata>Modded: False&#13;&#10;Native stack line</desyncdata>"
+        "</report></root>",
+        encoding="utf-8",
+    )
+    (archive / "lastCrash_archived.txt").write_text(
+        "<root><report><createtime>2026-06-10 10:00:00</createtime></report></root>",
+        encoding="utf-8",
+    )
+
+    class FakeCrashAnalyzer:
+        def build_module_index(self, mods_dir: Path, extra_roots: list[Path]) -> dict[str, str]:
+            return {}
+
+        def analyze(self, reports: list[Any], index: dict[str, str]) -> Any:
+            return SimpleNamespace()
+
+    class FakeUiAnalyzer:
+        def build_resource_index(
+            self,
+            mods_dir: Path,
+            extra_roots: list[Path],
+            target_keys: set[int],
+        ) -> dict[int, list[str]]:
+            return {}
+
+        def analyze(self, reports: list[Any], index: dict[int, list[str]]) -> Any:
+            return SimpleNamespace()
+
+    payload = doctor_core.build_doctor_payload(
+        sims4,
+        mods,
+        recursive=False,
+        crash_analyzer_factory=FakeCrashAnalyzer,
+        ui_analyzer_factory=FakeUiAnalyzer,
+        parse_exception=lambda path: [],
+        parse_ui_exception=lambda path: [],
+        is_disabled_name=lambda name: False,
+        discover_disabled_roots_fn=lambda base: [],
+        crash_serializer=lambda result: {
+            "summary": {
+                "reports": 0,
+                "active_culprits": 0,
+                "disabled_culprits": 0,
+                "not_installed_culprits": 0,
+                "base_game_only": 0,
+            },
+            "ranked_mods": [],
+            "parse_errors": [],
+        },
+        ui_serializer=lambda result: {
+            "summary": {
+                "unique_findings": 0,
+                "occurrences": 0,
+                "active_findings": 0,
+                "disabled_findings": 0,
+                "not_found_findings": 0,
+                "no_key_findings": 0,
+            },
+            "findings": [],
+            "parse_errors": [],
+            "index_errors": [],
+        },
+    )
+
+    assert payload["evidence_scope"] == {
+        "mode": "current",
+        "recursive": False,
+        "base_path": str(sims4.resolve()),
+        "mods_path": str(mods.resolve()),
+        "log_patterns": {
+            "script": "lastException*.txt",
+            "ui": "lastUIException*.txt",
+            "native_crash": "lastCrash*.txt",
+        },
+        "scanned_log_counts": {"script": 0, "ui": 0, "native_crash": 1},
+        "archived_disabled_logs_included": False,
+    }
+    assert payload["summary"]["native_crash_reports"] == 1
+    assert payload["summary"]["latest_evidence"] == {
+        "script": None,
+        "ui": None,
+        "native_crash": "2026-06-16 22:19:10",
+        "overall": "2026-06-16 22:19:10",
+    }
+    assert payload["native_crashes"]["summary"] == {"reports": 1, "unattributed": 1}
+    assert payload["native_crashes"]["reports"][0]["status"] == "unattributed_native"
+    assert payload["native_crashes"]["reports"][0]["actionability"] == "informational"
+
+
+def test_build_doctor_payload_recursive_scope_includes_archived_native_crashes(
+    tmp_path: Path,
+) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    archive = sims4 / "_Quarantine_Logs"
+    mods.mkdir(parents=True)
+    archive.mkdir()
+    (archive / "lastCrash_archived.txt").write_text(
+        "<root><report><createtime>2026-06-10 10:00:00</createtime></report></root>",
+        encoding="utf-8",
+    )
+
+    class FakeAnalyzer:
+        def build_module_index(self, mods_dir: Path, extra_roots: list[Path]) -> dict[str, str]:
+            return {}
+
+        def build_resource_index(
+            self,
+            mods_dir: Path,
+            extra_roots: list[Path],
+            target_keys: set[int],
+        ) -> dict[int, list[str]]:
+            return {}
+
+        def analyze(self, reports: list[Any], index: Any) -> Any:
+            return SimpleNamespace()
+
+    payload = doctor_core.build_doctor_payload(
+        sims4,
+        mods,
+        recursive=True,
+        crash_analyzer_factory=FakeAnalyzer,
+        ui_analyzer_factory=FakeAnalyzer,
+        parse_exception=lambda path: [],
+        parse_ui_exception=lambda path: [],
+        is_disabled_name=lambda name: False,
+        discover_disabled_roots_fn=lambda base: [],
+        crash_serializer=lambda result: {
+            "summary": {
+                "reports": 0,
+                "active_culprits": 0,
+                "disabled_culprits": 0,
+                "not_installed_culprits": 0,
+                "base_game_only": 0,
+            },
+            "ranked_mods": [],
+            "parse_errors": [],
+        },
+        ui_serializer=lambda result: {
+            "summary": {
+                "unique_findings": 0,
+                "occurrences": 0,
+                "active_findings": 0,
+                "disabled_findings": 0,
+                "not_found_findings": 0,
+                "no_key_findings": 0,
+            },
+            "findings": [],
+            "parse_errors": [],
+            "index_errors": [],
+        },
+    )
+
+    assert payload["evidence_scope"]["mode"] == "recursive"
+    assert payload["evidence_scope"]["log_patterns"]["native_crash"] == "**/lastCrash*.txt"
+    assert payload["evidence_scope"]["scanned_log_counts"]["native_crash"] == 1
+    assert payload["evidence_scope"]["archived_disabled_logs_included"] is True
+
+
 def test_build_doctor_payload_includes_chronological_timeline(tmp_path: Path) -> None:
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"
@@ -380,6 +551,44 @@ def test_format_doctor_text_surfaces_timeline_with_limit() -> None:
     assert "ui 2026-06-15T00:30:00Z - lastUIException.txt - BuildBuy03B" in report
     assert "... 1 more timeline event hidden by --limit" in report
     assert "Newer script failure" not in report
+
+
+def test_format_doctor_text_surfaces_scope_and_native_crashes() -> None:
+    payload = {
+        "summary": _summary(native_crash_reports=1),
+        "evidence_scope": {
+            "mode": "recursive",
+            "archived_disabled_logs_included": True,
+            "scanned_log_counts": {"script": 2, "ui": 1, "native_crash": 1},
+        },
+        "script_crashes": {"ranked_mods": []},
+        "ui_crashes": {"findings": []},
+        "native_crashes": {
+            "summary": {"reports": 1, "unattributed": 1},
+            "parse_errors": [],
+            "reports": [
+                {
+                    "source_file": "/Sims/lastCrash.txt",
+                    "created": "2026-06-16 22:19:10",
+                    "category_id": "gameplay.NativeCrash",
+                    "build_signature": "Local.1.124.55.1230",
+                    "modded": False,
+                    "current_game_state": "Live_Mode",
+                    "stack_snippet": ["Native stack line"],
+                    "status": "unattributed_native",
+                    "actionability": "informational",
+                }
+            ],
+        },
+    }
+
+    report = doctor_core.format_doctor_text(payload)
+
+    assert "Evidence scope: Archived/quarantined included" in report
+    assert "Archived/quarantined logs may be included in this evidence." in report
+    assert "Native crashes: 1 report(s) | unattributed: 1" in report
+    assert "lastCrash.txt - 2026-06-16 22:19:10 - gameplay.NativeCrash" in report
+    assert "No active Doctor findings found." in report
 
 
 def test_doctor_ledger_history_summarizes_recent_scans_and_latest_events(

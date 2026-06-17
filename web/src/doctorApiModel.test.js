@@ -23,6 +23,18 @@ test('doctor scan options include explicit inventory database', () => {
     );
 });
 
+test('doctor scan options include recursive only when requested', () => {
+    assert.deepEqual(doctorScanOptions('/Sims/Mods', { recursive: true }), {
+        modsPath: '/Sims/Mods',
+        recursive: true,
+    });
+
+    assert.deepEqual(doctorScanOptions('/Sims/Mods', { recursive: false }), {
+        modsPath: '/Sims/Mods',
+        recursive: false,
+    });
+});
+
 test('doctor scan options omit empty optional paths', () => {
     assert.deepEqual(
         doctorScanOptions('', {

@@ -4,7 +4,7 @@ function optionalTrimmedPath(value) {
 }
 
 export function doctorScanOptions(modsPath, options = {}) {
-    const result = { recursive: false };
+    const result = { recursive: options.recursive === true };
     const mods = optionalTrimmedPath(modsPath);
     const inventoryDb = optionalTrimmedPath(options.inventoryDb);
 
