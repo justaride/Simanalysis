@@ -910,9 +910,23 @@ def test_doctor_scan_emits_combined_result(monkeypatch, tmp_path):
         "ui_no_key": 0,
         "parse_errors": 0,
         "index_errors": 1,
+        "native_crash_reports": 0,
+        "latest_evidence": {
+            "script": None,
+            "ui": None,
+            "native_crash": None,
+            "overall": None,
+        },
+    }
+    assert data["evidence_scope"]["mode"] == "current"
+    assert data["evidence_scope"]["scanned_log_counts"] == {
+        "script": 1,
+        "ui": 1,
+        "native_crash": 0,
     }
     assert data["script_crashes"]["summary"]["reports"] == 1
     assert data["ui_crashes"]["summary"]["unique_findings"] == 1
+    assert data["native_crashes"]["summary"] == {"reports": 0, "unattributed": 0}
 
 
 def test_doctor_scan_passes_explicit_inventory_db(monkeypatch, tmp_path):

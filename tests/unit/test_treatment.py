@@ -203,6 +203,34 @@ def test_create_plan_collects_only_active_doctor_candidates_without_writing(
     assert plan["warnings"] == []
 
 
+def test_create_plan_ignores_native_crash_evidence(tmp_path: Path) -> None:
+    sims4 = tmp_path / "The Sims 4"
+    mods = sims4 / "Mods"
+    mods.mkdir(parents=True)
+    payload = {
+        "summary": {"script_active": 0, "ui_active": 0, "native_crash_reports": 1},
+        "script_crashes": {"ranked_mods": [], "findings": [], "parse_errors": []},
+        "ui_crashes": {"findings": [], "parse_errors": [], "index_errors": []},
+        "native_crashes": {
+            "summary": {"reports": 1, "unattributed": 1},
+            "parse_errors": [],
+            "reports": [
+                {
+                    "source_file": str(sims4 / "lastCrash.txt"),
+                    "status": "unattributed_native",
+                    "actionability": "informational",
+                }
+            ],
+        },
+    }
+
+    plan = create_plan(sims4, mods, payload, save=False)
+
+    assert plan["active_candidates"] == []
+    assert plan["next_batch"] == []
+    assert plan["warnings"] == ["No active Doctor candidates can be moved."]
+
+
 def test_create_plan_skips_disabled_folders_under_mods(tmp_path: Path) -> None:
     sims4 = tmp_path / "The Sims 4"
     mods = sims4 / "Mods"

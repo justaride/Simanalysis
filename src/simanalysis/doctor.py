@@ -12,11 +12,12 @@ from simanalysis.analyzers.ui_crash_analyzer import UICrashAnalyzer, discover_di
 from simanalysis.classification import summarize_classifications
 from simanalysis.inventory import InventoryScanner
 from simanalysis.parsers.exception_log import parse_exception_file
+from simanalysis.parsers.native_crash_log import NativeCrashReport, parse_native_crash_file
 from simanalysis.parsers.ui_exception_log import parse_ui_exception_file
 from simanalysis.script_security import summarize_script_security
 
 
-def doctor_summary(script_payload: dict[str, Any], ui_payload: dict[str, Any]) -> dict[str, int]:
+def doctor_summary(script_payload: dict[str, Any], ui_payload: dict[str, Any]) -> dict[str, Any]:
     """Return the compact summary shared by bridge, CLI, and live-monitoring flows."""
     script_summary = script_payload.get("summary", {})
     ui_summary = ui_payload.get("summary", {})
@@ -35,6 +36,70 @@ def doctor_summary(script_payload: dict[str, Any], ui_payload: dict[str, Any]) -
         "parse_errors": len(script_payload.get("parse_errors", []))
         + len(ui_payload.get("parse_errors", [])),
         "index_errors": len(ui_payload.get("index_errors", [])),
+    }
+
+
+def _latest_created(reports: Iterable[Any]) -> str | None:
+    created = [str(value) for report in reports if (value := getattr(report, "created", None))]
+    return max(created) if created else None
+
+
+def _latest_evidence(
+    script_reports: Iterable[Any],
+    ui_reports: Iterable[Any],
+    native_reports: Iterable[Any],
+) -> dict[str, str | None]:
+    latest = {
+        "script": _latest_created(script_reports),
+        "ui": _latest_created(ui_reports),
+        "native_crash": _latest_created(native_reports),
+    }
+    all_values = [value for value in latest.values() if value]
+    latest["overall"] = max(all_values) if all_values else None
+    return latest
+
+
+def _native_crash_report_to_dict(report: NativeCrashReport) -> dict[str, Any]:
+    return {
+        "source_file": report.source_file,
+        "created": report.created,
+        "category_id": report.category_id,
+        "build_signature": report.build_signature,
+        "modded": report.modded,
+        "current_game_state": report.current_game_state,
+        "stack_snippet": report.stack_snippet,
+        "status": "unattributed_native",
+        "actionability": "informational",
+    }
+
+
+def _native_crash_payload(
+    reports: list[NativeCrashReport],
+    parse_errors: list[str],
+) -> dict[str, Any]:
+    return {
+        "summary": {"reports": len(reports), "unattributed": len(reports)},
+        "parse_errors": parse_errors,
+        "reports": [_native_crash_report_to_dict(report) for report in reports],
+    }
+
+
+def _evidence_scope(
+    base: Path,
+    mods_dir: Path,
+    *,
+    recursive: bool,
+    log_patterns: dict[str, str],
+    scanned_log_counts: dict[str, int],
+) -> dict[str, Any]:
+    return {
+        "mode": "recursive" if recursive else "current",
+        "recursive": recursive,
+        "base_path": str(base.resolve()),
+        "mods_path": str(mods_dir.resolve()),
+        "log_patterns": log_patterns,
+        "scanned_log_counts": scanned_log_counts,
+        "archived_disabled_logs_included": recursive,
     }
 
 
@@ -270,6 +335,7 @@ def build_doctor_payload(
     ui_analyzer_factory: Callable[[], Any] = UICrashAnalyzer,
     parse_exception: Callable[[Path], Iterable[Any]] = parse_exception_file,
     parse_ui_exception: Callable[[Path], Iterable[Any]] = parse_ui_exception_file,
+    parse_native_crash: Callable[[Path], Iterable[NativeCrashReport]] = parse_native_crash_file,
     is_disabled_name: Callable[[str], bool] = _is_disabled_name,
     discover_disabled_roots_fn: Callable[[Path], Iterable[Path]] = discover_disabled_roots,
     crash_serializer: Callable[[Any], dict[str, Any]] = serialization.crash_result_to_dict,
@@ -278,10 +344,16 @@ def build_doctor_payload(
 ) -> dict[str, Any]:
     """Build a combined script/UI Doctor payload without mutating the Sims folder."""
     pattern = "**/lastException*.txt" if recursive else "lastException*.txt"
+    log_patterns = {
+        "script": pattern,
+        "ui": "**/lastUIException*.txt" if recursive else "lastUIException*.txt",
+        "native_crash": "**/lastCrash*.txt" if recursive else "lastCrash*.txt",
+    }
     crash_reports: list[Any] = []
     crash_parse_errors = []
+    script_log_files = sorted(base.glob(pattern))
     seen = set()
-    for log_file in sorted(base.glob(pattern)):
+    for log_file in script_log_files:
         try:
             for report in parse_exception(log_file):
                 if report.signature in seen:
@@ -300,10 +372,10 @@ def build_doctor_payload(
     if progress_callback:
         progress_callback("script-crashes")
 
-    ui_pattern = "**/lastUIException*.txt" if recursive else "lastUIException*.txt"
     ui_reports: list[Any] = []
     ui_parse_errors = []
-    for log_file in sorted(base.glob(ui_pattern)):
+    ui_log_files = sorted(base.glob(log_patterns["ui"]))
+    for log_file in ui_log_files:
         try:
             ui_reports.extend(parse_ui_exception(log_file))
         except Exception as exc:
@@ -325,8 +397,30 @@ def build_doctor_payload(
     if progress_callback:
         progress_callback("ui-crashes")
 
+    native_reports: list[NativeCrashReport] = []
+    native_parse_errors: list[str] = []
+    native_log_files = sorted(base.glob(log_patterns["native_crash"]))
+    for log_file in native_log_files:
+        try:
+            native_reports.extend(parse_native_crash(log_file))
+        except Exception as exc:
+            native_parse_errors.append(f"{log_file.name}: {exc}")
+
     summary = doctor_summary(crash_payload, ui_payload)
+    summary["native_crash_reports"] = len(native_reports)
+    summary["latest_evidence"] = _latest_evidence(crash_reports, ui_reports, native_reports)
     payload = {
+        "evidence_scope": _evidence_scope(
+            base,
+            mods_dir,
+            recursive=recursive,
+            log_patterns=log_patterns,
+            scanned_log_counts={
+                "script": len(script_log_files),
+                "ui": len(ui_log_files),
+                "native_crash": len(native_log_files),
+            },
+        ),
         "summary": summary,
         "classification_summary": summarize_classifications(mods_dir),
         "script_security_summary": summarize_script_security(mods_dir),
@@ -335,6 +429,7 @@ def build_doctor_payload(
         "timeline": doctor_timeline(crash_reports, ui_reports),
         "script_crashes": crash_payload,
         "ui_crashes": ui_payload,
+        "native_crashes": _native_crash_payload(native_reports, native_parse_errors),
     }
     if inventory_db is not None:
         payload["ledger_history"] = doctor_ledger_history(base, inventory_db)
@@ -344,6 +439,7 @@ def build_doctor_payload(
 def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
     """Format a compact, evidence-labeled Doctor report for terminal use."""
     summary = payload.get("summary", {})
+    safe_limit = max(limit, 0)
     lines = [
         "Sims Doctor",
         (
@@ -370,6 +466,23 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
         ),
         "",
     ]
+
+    scope = payload.get("evidence_scope")
+    if isinstance(scope, dict):
+        included = bool(scope.get("archived_disabled_logs_included"))
+        label = "Archived/quarantined included" if included else "Current logs only"
+        lines.append(f"Evidence scope: {label}")
+        counts = scope.get("scanned_log_counts", {})
+        if isinstance(counts, dict):
+            lines.append(
+                "  - Logs scanned: "
+                f"script: {counts.get('script', 0)} | "
+                f"ui: {counts.get('ui', 0)} | "
+                f"native crash: {counts.get('native_crash', 0)}"
+            )
+        if included:
+            lines.append("  - Archived/quarantined logs may be included in this evidence.")
+        lines.append("")
 
     verdicts = payload.get("verdicts")
     if not isinstance(verdicts, list):
@@ -398,6 +511,37 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
             next_command = playbook.get("next_command")
             if next_command:
                 lines.append(f"    Command: {next_command}")
+        lines.append("")
+
+    native_crashes = payload.get("native_crashes")
+    if isinstance(native_crashes, dict):
+        native_summary = native_crashes.get("summary", {})
+        if not isinstance(native_summary, dict):
+            native_summary = {}
+        lines.append(
+            "Native crashes: "
+            f"{native_summary.get('reports', 0)} report(s) | "
+            f"unattributed: {native_summary.get('unattributed', 0)}"
+        )
+        native_reports = native_crashes.get("reports", [])
+        if isinstance(native_reports, list):
+            for report in native_reports[:safe_limit]:
+                if not isinstance(report, dict):
+                    continue
+                source_file = Path(str(report.get("source_file", ""))).name or "unknown source"
+                created = report.get("created") or "unknown time"
+                category = report.get("category_id") or "unknown category"
+                lines.append(f"  - {source_file} - {created} - {category}")
+                stack = report.get("stack_snippet", [])
+                if isinstance(stack, list) and stack:
+                    lines.append(f"    {stack[0]}")
+            hidden = len(native_reports) - safe_limit
+            if hidden > 0:
+                lines.append(f"  ... {hidden} more native crash report(s) hidden by --limit")
+        native_errors = native_crashes.get("parse_errors", [])
+        if isinstance(native_errors, list):
+            for error in native_errors:
+                lines.append(f"  - Parse warning: {error}")
         lines.append("")
 
     classification_summary = payload.get("classification_summary")
@@ -431,7 +575,6 @@ def format_doctor_text(payload: dict[str, Any], limit: int = 20) -> str:
         lines.append("  - Static review only: no script code executed")
         lines.append("")
 
-    safe_limit = max(limit, 0)
     timeline = payload.get("timeline")
     if isinstance(timeline, list) and timeline:
         lines.append("Doctor timeline:")

@@ -126,6 +126,131 @@ test('doctor timeline rows preserve chronological evidence labels', async () => 
     ]);
 });
 
+test('doctor scope summary labels current and recursive evidence', async () => {
+    const { summarizeDoctorScope } = await loadModel();
+
+    assert.deepEqual(
+        summarizeDoctorScope({
+            evidence_scope: {
+                mode: 'current',
+                archived_disabled_logs_included: false,
+                scanned_log_counts: { script: 1, ui: 0, native_crash: 1 },
+            },
+        }),
+        {
+            mode: 'current',
+            label: 'Current logs only',
+            description: 'Top-level Sims 4 logs only.',
+            archivedDisabledIncluded: false,
+            counts: { script: 1, ui: 0, nativeCrash: 1 },
+        },
+    );
+
+    assert.deepEqual(
+        summarizeDoctorScope({
+            evidence_scope: {
+                mode: 'recursive',
+                archived_disabled_logs_included: true,
+                scanned_log_counts: { script: 2, ui: 1, native_crash: 3 },
+            },
+        }),
+        {
+            mode: 'recursive',
+            label: 'Archived/quarantined included',
+            description: 'Subfolders may include archived or quarantined log evidence.',
+            archivedDisabledIncluded: true,
+            counts: { script: 2, ui: 1, nativeCrash: 3 },
+        },
+    );
+});
+
+test('doctor native crash summaries render as unattributed evidence', async () => {
+    const { summarizeNativeCrashes } = await loadModel();
+
+    assert.deepEqual(
+        summarizeNativeCrashes({
+            native_crashes: {
+                reports: [
+                    {
+                        source_file: '/Sims/The Sims 4/lastCrash.txt',
+                        created: '2026-06-16 22:19:10',
+                        category_id: 'gameplay.NativeCrash',
+                        build_signature: 'Local.1.124.55.1230',
+                        modded: false,
+                        current_game_state: 'Live_Mode',
+                        stack_snippet: ['Native stack line'],
+                        status: 'unattributed_native',
+                        actionability: 'informational',
+                    },
+                ],
+                parse_errors: ['lastCrash_bad.txt: unterminated <report>'],
+            },
+        }),
+        {
+            reports: [
+                {
+                    id: 'native-/Sims/The Sims 4/lastCrash.txt-2026-06-16 22:19:10-gameplay.NativeCrash',
+                    sourceFile: '/Sims/The Sims 4/lastCrash.txt',
+                    sourceName: 'lastCrash.txt',
+                    created: '2026-06-16 22:19:10',
+                    categoryId: 'gameplay.NativeCrash',
+                    buildSignature: 'Local.1.124.55.1230',
+                    modded: false,
+                    currentGameState: 'Live_Mode',
+                    stackSnippet: ['Native stack line'],
+                    status: 'unattributed_native',
+                    statusLabel: 'Unattributed native',
+                    actionability: 'informational',
+                    actionabilityLabel: 'Informational',
+                },
+            ],
+            parseErrors: ['lastCrash_bad.txt: unterminated <report>'],
+        },
+    );
+});
+
+test('doctor finding groups separate no-key UI evidence from package matches', async () => {
+    const { summarizeDoctorFindingGroups } = await loadModel();
+    const groups = summarizeDoctorFindingGroups({
+        script_crashes: {
+            ranked_mods: [{ mod: 'Missing.ts4script', status: 'not_installed' }],
+            findings: [],
+            parse_errors: [],
+        },
+        ui_crashes: {
+            findings: [
+                {
+                    status: 'active',
+                    report: { signature: 'active', message: 'Active package hit' },
+                    hits: [{ status: 'active', package_name: 'menu.package' }],
+                },
+                {
+                    status: 'no_key',
+                    report: { signature: 'nokey', message: 'No resource key' },
+                    hits: [],
+                },
+                {
+                    status: 'not_found',
+                    report: { signature: 'missing', message: 'Missing package' },
+                    hits: [],
+                },
+            ],
+            parse_errors: [],
+            index_errors: [],
+        },
+    });
+
+    assert.equal(groups.needsAttention[1].items.length, 1);
+    assert.deepEqual(
+        groups.unattributed.map((group) => [group.label, group.items.length]),
+        [
+            ['Script references not installed', 1],
+            ['UI resources not installed', 1],
+            ['UI findings without resource keys', 1],
+        ],
+    );
+});
+
 test('doctor ledger history summarizes scans and latest file events', async () => {
     const { summarizeDoctorLedgerHistory } = await loadModel();
     const summary = summarizeDoctorLedgerHistory({

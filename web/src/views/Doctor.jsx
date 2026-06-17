@@ -21,10 +21,13 @@ import api from '../api';
 import FilePicker from '../components/FilePicker';
 import { useProfileDefaultPath } from '../hooks/useProfileDefaultPath';
 import {
+    summarizeDoctorFindingGroups,
     summarizeDoctorLedgerHistory,
     summarizeDoctorPlaybooks,
+    summarizeDoctorScope,
     summarizeDoctorTimeline,
     summarizeDoctorVerdicts,
+    summarizeNativeCrashes,
 } from './doctorModel';
 
 const DEFAULT_SIMS_PATH = '~/Documents/Electronic Arts/The Sims 4';
@@ -47,89 +50,6 @@ function uniquePackagePaths(hits = []) {
     return [...new Set(hits.map((hit) => hit.package_path).filter(Boolean))];
 }
 
-function collectScriptEvidence(result) {
-    const byMod = {};
-    const findings = result?.script_crashes?.findings || [];
-    findings.forEach((finding) => {
-        (finding.suspects || []).forEach((suspect) => {
-            if (!suspect.mod) return;
-            if (!byMod[suspect.mod]) byMod[suspect.mod] = new Set();
-            (suspect.evidence || []).forEach((path) => byMod[suspect.mod].add(path));
-        });
-    });
-    return Object.fromEntries(Object.entries(byMod).map(([mod, paths]) => [mod, [...paths]]));
-}
-
-function buildGroups(result) {
-    const rankedMods = result?.script_crashes?.ranked_mods || [];
-    const uiFindings = result?.ui_crashes?.findings || [];
-    const scriptEvidence = collectScriptEvidence(result);
-    const scriptItems = rankedMods.map((item) => ({
-        ...item,
-        evidence: scriptEvidence[item.mod] || [],
-    }));
-    const errorItems = [
-        ...(result?.script_crashes?.parse_errors || []).map((message) => ({
-            source: 'Script log parser',
-            message,
-        })),
-        ...(result?.ui_crashes?.parse_errors || []).map((message) => ({
-            source: 'UI log parser',
-            message,
-        })),
-        ...(result?.ui_crashes?.index_errors || []).map((message) => ({
-            source: 'Package index',
-            message,
-        })),
-    ];
-
-    return {
-        needsAttention: [
-            {
-                label: 'Script suspects still active',
-                kind: 'script',
-                items: scriptItems.filter((item) => item.status === 'active'),
-            },
-            {
-                label: 'UI resources found in active packages',
-                kind: 'ui',
-                items: uiFindings.filter((item) => item.status === 'active'),
-            },
-        ],
-        alreadyDisabled: [
-            {
-                label: 'Script suspects already disabled',
-                kind: 'script',
-                items: scriptItems.filter((item) => item.status === 'disabled'),
-            },
-            {
-                label: 'UI resources already disabled',
-                kind: 'ui',
-                items: uiFindings.filter((item) => item.status === 'disabled'),
-            },
-        ],
-        missingUnknown: [
-            {
-                label: 'Script references not installed',
-                kind: 'script',
-                items: scriptItems.filter((item) => item.status === 'not_installed'),
-            },
-            {
-                label: 'UI resources missing or without keys',
-                kind: 'ui',
-                items: uiFindings.filter((item) => ['not_found', 'no_key'].includes(item.status)),
-            },
-        ],
-        errors: [
-            {
-                label: 'Parse and index errors',
-                kind: 'error',
-                items: errorItems,
-            },
-        ],
-    };
-}
-
 function StatTile({ label, value, tone = 'blue' }) {
     const tones = {
         blue: 'text-blue-300 bg-blue-500/10 border-blue-500/30',
@@ -143,6 +63,30 @@ function StatTile({ label, value, tone = 'blue' }) {
             <p className="text-xs uppercase tracking-wider opacity-80">{label}</p>
             <p className="mt-2 text-3xl font-bold text-white">{value}</p>
         </div>
+    );
+}
+
+function ScopeBanner({ scope }) {
+    if (!scope) return null;
+    const tone = scope.archivedDisabledIncluded
+        ? 'border-amber-500/40 bg-amber-950/20 text-amber-100'
+        : 'border-blue-500/35 bg-blue-950/20 text-blue-100';
+    return (
+        <section className={`rounded-xl border p-4 ${tone}`}>
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                    <p className="text-sm font-semibold text-white">{scope.label}</p>
+                    <p className="mt-1 text-sm opacity-80">{scope.description}</p>
+                </div>
+                <div className="flex flex-wrap gap-2 text-xs">
+                    <span className="rounded bg-black/25 px-2 py-1">Script {scope.counts.script}</span>
+                    <span className="rounded bg-black/25 px-2 py-1">UI {scope.counts.ui}</span>
+                    <span className="rounded bg-black/25 px-2 py-1">
+                        Native {scope.counts.nativeCrash}
+                    </span>
+                </div>
+            </div>
+        </section>
     );
 }
 
@@ -362,12 +306,79 @@ function LedgerPanel({ ledger }) {
     );
 }
 
-function DoctorEvidenceContext({ timeline, ledger }) {
-    if (timeline.length === 0 && !ledger) return null;
+function NativeCrashPanel({ nativeCrashes }) {
+    if (!nativeCrashes || (nativeCrashes.reports.length === 0 && nativeCrashes.parseErrors.length === 0)) {
+        return null;
+    }
+    const visible = nativeCrashes.reports.slice(0, 5);
+    return (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-950/10">
+            <div className="flex items-center justify-between gap-3 border-b border-amber-500/20 px-5 py-4">
+                <div className="flex items-center gap-2">
+                    <FileWarning className="text-amber-300" size={20} />
+                    <h2 className="text-lg font-semibold text-white">Native Crashes</h2>
+                </div>
+                <span className="rounded-md border border-amber-500/30 px-2 py-1 text-xs uppercase text-amber-100">
+                    Unattributed
+                </span>
+            </div>
+            <div className="space-y-3 p-5">
+                {visible.map((report) => (
+                    <div key={report.id} className="rounded-lg border border-amber-500/20 bg-black/20 p-4">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                            <div className="min-w-0">
+                                <p className="truncate font-semibold text-white" title={report.sourceFile}>
+                                    {report.sourceName}
+                                </p>
+                                <p className="mt-1 text-sm text-amber-100/80">
+                                    {report.created || 'unknown time'}
+                                    {report.categoryId ? ` · ${report.categoryId}` : ''}
+                                </p>
+                            </div>
+                            <span className="w-fit rounded-md border border-amber-500/30 px-2 py-1 text-xs uppercase text-amber-100">
+                                {report.actionabilityLabel}
+                            </span>
+                        </div>
+                        {(report.currentGameState || report.buildSignature) && (
+                            <p className="mt-3 text-xs text-gray-400">
+                                {[report.currentGameState, report.buildSignature].filter(Boolean).join(' · ')}
+                            </p>
+                        )}
+                        {report.stackSnippet.length > 0 && (
+                            <div className="mt-3 space-y-1">
+                                {report.stackSnippet.slice(0, 3).map((line) => (
+                                    <p key={line} className="truncate font-mono text-xs text-gray-300" title={line}>
+                                        {line}
+                                    </p>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
+                {nativeCrashes.reports.length > visible.length && (
+                    <p className="text-xs text-gray-500">
+                        +{nativeCrashes.reports.length - visible.length} more native crash report(s)
+                    </p>
+                )}
+                {nativeCrashes.parseErrors.map((error) => (
+                    <p key={error} className="rounded-lg border border-amber-500/30 bg-black/20 p-2 text-xs text-amber-100">
+                        {error}
+                    </p>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function DoctorEvidenceContext({ timeline, ledger, nativeCrashes }) {
+    if (timeline.length === 0 && !ledger && nativeCrashes.reports.length === 0 && nativeCrashes.parseErrors.length === 0) return null;
     return (
         <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,1fr)]">
             <TimelinePanel timeline={timeline} />
-            <LedgerPanel ledger={ledger} />
+            <div className="space-y-4">
+                <NativeCrashPanel nativeCrashes={nativeCrashes} />
+                <LedgerPanel ledger={ledger} />
+            </div>
         </section>
     );
 }
@@ -550,21 +561,27 @@ function Doctor() {
     const [showSimsPicker, setShowSimsPicker] = useState(false);
     const [showModsPicker, setShowModsPicker] = useState(false);
     const [showInventoryDbPicker, setShowInventoryDbPicker] = useState(false);
+    const [includeArchivedLogs, setIncludeArchivedLogs] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [progress, setProgress] = useState(null);
     const [error, setError] = useState(null);
     const [result, setResult] = useState(null);
 
-    const groups = useMemo(() => buildGroups(result), [result]);
+    const groups = useMemo(() => summarizeDoctorFindingGroups(result), [result]);
     const verdicts = useMemo(() => summarizeDoctorVerdicts(result), [result]);
     const playbooks = useMemo(() => summarizeDoctorPlaybooks(result), [result]);
     const timeline = useMemo(() => summarizeDoctorTimeline(result), [result]);
     const ledger = useMemo(() => summarizeDoctorLedgerHistory(result), [result]);
+    const scope = useMemo(() => summarizeDoctorScope(result), [result]);
+    const nativeCrashes = useMemo(() => summarizeNativeCrashes(result), [result]);
     const summary = result?.summary || {};
     const activeTotal = (summary.script_active || 0) + (summary.ui_active || 0);
     const disabledTotal = (summary.script_disabled || 0) + (summary.ui_disabled || 0);
     const unknownTotal =
-        (summary.script_not_installed || 0) + (summary.ui_not_found || 0) + (summary.ui_no_key || 0);
+        (summary.script_not_installed || 0) +
+        (summary.ui_not_found || 0) +
+        (summary.ui_no_key || 0) +
+        (summary.native_crash_reports || 0);
 
     const handleScan = () => {
         if (!simsPath.trim()) {
@@ -594,6 +611,7 @@ function Doctor() {
             },
             {
                 inventoryDb: inventoryDb.trim() || null,
+                recursive: includeArchivedLogs,
             },
         );
     };
@@ -707,6 +725,17 @@ function Doctor() {
                                 </button>
                             </div>
                         </div>
+                        <div className="xl:col-span-3">
+                            <label className="flex w-fit items-center gap-3 rounded-lg border border-gray-700 bg-gray-900/50 px-3 py-2 text-sm text-gray-300">
+                                <input
+                                    type="checkbox"
+                                    checked={includeArchivedLogs}
+                                    onChange={(event) => setIncludeArchivedLogs(event.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-600 bg-gray-950 text-blue-500"
+                                />
+                                Include archived/quarantined logs
+                            </label>
+                        </div>
                         <div className="flex items-end">
                             <button
                                 onClick={handleScan}
@@ -746,10 +775,11 @@ function Doctor() {
 
                 {result ? (
                     <>
+                        <ScopeBanner scope={scope} />
                         <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
                             <StatTile label="Needs Attention" value={activeTotal} tone={activeTotal ? 'red' : 'green'} />
                             <StatTile label="Already Disabled" value={disabledTotal} tone="green" />
-                            <StatTile label="Missing / Unknown" value={unknownTotal} tone="amber" />
+                            <StatTile label="Unattributed / Not installed" value={unknownTotal} tone="amber" />
                             <StatTile
                                 label="Errors"
                                 value={(summary.parse_errors || 0) + (summary.index_errors || 0)}
@@ -758,7 +788,7 @@ function Doctor() {
                         </section>
 
                         <DoctorGuidance verdicts={verdicts} playbooks={playbooks} />
-                        <DoctorEvidenceContext timeline={timeline} ledger={ledger} />
+                        <DoctorEvidenceContext timeline={timeline} ledger={ledger} nativeCrashes={nativeCrashes} />
 
                         <div className="grid gap-6 xl:grid-cols-4">
                             <FindingGroup
@@ -776,11 +806,11 @@ function Doctor() {
                                 groups={groups.alreadyDisabled}
                             />
                             <FindingGroup
-                                title="Missing or Unknown"
+                                title="Unattributed / Not installed"
                                 description="References that cannot be resolved to an active installed file."
                                 icon={FileWarning}
                                 tone="amber"
-                                groups={groups.missingUnknown}
+                                groups={groups.unattributed}
                             />
                             <FindingGroup
                                 title="Errors"
@@ -799,17 +829,20 @@ function Doctor() {
                             <div className="grid gap-3 text-sm text-gray-400 md:grid-cols-2">
                                 <p>Script reports: {summary.script_reports || 0}</p>
                                 <p>UI findings: {summary.ui_findings || 0}</p>
+                                <p>Native crashes: {summary.native_crash_reports || 0}</p>
                                 <p>UI occurrences: {summary.ui_occurrences || 0}</p>
                                 <p>Index errors: {summary.index_errors || 0}</p>
                             </div>
                             {((result.script_crashes?.parse_errors || []).length > 0 ||
                                 (result.ui_crashes?.parse_errors || []).length > 0 ||
-                                (result.ui_crashes?.index_errors || []).length > 0) && (
+                                (result.ui_crashes?.index_errors || []).length > 0 ||
+                                (result.native_crashes?.parse_errors || []).length > 0) && (
                                 <pre className="mt-4 max-h-56 overflow-auto rounded-lg bg-black/40 p-3 text-xs text-gray-300">
                                     {[
                                         ...(result.script_crashes?.parse_errors || []),
                                         ...(result.ui_crashes?.parse_errors || []),
                                         ...(result.ui_crashes?.index_errors || []),
+                                        ...(result.native_crashes?.parse_errors || []),
                                     ].join('\n')}
                                 </pre>
                             )}
